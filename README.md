@@ -1,8 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# KMRL Frontend Application
 
-## Getting Started
+A modern, multilingual content delivery platform built with Next.js 13+, featuring AI-powered translation services, real-time content management, and a responsive user interface.
 
-First, run the development server:
+## 🚀 Tech Stack
+
+- **Framework**: Next.js 13+ with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **State Management**: React Context API / Zustand (when needed)
+- **Authentication**: Session-based with cookies (NextAuth ready)
+- **Deployment**: Optimized for Vercel
+
+## 📋 Features
+
+- ✅ **Multilingual Support**: Real-time translation powered by AI services
+- ✅ **Responsive Design**: Mobile-first approach with Tailwind CSS
+- ✅ **Authentication System**: Secure login/register with session management
+- ✅ **Dashboard Interface**: Analytics and content management
+- ✅ **AI Integration**: Chat interface for AI-powered assistance
+- ✅ **Error Handling**: Custom error and 404 pages
+- ✅ **Server-Side Rendering**: Optimized for SEO and performance
+- ✅ **Type Safety**: Full TypeScript implementation
+
+## 🛠 Prerequisites
+
+- Node.js 18.17 or later
+- npm, yarn, pnpm, or bun package manager
+- Git for version control
+
+## 📦 Installation
+
+1. Clone the repository:
+```bash
+git clone [repository-url]
+cd kmrl-frontend
+```
+
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+```
+
+3. Set up environment variables:
+```bash
+cp .env.example .env.local
+```
+
+4. Update `.env.local` with your configuration:
+- Backend API URL
+- AI Service endpoints
+- Authentication secrets
+- Translation API keys
+
+## 🚀 Development
+
+Run the development server:
 
 ```bash
 npm run dev
@@ -10,27 +67,165 @@ npm run dev
 yarn dev
 # or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+kmrl-frontend/
+├── app/                      # Next.js App Router
+│   ├── (auth)/              # Authentication routes group
+│   │   ├── login/           # Login page
+│   │   └── register/        # Registration page
+│   ├── dashboard/           # Protected dashboard
+│   ├── api/                 # API routes
+│   ├── layout.tsx           # Root layout
+│   ├── page.tsx             # Home page
+│   ├── error.tsx            # Error boundary
+│   └── not-found.tsx        # 404 page
+├── components/              # Reusable components
+│   ├── Navbar.tsx          # Navigation component
+│   ├── Footer.tsx          # Footer component
+│   └── UI/                 # UI components
+├── styles/                  # Global styles
+│   └── globals.css         # Tailwind imports
+├── public/                  # Static assets
+├── .env.example            # Environment variables template
+├── .env.local              # Local environment variables
+├── next.config.ts          # Next.js configuration
+├── tailwind.config.ts      # Tailwind configuration
+└── tsconfig.json           # TypeScript configuration
+```
 
-## Learn More
+## 🔧 Available Scripts
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Development
+npm run dev          # Start development server
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Production
+npm run build        # Build for production
+npm run start        # Start production server
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Quality
+npm run lint         # Run ESLint
+npm run type-check   # TypeScript type checking
+```
 
-## Deploy on Vercel
+## 🌐 Environment Variables
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Key environment variables (see `.env.example` for full list):
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `NEXT_PUBLIC_API_URL`: Backend API endpoint
+- `NEXT_PUBLIC_AI_SERVICE_URL`: AI service endpoint
+- `NEXT_PUBLIC_TRANSLATION_API_KEY`: Translation service API key
+- `NEXTAUTH_SECRET`: Authentication secret
+- `DATABASE_URL`: Database connection string
+
+## 📱 Pages Overview
+
+### Public Pages
+- `/` - Landing page with features overview
+- `/login` - User authentication
+- `/register` - New user registration
+
+### Protected Pages
+- `/dashboard` - Main application dashboard
+- `/profile` - User profile management (coming soon)
+- `/settings` - Application settings (coming soon)
+
+## 🔐 Authentication Flow
+
+1. User registers/logs in via auth pages
+2. Backend validates credentials
+3. Session cookie is set
+4. Middleware protects dashboard routes
+5. Unauthorized users redirected to login
+
+## 🎨 Styling Guidelines
+
+- **Tailwind CSS**: Utility-first approach
+- **Responsive**: Mobile-first design
+- **Dark Mode**: Support planned for future
+- **Consistency**: Follow established component patterns
+
+## 🧪 Testing
+
+```bash
+# Unit tests (to be implemented)
+npm run test
+
+# E2E tests (to be implemented)
+npm run test:e2e
+```
+
+## 📈 Performance Optimization
+
+- Server Components for static content
+- Client Components only when necessary
+- Image optimization with Next/Image
+- Code splitting at route level
+- Lazy loading for heavy components
+
+## 🚢 Deployment
+
+### Vercel (Recommended)
+
+1. Push code to GitHub
+2. Import project in Vercel
+3. Configure environment variables
+4. Deploy
+
+### Self-hosted
+
+```bash
+# Build the application
+npm run build
+
+# Start production server
+npm run start
+```
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
+
+## 📝 Development Phases
+
+Refer to `FRONTEND.md` for detailed development phases:
+
+- **Phase 1**: ✅ Initial Setup and Configuration
+- **Phase 2**: 🚧 Core Pages and UI Components
+- **Phase 3**: 📅 Integration with Backend and AI Services
+- **Phase 4**: 📅 Optimization and Deployment Prep
+
+## 🐛 Known Issues
+
+- Backend integration pending
+- Translation API integration not yet implemented
+- Some dashboard features are placeholders
+
+## 📚 Resources
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+- [TypeScript](https://www.typescriptlang.org/docs)
+- [Lucide Icons](https://lucide.dev)
+
+## 📄 License
+
+This project is private and proprietary.
+
+## 👥 Team
+
+Developed for the KMRL Project.
+
+---
+
+**Note**: This is a development version. Some features are still under construction.
