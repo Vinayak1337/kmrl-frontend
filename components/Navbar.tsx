@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, Home, LogIn, LayoutDashboard } from 'lucide-react';
+import { Menu, X, Home, LogIn, FileText } from 'lucide-react';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,8 +13,8 @@ export default function Navbar() {
 
   const navLinks = [
     { href: '/', label: 'Home', icon: Home },
-    { href: '/login', label: 'Login', icon: LogIn },
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/request-deployment', label: 'Request Deployment', icon: FileText },
+    { href: '/login', label: 'Client Login', icon: LogIn },
   ];
 
   return (

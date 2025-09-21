@@ -131,3 +131,11 @@ Phase 4: Optimization, Error Handling & Deployment Prep
 	•	Once ready, deploy to Vercel and perform final testing on the deployed URL to ensure everything (authentication, API calls, etc.) works in the production environment.
 	7.	Monitoring & Error Tracking (Post-deploy): Optionally integrate a tool like Sentry or Vercel Analytics for runtime error monitoring and performance tracking. This will help catch any runtime errors that users might encounter in production.
 	8.	Future Enhancements: Document ideas for future sprints (this is more of a note-taking step): e.g., improving SEO further, adding more pages or features, refining the UI with animations, etc., so that the project has a clear roadmap beyond the initial prototype.
+## Environment Variables
+
+- MONGO_URI: MongoDB connection string used by Prisma.
+- AUTH_SECRET: Secret key for signing JWT session cookies.
+- SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/SMTP_FROM: SMTP credentials for sending emails.
+- DEPLOYMENT_NOTIFY_TO: Recipient address for deployment request notifications.
+
+If SMTP variables are not configured, the deployment request API stores the request and skips email, logging a warning.

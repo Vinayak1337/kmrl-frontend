@@ -25,11 +25,9 @@ interface ActivityItem {
 
 // Rich Text Editor Component with formatting toolbar
 const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
-  const [selectedText, setSelectedText] = useState<string>('');
-  const [showFormatting, setShowFormatting] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const formatText = (command: string, value: string | null = null): void => {
+  const formatText = (command: string): void => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
@@ -73,12 +71,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
   };
 
   const handleTextSelect = (): void => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    
-    const selected = data.substring(textarea.selectionStart, textarea.selectionEnd);
-    setSelectedText(selected);
-    setShowFormatting(selected.length > 0);
+    // no-op: selection state not used in UI
   };
 
   return (
@@ -179,6 +172,7 @@ export default function DashboardPage(): React.ReactElement {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [editorContent, setEditorContent] = useState<string>('');
   const [documentTitle, setDocumentTitle] = useState<string>('');
+  const [session, setSession] = useState<null | { role: 'ADMIN' | 'MANAGER'; permissions?: string[]; docTypes?: string[] }> (null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stats: StatItem[] = [
@@ -210,6 +204,33 @@ export default function DashboardPage(): React.ReactElement {
     }
     
     setSelectedFiles(validFiles);
+  };
+
+  // Load session to gate features by role/permissions
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/session');
+        const data = await res.json();
+        setSession(data.user || null);
+      } catch {
+        setSession(null);
+      }
+    })();
+  }, []);
+
+  const hasPermission = (perm: string) => {
+    if (!session) return false;
+    if (session.role === 'ADMIN') return true;
+    const perms = session.permissions || [];
+    return perms.includes('*') || perms.includes(perm);
+  };
+
+  const hasDocType = (docType: string) => {
+    if (!session) return false;
+    if (session.role === 'ADMIN') return true;
+    const types = session.docTypes || [];
+    return types.includes(docType);
   };
 
   const handleUploadSubmit = () => {
@@ -257,20 +278,34 @@ export default function DashboardPage(): React.ReactElement {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="mt-2 text-gray-600">Welcome back! Here's what's happening with your platform.</p>
+            <p className="mt-2 text-gray-600">Welcome back! Here&apos;s what&apos;s happening with your platform.</p>
           </div>
           <div className="flex space-x-2">
-            <button 
-              onClick={() => setShowUploadDialog(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Upload className="h-5 w-5 mr-2" />
-              Upload Doc
-            </button>
-            <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-              <UserPlus className="h-5 w-5 mr-2" />
-              Add Users
-            </button>
+            {hasPermission('upload') && (
+              <button 
+                onClick={() => setShowUploadDialog(true)}
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                <Upload className="h-5 w-5 mr-2" />
+                Upload Doc
+              </button>
+            )}
+            {hasPermission('manage-users') && (
+              <a href="/dashboard/users/new" className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <UserPlus className="h-5 w-5 mr-2" />
+                Add Users
+              </a>
+            )}
+            {hasPermission('manage-users') && (
+              <a href="/dashboard/audit" className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-black transition-colors">
+                Audit Logs
+              </a>
+            )}
+            {hasDocType('policy') && (
+              <a href="#" className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                Policy Workspace
+              </a>
+            )}
           </div>
         </div>
 
@@ -420,7 +455,7 @@ export default function DashboardPage(): React.ReactElement {
               {!uploadMode ? (
                 // Mode Selection
                 <div className="space-y-4">
-                  <p className="text-gray-600 mb-6">Choose how you'd like to add your document:</p>
+                  <p className="text-gray-600 mb-6">Choose how you&apos;d like to add your document:</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <button
                       onClick={() => setUploadMode('file')}
