@@ -7,67 +7,67 @@ import { useRef } from "react";
 export default function Home() {
   const features = [
     {
-      icon: FileText,
-      title: "Intelligent Document Management",
-      description: "AI-powered OCR and text extraction from PDFs, images, audio, and video files",
-    },
-    {
-      icon: Search,
-      title: "Smart Search & Retrieval",
-      description: "Advanced keyword and semantic search capabilities across all your documents",
+      icon: Database,
+      title: "Self-Hosted Control Center",
+      description: "Deploy the dashboard within your network with MongoDB and Prisma tuned for high-volume transport archives.",
     },
     {
       icon: Brain,
-      title: "AI-Driven Insights",
-      description: "Automated document summarization, classification, and content analysis using LLMs",
+      title: "AI Guidance Without Data Leaving",
+      description: "Run summarization, translation, and search locally so sensitive records never leave your perimeter.",
     },
     {
-      icon: Bell,
-      title: "Compliance Workflows",
-      description: "Approval workflows and notifications to ensure regulatory compliance and acknowledgments",
+      icon: Workflow,
+      title: "Operational Workflows Out Of The Box",
+      description: "Roll out approval trails, read confirmations, and escalation routes modeled on metro operations.",
+    },
+    {
+      icon: Globe,
+      title: "Multilingual Delivery",
+      description: "Serve every depot in their language with on-demand translation and localized dashboards.",
     },
     {
       icon: Users,
-      title: "Role-Based Access",
-      description: "Personalized dashboards with document access based on user roles and responsibilities",
+      title: "Role-Based Experience",
+      description: "Provision tailored views for operations, legal, and leadership teams with granular access control.",
     },
     {
       icon: Shield,
-      title: "Enterprise Security",
-      description: "Secure document storage with role-based access control and audit trails",
+      title: "Security and Auditing",
+      description: "Hardened authentication, immutable audit trails, and offline-first fallbacks keep regulators satisfied.",
     },
   ];
 
   const capabilities = [
     {
-      icon: Globe,
-      title: "Global Language Support",
-      description: "Process documents in multiple languages with AI-driven translation and context-aware analysis.",
+      icon: FileText,
+      title: "Rapid Document Ingestion",
+      description: "Bring legacy PDFs, technical drawings, and SOP updates into a unified knowledge layer.",
     },
     {
-      icon: FileText,
-      title: "Smart Document Ingestion",
-      description: "Effortlessly digitize and index documents with high-accuracy OCR and metadata extraction.",
+      icon: Search,
+      title: "Semantic Discovery",
+      description: "Locate the right procedure instantly with hybrid text + vector search tuned for transport language.",
     },
     {
       icon: Workflow,
-      title: "Streamlined Workflows",
-      description: "Automate document approvals and routing with customizable, compliance-ready workflows.",
-    },
-    {
-      icon: Database,
-      title: "Seamless Integrations",
-      description: "Integrate with enterprise systems via robust APIs for real-time data synchronization.",
-    },
-    {
-      icon: Brain,
-      title: "Insightful Analytics",
-      description: "Generate actionable insights with AI-powered analytics and dynamic reporting tools.",
+      title: "Governed Collaboration",
+      description: "Coordinate review cycles and crew acknowledgements with time-bound tasks and reminders.",
     },
     {
       icon: Lock,
-      title: "Regulatory Compliance",
-      description: "Ensure adherence to regulations with automated audit trails and compliance tracking.",
+      title: "Offline-Ready Compliance",
+      description: "Retain full functionality even when offline and sync audit logs once back on the grid.",
+    },
+    {
+      icon: Bell,
+      title: "Lifecycle Support",
+      description: "We ship continuous improvements while you stay in control of deployment cadence.",
+    },
+    {
+      icon: Brain,
+      title: "Insight Dashboards",
+      description: "Monitor adoption, risk hotspots, and knowledge gaps with actionable analytics.",
     },
   ];
 
@@ -134,29 +134,28 @@ export default function Home() {
           <motion.div variants={fadeInDown} className="mb-8">
             <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-blue-100 text-blue-800 shadow-md transform transition-transform hover:scale-105">
               <Database className="w-5 h-5 mr-2" />
-              Kochi Metro Rail Limited
+              Private deployment package
             </span>
           </motion.div>
           <motion.h1 variants={fadeInDown} className="text-5xl md:text-7xl font-extrabold text-gray-900 mb-6 tracking-tight">
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">KMRL</span> Document Intelligence System
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">KMRL</span> Document Intelligence, Installed On Your Network
           </motion.h1>
           <motion.p variants={fadeInDown} className="text-xl text-gray-600 mb-10 max-w-4xl mx-auto leading-relaxed">
-            Transform your document management with AI-powered intelligence. Digitize, summarize, and manage 
-            critical documents while ensuring compliance and streamlining workflows across your organization.
+            Equip your teams with a dedicated dashboard that runs on your hardware. We configure deployment, migrate critical archives, and keep shipping upgrades while you stay in control.
           </motion.p>
           <motion.div variants={fadeInDown} className="flex gap-6 justify-center">
             <Link
-              href="/register"
+              href="/request-deployment"
               className="inline-flex items-center px-8 py-4 text-lg font-semibold rounded-full text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
             >
-              Get Started
+              Request Deployment
               <ArrowRight className="ml-3 h-6 w-6 animate-pulse" />
             </Link>
             <Link
               href="/login"
               className="inline-flex items-center px-8 py-4 text-lg font-semibold rounded-full text-gray-800 bg-white border-2 border-gray-200 hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-md"
             >
-              Sign In
+              Client Login
             </Link>
           </motion.div>
         </div>
@@ -268,18 +267,17 @@ export default function Home() {
       >
         <motion.div variants={fadeInUp} className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-3xl px-10 py-16 text-center shadow-2xl">
           <motion.h2 variants={fadeInUp} className="text-4xl font-extrabold text-white mb-6 tracking-tight">
-            Ready to Transform Your Document Management?
+            Schedule a Deployment Planning Session
           </motion.h2>
           <motion.p variants={fadeInUp} className="text-xl text-blue-100 mb-10 max-w-3xl mx-auto leading-relaxed">
-            Join modern organizations that are leveraging AI to streamline document workflows, 
-            ensure compliance, and unlock insights from their critical information.
+            Share your constraints and we will assemble an installation roadmap, training plan, and support model tailored to your organization.
           </motion.p>
           <motion.div variants={fadeInUp}>
             <Link
-              href="/register"
+              href="/request-deployment"
               className="inline-flex items-center px-10 py-4 text-lg font-semibold rounded-full text-blue-800 bg-white hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
             >
-              Start Your Digital Transformation
+              Request Deployment Plan
               <ArrowRight className="ml-3 h-6 w-6 animate-pulse" />
             </Link>
           </motion.div>

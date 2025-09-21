@@ -6,30 +6,41 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push"
   },
   "dependencies": {
     "@google/genai": "^1.20.0",
     "@google/generative-ai": "^0.24.1",
 
     "@ckeditor/ckeditor5-react": "^11.0.0",
+    "@prisma/client": "^5.20.0",
+    "bcryptjs": "^2.4.3",
     "ckeditor5": "^46.1.1",
     "ckeditor5-premium-features": "^46.1.1",
 
     "framer-motion": "^12.23.16",
+    "jose": "^6.1.0",
+    "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.542.0",
     "next": "15.5.2",
+    "nodemailer": "^7.0.6",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^20",
+    "@types/nodemailer": "^7.0.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
+    "prisma": "^5.20.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

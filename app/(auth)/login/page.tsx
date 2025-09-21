@@ -56,19 +56,20 @@ export default function LoginPage() {
     setErrors({ email: '', password: '', general: '' });
 
     try {
-      // TODO: Implement actual login API call
-      console.log('Login attempt with:', formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // For now, just redirect to dashboard
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setErrors(prev => ({ ...prev, general: data.error || 'Invalid email or password.' }));
+        return;
+      }
       router.push('/dashboard');
     } catch (error) {
-      setErrors({
-        ...errors,
-        general: 'Invalid email or password. Please try again.'
-      });
+      console.error('Login request failed', error);
+      setErrors(prev => ({ ...prev, general: 'Unable to login. Try again.' }));
     } finally {
       setIsLoading(false);
     }
@@ -94,13 +95,14 @@ export default function LoginPage() {
       <div className="max-w-md w-full space-y-8">
         <div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Sign in to your account
+            Sign in to your KMRL deployment
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
-            Or{' '}
-            <Link href="/register" className="font-medium text-blue-600 hover:text-blue-500">
-              create a new account
+            Need access?{' '}
+            <Link href="/request-deployment" className="font-medium text-blue-600 hover:text-blue-500">
+              request a private deployment
             </Link>
+            .
           </p>
         </div>
         

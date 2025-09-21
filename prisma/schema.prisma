@@ -1,0 +1,54 @@
+// Prisma schema for MongoDB-backed deployment requests
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  // Use MONGO_URI to align with existing .env; update FRONTEND.md accordingly
+  url      = env("MONGO_URI")
+}
+
+enum RequestStatus {
+  PENDING
+  SCHEDULED
+  PROVISIONED
+  DECLINED
+}
+
+model DeploymentRequest {
+  id                 String         @id @default(auto()) @map("_id") @db.ObjectId
+  organizationName   String
+  contactName        String
+  contactEmail       String
+  contactPhone       String?
+  role               String?
+  organizationSize   String?
+  documentVolume     String?
+  currentTools       String?
+  complianceFocus    String?
+  deploymentTimeline String?
+  message            String
+  status             RequestStatus @default(PENDING)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+}
+enum UserRole {
+  ADMIN
+  MANAGER
+}
+
+model User {
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          UserRole  @default(MANAGER)
+  // Department the user belongs to (optional)
+  department    String?
+  permissions   String[]
+  // Document types this user can access (dynamic)
+  docTypes      String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}

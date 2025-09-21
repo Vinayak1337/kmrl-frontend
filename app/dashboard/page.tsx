@@ -257,7 +257,7 @@ export default function DashboardPage(): React.ReactElement {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="mt-2 text-gray-600">Welcome back! Here's what's happening with your platform.</p>
+            <p className="mt-2 text-gray-600">Welcome back! Here&apos;s what&apos;s happening with your platform.</p>
           </div>
           <div className="flex space-x-2">
             <button 
@@ -267,10 +267,10 @@ export default function DashboardPage(): React.ReactElement {
               <Upload className="h-5 w-5 mr-2" />
               Upload Doc
             </button>
-            <button className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+            <a href="/dashboard/users/new" className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
               <UserPlus className="h-5 w-5 mr-2" />
               Add Users
-            </button>
+            </a>
           </div>
         </div>
 
@@ -420,7 +420,7 @@ export default function DashboardPage(): React.ReactElement {
               {!uploadMode ? (
                 // Mode Selection
                 <div className="space-y-4">
-                  <p className="text-gray-600 mb-6">Choose how you'd like to add your document:</p>
+                  <p className="text-gray-600 mb-6">Choose how you&apos;d like to add your document:</p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <button
                       onClick={() => setUploadMode('file')}
