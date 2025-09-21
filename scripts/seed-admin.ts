@@ -49,7 +49,6 @@ async function main() {
         name,
         passwordHash,
         role: 'ADMIN',
-        // @ts-ignore JSON field
         grants: [],
       },
     });
@@ -61,7 +60,6 @@ async function main() {
         email,
         passwordHash,
         role: 'ADMIN',
-        // @ts-ignore JSON field
         grants: [],
         department: 'Administration',
       },

@@ -12,19 +12,21 @@
     "seed:admin": "tsx scripts/seed-admin.ts"
   },
   "dependencies": {
+    "@ckeditor/ckeditor5-react": "^11.0.0",
     "@google/genai": "^1.20.0",
     "@google/generative-ai": "^0.24.1",
-
-    "@ckeditor/ckeditor5-react": "^11.0.0",
+    "@langchain/core": "^0.3.77",
+    "@langchain/mongodb": "^0.1.0",
+    "@langchain/openai": "^0.6.13",
     "@prisma/client": "^5.20.0",
     "bcryptjs": "^2.4.3",
     "ckeditor5": "^46.1.1",
     "ckeditor5-premium-features": "^46.1.1",
-
     "framer-motion": "^12.23.16",
     "jose": "^6.1.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.542.0",
+    "mongodb": "^6.20.0",
     "next": "15.5.2",
     "nodemailer": "^7.0.6",
     "react": "19.1.0",

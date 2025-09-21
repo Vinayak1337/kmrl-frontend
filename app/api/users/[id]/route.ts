@@ -42,8 +42,7 @@ type UpdateData = {
   email?: string;
   department?: string | null;
   role?: 'ADMIN' | 'MANAGER';
-  permissions?: string[];
-  docTypes?: string[];
+  grants?: Array<{ dept: string; type: string; actions: string[] }>;
   passwordHash?: string;
 };
 
@@ -68,13 +67,14 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   if (body.role === 'ADMIN' || body.role === 'MANAGER') data.role = body.role;
   if (Array.isArray(body.grants)) {
     const grants = body.grants
-      .map((g) => ({
-        dept: typeof g.dept === 'string' ? g.dept.toUpperCase() : undefined,
-        type: typeof g.type === 'string' ? g.type.toUpperCase() : undefined,
-        actions: Array.isArray(g.actions) ? g.actions.filter(Boolean) : [],
-      }))
-      .filter((g) => g.dept && g.type && g.actions.length);
-    (data as unknown as { grants?: unknown }).grants = grants;
+      .map((g) => {
+        const dept = typeof g.dept === 'string' ? g.dept.toUpperCase() : '';
+        const type = typeof g.type === 'string' ? g.type.toUpperCase() : '';
+        const actions = Array.isArray(g.actions) ? g.actions.filter(Boolean) : [];
+        return { dept, type, actions };
+      })
+      .filter((g) => g.dept && g.type && g.actions.length) as Array<{ dept: string; type: string; actions: string[] }>;
+    data.grants = grants;
   }
   if (typeof body.password === 'string' && body.password.length >= 6) {
     data.passwordHash = await bcrypt.hash(body.password, 10);
@@ -82,7 +82,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
 
   // If role becomes ADMIN, enforce full permission
   if (data.role === 'ADMIN') {
-    (data as unknown as { grants?: unknown }).grants = [];
+    data.grants = [];
   }
 
   try {

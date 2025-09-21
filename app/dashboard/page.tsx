@@ -1,6 +1,7 @@
 'use client'; 
 
 import React, { useState, useRef } from 'react';
+import Link from 'next/link';
 import { LayoutDashboard, FileText, Settings, BarChart3, Bell, Search, Upload, UserPlus, X, File, Edit3, Image, Check } from 'lucide-react';
 
 // Define TypeScript interfaces
@@ -300,10 +301,12 @@ export default function DashboardPage(): React.ReactElement {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [editorContent, setEditorContent] = useState<string>('');
   const [documentTitle, setDocumentTitle] = useState<string>('');
-  // const [session, setSession] = useState<null | { role: 'ADMIN' | 'MANAGER'; permissions?: string[]; docTypes?: string[] }> (null);
+  const [session, setSession] = useState<null | { role: 'ADMIN' | 'MANAGER'; permissions?: string[]; docTypes?: string[]; grants?: Array<{ dept: string; type: string; actions: string[] }> }> (null);
+  const [searchInput, setSearchInput] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ id: string | null; title?: string | null; summary?: string | null; textContent?: string }>>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<ProgressStep[]>([]);
-  const [session, setSession] = useState<null | { role: 'ADMIN' | 'MANAGER'; grants?: Array<{ dept: string; type: string; actions: string[] }> }> (null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stats: StatItem[] = [
@@ -389,18 +392,37 @@ export default function DashboardPage(): React.ReactElement {
   const hasPermission = (perm: string) => {
     if (!session) return false;
     if (session.role === 'ADMIN') return true;
-    const grants = session.grants || [];
-    // Map perm 'upload' to action 'ingest', 'manage-users' is admin-only
-    if (perm === 'manage-users') return false;
-    if (perm === 'upload') return grants.some(g => g.actions.includes('ingest'));
-    return false;
+    // Map to grants if present; fallback to legacy permissions
+    if (Array.isArray(session.grants)) {
+      if (perm === 'upload') return session.grants.some(g => g.actions.includes('ingest'));
+      if (perm === 'manage-users') return false; // admin-only handled elsewhere
+    }
+    const perms = session.permissions || [];
+    return perms.includes('*') || perms.includes(perm);
   };
 
   const hasDocType = (docType: string) => {
     if (!session) return false;
     if (session.role === 'ADMIN') return true;
-    const grants = session.grants || [];
-    return grants.some(g => g.type.toLowerCase() === docType.toLowerCase() && g.actions.includes('read'));
+    if (Array.isArray(session.grants)) {
+      return session.grants.some(g => g.type?.toLowerCase() === docType.toLowerCase() && g.actions.includes('read'));
+    }
+    const types = session.docTypes || [];
+    return types.includes(docType);
+  };
+
+  const runSearch = async () => {
+    if (!searchInput.trim()) return;
+    setSearchLoading(true);
+    try {
+      const res = await fetch(`/api/search?query=${encodeURIComponent(searchInput)}`);
+      const data = await res.json();
+      setSearchResults(Array.isArray(data.results) ? data.results : []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
   };
 
 
@@ -476,15 +498,15 @@ export default function DashboardPage(): React.ReactElement {
               </button>
             )}
             {hasPermission('manage-users') && (
-              <a href="/dashboard/users/new" className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+              <Link href="/dashboard/users/new" className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                 <UserPlus className="h-5 w-5 mr-2" />
                 Add Users
-              </a>
+              </Link>
             )}
             {hasPermission('manage-users') && (
-              <a href="/dashboard/audit" className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-black transition-colors">
+              <Link href="/dashboard/audit" className="flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-black transition-colors">
                 Audit Logs
-              </a>
+              </Link>
             )}
             {hasDocType('policy') && (
               <a href="#" className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
@@ -509,13 +531,31 @@ export default function DashboardPage(): React.ReactElement {
               <div className="flex space-x-2">
                 <input
                   type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); runSearch(); } }}
                   placeholder="Type your question here..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
                 />
-                <button className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                  Send
+                <button onClick={runSearch} disabled={searchLoading} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                  {searchLoading ? 'Searching…' : 'Send'}
                 </button>
               </div>
+              {searchResults.length > 0 && (
+                <div className="mt-6 space-y-4">
+                  {searchResults.map((r, i) => (
+                    <div key={r.id || i} className="p-4 border rounded-lg bg-white">
+                      <div className="text-sm text-gray-500">Result {i + 1}</div>
+                      {r.title && <div className="font-semibold text-gray-900">{r.title}</div>}
+                      {r.summary ? (
+                        <div className="text-sm text-gray-700 whitespace-pre-wrap">{r.summary}</div>
+                      ) : (
+                        <div className="text-sm text-gray-700 truncate">{r.textContent?.slice(0, 300)}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
