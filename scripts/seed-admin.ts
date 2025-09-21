@@ -49,7 +49,8 @@ async function main() {
         name,
         passwordHash,
         role: 'ADMIN',
-        permissions: ['*'],
+        // @ts-ignore JSON field
+        grants: [],
       },
     });
     console.log(`Updated existing user to ADMIN: ${email}`);
@@ -60,9 +61,9 @@ async function main() {
         email,
         passwordHash,
         role: 'ADMIN',
-        permissions: ['*'],
+        // @ts-ignore JSON field
+        grants: [],
         department: 'Administration',
-        docTypes: [],
       },
     });
     console.log(`Created admin user: ${email}`);

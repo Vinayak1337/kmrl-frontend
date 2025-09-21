@@ -1,5 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
+import { cookies } from 'next/headers';
+import { AUTH_COOKIE, verifySession } from '@/lib/auth';
 
 interface ImagePart {
   inlineData: {
@@ -122,6 +124,10 @@ async function extractImagesFromHTML(htmlContent: string): Promise<ProcessedCont
 }
 
 export async function GET(request: NextRequest) {
+  // Require authenticated session
+  const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const session = token ? verifySession(token) : null;
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const { searchParams } = new URL(request.url);
     const htmlContent = searchParams.get('html');
@@ -157,7 +163,15 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Types vary by SDK; keep 'any' here with a lint exception to match SDK's accepted input.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ContentPart = any;
+
 export async function POST(request: NextRequest) {
+  // Require authenticated session
+  const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const session = token ? verifySession(token) : null;
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
     const body = await request.json();
     const { html } = body;
@@ -188,7 +202,9 @@ export async function POST(request: NextRequest) {
     const systemPrompt = `You are an expert HTML analyzer. Given HTML content with embedded images, you will analyze the content and provide insights about the images.`;
 
     // Create content array for Gemini - properly structured
-    const contents = [{ role: "system", text: systemPrompt }] as any[]
+    // Structure per Gemini SDK; using 'any' to satisfy SDK flexibility
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const contents: any[] = [{ role: "system", text: systemPrompt }];
     
     // Add the main prompt with text content
     contents.push({

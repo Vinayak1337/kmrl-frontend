@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 
 import { prisma } from '@/lib/prisma';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
+import { grantsToTokens, tokensToGrants } from '@/lib/permissions';
 
 async function requireAdmin() {
   const token = (await cookies()).get(AUTH_COOKIE)?.value;
@@ -27,8 +28,7 @@ export async function GET(_: NextRequest, ctx: { params: Promise<{ id: string }>
       email: true,
       role: true,
       department: true,
-      permissions: true,
-      docTypes: true,
+      grants: true,
       createdAt: true,
       updatedAt: true,
     },
@@ -58,8 +58,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
     password?: string;
     role?: 'ADMIN' | 'MANAGER';
     department?: string | null;
-    permissions?: string[];
-    docTypes?: string[];
+    grants?: Array<{ dept?: string; type?: string; actions?: string[] }>;
   };
 
   const data: UpdateData = {};
@@ -67,15 +66,23 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string 
   if (typeof body.email === 'string') data.email = body.email.toLowerCase();
   if (typeof body.department === 'string') data.department = body.department.trim();
   if (body.role === 'ADMIN' || body.role === 'MANAGER') data.role = body.role;
-  if (Array.isArray(body.docTypes)) data.docTypes = body.docTypes.map((d) => d.trim()).filter(Boolean);
-  if (Array.isArray(body.permissions)) data.permissions = body.permissions.map((p) => p.trim()).filter(Boolean);
+  if (Array.isArray(body.grants)) {
+    const grants = body.grants
+      .map((g) => ({
+        dept: typeof g.dept === 'string' ? g.dept.toUpperCase() : undefined,
+        type: typeof g.type === 'string' ? g.type.toUpperCase() : undefined,
+        actions: Array.isArray(g.actions) ? g.actions.filter(Boolean) : [],
+      }))
+      .filter((g) => g.dept && g.type && g.actions.length);
+    (data as unknown as { grants?: unknown }).grants = grants;
+  }
   if (typeof body.password === 'string' && body.password.length >= 6) {
     data.passwordHash = await bcrypt.hash(body.password, 10);
   }
 
   // If role becomes ADMIN, enforce full permission
   if (data.role === 'ADMIN') {
-    data.permissions = ['*'];
+    (data as unknown as { grants?: unknown }).grants = [];
   }
 
   try {

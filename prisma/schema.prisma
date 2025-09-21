@@ -46,9 +46,8 @@ model User {
   role          UserRole  @default(MANAGER)
   // Department the user belongs to (optional)
   department    String?
-  permissions   String[]
-  // Document types this user can access (dynamic)
-  docTypes      String[]
+  // Granular permission grants (Discord-like matrix)
+  grants        Json?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }

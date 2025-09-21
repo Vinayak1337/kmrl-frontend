@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
+// Using JSON grants in DB
 
 import { prisma } from '@/lib/prisma';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
@@ -20,8 +21,7 @@ export async function POST(req: Request) {
       password?: string;
       role?: 'ADMIN' | 'MANAGER';
       department?: string | null;
-      permissions?: string[];
-      docTypes?: string[];
+      grants?: Array<{ dept?: string; type?: string; actions?: string[] }>;
     };
 
     const errors: string[] = [];
@@ -39,6 +39,14 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(body.password!, 10);
     const isAdmin = role === 'ADMIN';
+    const sanitizedGrants = (body.grants || [])
+      .map((g) => ({
+        dept: typeof g.dept === 'string' ? g.dept.toUpperCase() : undefined,
+        type: typeof g.type === 'string' ? g.type.toUpperCase() : undefined,
+        actions: Array.isArray(g.actions) ? g.actions.filter(Boolean) : [],
+      }))
+      .filter((g) => g.dept && g.type && g.actions.length);
+
     const user = await prisma.user.create({
       data: {
         name: body.name!.trim(),
@@ -46,8 +54,7 @@ export async function POST(req: Request) {
         passwordHash,
         role,
         department: body.department?.trim() || null,
-        permissions: isAdmin ? ['*'] : (body.permissions || []).map((p) => p.trim()).filter(Boolean),
-        docTypes: (body.docTypes || []).map((d) => d.trim()).filter(Boolean),
+        grants: isAdmin ? [] : sanitizedGrants,
       },
     });
 
@@ -57,12 +64,7 @@ export async function POST(req: Request) {
         actorId: session.sub,
         targetUserId: user.id,
         action: 'CREATE_USER',
-        details: {
-          role,
-          department: user.department,
-          permissions: user.permissions,
-          docTypes: user.docTypes,
-        },
+        details: { role, department: user.department, grants: sanitizedGrants },
       },
     });
 
@@ -88,8 +90,7 @@ export async function GET() {
       email: true,
       role: true,
       department: true,
-      permissions: true,
-      docTypes: true,
+      grants: true,
       createdAt: true,
       updatedAt: true,
     },

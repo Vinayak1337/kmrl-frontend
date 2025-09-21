@@ -1,39 +1,59 @@
 "use client";
 
 import { useState } from 'react';
+import { ACTIONS, RESOURCE_CATALOG, type Action } from '@/lib/permissions';
 
 type Role = 'ADMIN' | 'MANAGER';
 
-function TagsInput({ label, values, onChange, placeholder }: { label: string; values: string[]; onChange: (vals: string[]) => void; placeholder?: string }) {
-  const [input, setInput] = useState('');
-  const add = () => {
-    const v = input.trim();
-    if (!v) return;
-    if (!values.includes(v)) onChange([...values, v]);
-    setInput('');
+function Matrix({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: Record<string, Action[]>;
+  onChange: (v: Record<string, Action[]>) => void;
+  disabled?: boolean;
+}) {
+  const toggle = (key: string, action: Action) => {
+    const current = value[key] || [];
+    const next = current.includes(action)
+      ? current.filter((a) => a !== action)
+      : [...current, action];
+    onChange({ ...value, [key]: next });
   };
-  const remove = (i: number) => onChange(values.filter((_, idx) => idx !== i));
   return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <div className="flex flex-wrap gap-2 mb-2">
-        {values.map((v, i) => (
-          <span key={`${v}-${i}`} className="inline-flex items-center gap-2 px-2 py-1 rounded-full bg-gray-100 text-gray-800 text-xs">
-            {v}
-            <button type="button" onClick={() => remove(i)} className="text-gray-500 hover:text-gray-700">×</button>
-          </span>
-        ))}
-      </div>
-      <div className="flex gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-          placeholder={placeholder || 'Type and press Enter'}
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button type="button" onClick={add} className="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Add</button>
-      </div>
+    <div className="overflow-auto border rounded-lg">
+      <table className="min-w-full">
+        <thead className="bg-gray-50">
+          <tr>
+            <th className="text-left text-xs font-semibold text-gray-600 px-4 py-2">Resource</th>
+            {ACTIONS.map((a) => (
+              <th key={a} className="text-center text-xs font-semibold text-gray-600 px-4 py-2 capitalize">{a}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {RESOURCE_CATALOG.map((r) => {
+            const key = `${r.dept}:${r.type}`;
+            const chosen = value[key] || [];
+            return (
+              <tr key={key} className="border-t">
+                <td className="px-4 py-2 text-sm text-gray-800">{r.label}</td>
+                {ACTIONS.map((a) => (
+                  <td key={a} className="px-4 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      disabled={disabled}
+                      checked={chosen.includes(a)}
+                      onChange={() => toggle(key, a)}
+                    />
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -44,8 +64,7 @@ export default function NewUserPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [department, setDepartment] = useState('');
-  const [permissions, setPermissions] = useState<string[]>([]);
-  const [docTypes, setDocTypes] = useState<string[]>([]);
+  const [matrix, setMatrix] = useState<Record<string, Action[]>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -61,7 +80,21 @@ export default function NewUserPage() {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, role, department, permissions: isAdmin ? [] : permissions, docTypes }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          role,
+          department,
+          grants: isAdmin
+            ? []
+            : Object.entries(matrix)
+                .filter(([, acts]) => acts.length > 0)
+                .map(([key, acts]) => {
+                  const [dept, type] = key.split(':');
+                  return { dept, type, actions: acts };
+                }),
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -73,9 +106,7 @@ export default function NewUserPage() {
       setEmail('');
       setPassword('');
       setDepartment('');
-      setPermissions([]);
-      setDocTypes([]);
-      // Optionally navigate back to users list in future
+      setMatrix({});
     } catch {
       setError('Network error. Please try again.');
     } finally {
@@ -116,18 +147,19 @@ export default function NewUserPage() {
               <input type="checkbox" checked={isAdmin} onChange={(e) => setRole(e.target.checked ? 'ADMIN' : 'MANAGER')} />
               <span className="text-sm text-gray-700">Admin (all permissions, highest priority)</span>
             </label>
-            {!isAdmin && <span className="text-xs text-gray-500">Managers can have multiple permissions and doc types</span>}
+            {!isAdmin && <span className="text-xs text-gray-500">Choose actions per department/type</span>}
           </div>
 
           {!isAdmin && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <TagsInput label="Permissions" values={permissions} onChange={setPermissions} placeholder="e.g., read, edit, delete" />
-              <TagsInput label="Document Types" values={docTypes} onChange={setDocTypes} placeholder="e.g., policy, audit, report" />
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Permissions by Department/Type</label>
+              <Matrix value={matrix} onChange={setMatrix} />
+              <p className="text-xs text-gray-500">Check actions for each department/type.</p>
             </div>
           )}
 
           {isAdmin && (
-            <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">Admin role grants full access; permission lists are ignored.</div>
+            <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-800">Admin role grants full access; the permission matrix is ignored.</div>
           )}
 
           <div className="flex justify-end">
@@ -140,3 +172,4 @@ export default function NewUserPage() {
     </div>
   );
 }
+

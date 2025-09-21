@@ -1,21 +1,47 @@
-﻿'use client';
+"use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Menu, X, Home, LogIn, FileText } from 'lucide-react';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [session, setSession] = useState<null | { role: 'ADMIN' | 'MANAGER' }>(null);
 
-  const toggleMenu = () => {
-    setIsOpen(!isOpen);
+  const toggleMenu = () => setIsOpen(!isOpen);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/session');
+        const data = await res.json();
+        setSession(data.user || null);
+      } catch {
+        setSession(null);
+      }
+    })();
+  }, []);
+
+  const navLinks = session
+    ? [
+        { href: '/', label: 'Home', icon: Home },
+        { href: '/dashboard', label: 'Dashboard', icon: Home },
+      ]
+    : [
+        { href: '/', label: 'Home', icon: Home },
+        { href: '/request-deployment', label: 'Request Deployment', icon: FileText },
+        { href: '/login', label: 'Client Login', icon: LogIn },
+      ];
+
+  const logout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setSession(null);
+      window.location.href = '/login';
+    } catch {
+      window.location.href = '/login';
+    }
   };
-
-  const navLinks = [
-    { href: '/', label: 'Home', icon: Home },
-    { href: '/request-deployment', label: 'Request Deployment', icon: FileText },
-    { href: '/login', label: 'Client Login', icon: LogIn },
-  ];
 
   return (
     <nav className="bg-white shadow-lg">
@@ -42,6 +68,11 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            {session && (
+              <button onClick={logout} className="ml-2 px-3 py-2 text-sm text-white bg-gray-800 rounded-md hover:bg-black">
+                Logout
+              </button>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -80,9 +111,18 @@ export default function Navbar() {
                 </Link>
               );
             })}
+            {session && (
+              <button
+                onClick={() => { setIsOpen(false); logout(); }}
+                className="w-full text-left text-gray-700 hover:text-gray-900 hover:bg-gray-50 px-3 py-2 rounded-md text-base font-medium transition-colors"
+              >
+                Logout
+              </button>
+            )}
           </div>
         </div>
       )}
     </nav>
   );
 }
+
