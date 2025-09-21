@@ -51,9 +51,49 @@ export async function POST(req: Request) {
       },
     });
 
+    // Audit log
+    await prisma.userAudit.create({
+      data: {
+        actorId: session.sub,
+        targetUserId: user.id,
+        action: 'CREATE_USER',
+        details: {
+          role,
+          department: user.department,
+          permissions: user.permissions,
+          docTypes: user.docTypes,
+        },
+      },
+    });
+
     return NextResponse.json({ id: user.id }, { status: 201 });
   } catch (error) {
     console.error('Create user error', error);
     return NextResponse.json({ error: 'Unable to create user' }, { status: 500 });
   }
+}
+
+export async function GET() {
+  const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const session = token ? verifySession(token) : null;
+  if (!session || session.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      department: true,
+      permissions: true,
+      docTypes: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+  });
+
+  return NextResponse.json({ users }, { status: 200 });
 }

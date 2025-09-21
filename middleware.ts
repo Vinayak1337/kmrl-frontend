@@ -29,9 +29,17 @@ export default async function middleware(req: NextRequest) {
     const { payload } = await jwtVerify(token, getSecretKey(), { algorithms: ['HS256'] });
     const role = payload.role as string | undefined;
 
-    // Admin-only section: user management
-    if (pathname.startsWith('/dashboard/users') && role !== 'ADMIN') {
+    // Admin-only sections
+    if ((pathname.startsWith('/dashboard/users') || pathname.startsWith('/dashboard/audit')) && role !== 'ADMIN') {
       return NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+
+    // Doc-type gated sections (example: policy workspace)
+    if (pathname.startsWith('/dashboard/policy')) {
+      const docTypes = Array.isArray((payload as any).docTypes) ? (payload as any).docTypes as string[] : [];
+      if (role !== 'ADMIN' && !docTypes.includes('policy')) {
+        return NextResponse.redirect(new URL('/dashboard', req.url));
+      }
     }
 
     return NextResponse.next();
@@ -49,4 +57,3 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|svg|css|js)).*)',
   ],
 };
-

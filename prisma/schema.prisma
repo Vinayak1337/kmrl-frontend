@@ -52,3 +52,13 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
+
+// Simple audit log for user changes
+model UserAudit {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId       String   @db.ObjectId
+  targetUserId  String   @db.ObjectId
+  action        String
+  details       Json?
+  createdAt     DateTime @default(now())
+}

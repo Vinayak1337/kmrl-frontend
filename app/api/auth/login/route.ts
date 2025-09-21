@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 
 import { prisma } from '@/lib/prisma';
@@ -49,4 +48,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unable to login at this time' }, { status: 500 });
   }
 }
-

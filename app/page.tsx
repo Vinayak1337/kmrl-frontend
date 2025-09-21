@@ -108,17 +108,7 @@ export default function Home() {
     },
   };
 
-  const slideInLeft = {
-    hidden: { opacity: 0, x: -20 },
-    visible: { 
-      opacity: 1, 
-      x: 0, 
-      transition: { 
-        duration: 0.8, 
-        ease: "easeOut" as Easing,
-      },
-    },
-  };
+  // Removed unused slideInLeft variant
 
   return (
     <div className="bg-gradient-to-b from-gray-50 via-blue-50 to-white min-h-screen">
