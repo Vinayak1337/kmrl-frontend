@@ -308,8 +308,8 @@ export default function DashboardPage(): React.ReactElement {
   const stats: StatItem[] = [
     { title: 'Total Documents', value: '1,234', icon: FileText, change: '+12%' },
     { title: 'Translations', value: '456', icon: LayoutDashboard, change: '+23%' },
-    { title: 'API Calls', value: '8,901', icon: BarChart3, change: '+8%' },
-    { title: 'Active Users', value: '123', icon: Bell, change: '+5%' },
+    { title: 'Unread documents', value: '8,901', icon: BarChart3, change: '+8%' },
+    { title: 'Total Users & Admins', value: '123', icon: Bell, change: '+5%' },
   ];
 
   const recentActivity: ActivityItem[] = [
