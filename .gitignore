@@ -39,3 +39,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+GEMINI_API_KEY=AIzaSyCbNlpt53gwqN_fJ-7t5hppKqgntNnYC44
