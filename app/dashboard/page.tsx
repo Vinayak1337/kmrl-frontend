@@ -1,7 +1,7 @@
 'use client'; 
 
 import React, { useState, useRef } from 'react';
-import { LayoutDashboard, FileText, Settings, BarChart3, Bell, Search, Upload, UserPlus, X, File, Edit3 } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, BarChart3, Bell, Search, Upload, UserPlus, X, File, Edit3, Image, Check } from 'lucide-react';
 
 // Define TypeScript interfaces
 interface RichTextEditorProps {
@@ -23,9 +23,60 @@ interface ActivityItem {
   status: 'success' | 'warning' | 'info';
 }
 
-// Rich Text Editor Component with formatting toolbar
+interface ProgressStep {
+  label: string;
+  status: 'pending' | 'active' | 'completed';
+}
+
+// Progress Bar Component
+const ProgressBar: React.FC<{ steps: ProgressStep[] }> = ({ steps }) => {
+  return (
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-4">
+        {steps.map((step, index) => (
+          <React.Fragment key={index}>
+            <div className="flex items-center">
+              <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 ${
+                step.status === 'completed' ? 'bg-green-500 border-green-500 text-white' :
+                step.status === 'active' ? 'bg-blue-500 border-blue-500 text-white animate-pulse' :
+                'bg-gray-100 border-gray-300 text-gray-500'
+              }`}>
+                {step.status === 'completed' ? <Check className="h-5 w-5" /> : index + 1}
+              </div>
+            </div>
+
+            {index < steps.length - 1 && (
+              <div className={`h-1 w-16 mx-2 ${
+                steps[index + 1].status === 'completed' || steps[index + 1].status === 'active'
+                  ? 'bg-blue-500' : 'bg-gray-200'
+              }`} />
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+
+      <div className="flex justify-between text-sm">
+        {steps.map((step, index) => (
+          <span key={index} className={`
+            ${step.status === 'completed' ? 'text-green-600 font-medium' :
+            step.status === 'active' ? 'text-blue-600 font-medium' :
+            'text-gray-500'}`}> 
+            {step.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+
 const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
+
+  const [selectedText, setSelectedText] = useState<string>('');
+  const [showFormatting, setShowFormatting] = useState<boolean>(false);
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const formatText = (command: string): void => {
     const textarea = textareaRef.current;
@@ -68,6 +119,47 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
       const newPosition = start + replacement.length;
       textarea.setSelectionRange(newPosition, newPosition);
     }, 0);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Create a file reader to convert image to base64
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const imageUrl = event.target?.result as string; 
+      const textarea = textareaRef.current; 
+      if (!textarea) return; 
+ 
+      const start = textarea.selectionStart; 
+      const end = textarea.selectionEnd; 
+ 
+      // Append image to uploadedImages and get its index (use functional update) 
+      let newIndex = 0; 
+      setUploadedImages(prev => { 
+        newIndex = prev.length; 
+        return [...prev, imageUrl]; 
+      }); 
+ 
+      // Insert a compact token into the textarea instead of the full data URL 
+      const imageToken = `![Image](image-${newIndex})`; 
+      const newText = data.substring(0, start) + imageToken + data.substring(end); 
+      onChange(newText); 
+ 
+      // Restore focus 
+      setTimeout(() => { 
+        textarea.focus(); 
+        const newPosition = start + imageToken.length; 
+        textarea.setSelectionRange(newPosition, newPosition); 
+      }, 0); 
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleTextSelect = (): void => {
@@ -119,16 +211,40 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
           >
             Link
           </button>
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100 text-green-600 flex items-center"
+            title="Upload Image"
+          >
+            <Image className="h-4 w-4 mr-1" />
+            Image
+          </button>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
         </div>
+        {/* Image preview thumbnails */}
+        {uploadedImages.length > 0 && (
+          <div className="mt-3 flex items-center space-x-2 overflow-x-auto">
+            {uploadedImages.map((src, i) => (
+              <img key={i} src={src} alt={`upload-${i}`} className="h-16 w-16 object-cover rounded-md border" />
+            ))}
+          </div>
+        )}
         <div className="mt-2 text-xs text-gray-500">
-          Select text to format it. Supports Markdown syntax.
+          Select text to format it. Supports Markdown syntax and image uploads.
         </div>
       </div>
 
-      {/* Text Area */}
+      {/* Text Area - Reduced height */}
       <textarea
         ref={textareaRef}
-        className="w-full h-80 p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full h-48 p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
         placeholder="Start typing your document content...
 
 You can use Markdown formatting:
@@ -136,7 +252,8 @@ You can use Markdown formatting:
 *Italic text*
 # Heading
 - Bullet points
-[Link text](URL)"
+[Link text](URL)
+![Image](URL)"
         value={data}
         onChange={(e) => onChange(e.target.value)}
         onSelect={handleTextSelect}
@@ -144,20 +261,31 @@ You can use Markdown formatting:
         onKeyUp={handleTextSelect}
       />
 
-      {/* Preview */}
+      {/* Preview - Compact version */}
       {data && (
-        <div className="border-t border-gray-200 bg-gray-50 p-4">
-          <div className="text-sm font-medium text-gray-700 mb-2">Preview:</div>
+        <div className="border-t border-gray-200 bg-gray-50 p-3">
+          <div className="text-xs font-medium text-gray-700 mb-2">Preview:</div>
           <div 
-            className="prose prose-sm max-w-none text-gray-800"
+            className="prose prose-sm max-w-none text-gray-800 text-sm max-h-32 overflow-y-auto"
             dangerouslySetInnerHTML={{
-              __html: data
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/^# (.*$)/gm, '<h1 class="text-xl font-bold mb-2">$1</h1>')
-                .replace(/^• (.*$)/gm, '<li class="ml-4">$1</li>')
-                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 underline">$1</a>')
-                .replace(/\n/g, '<br>')
+              __html: (() => {
+                // First convert tokens like image-0 to actual data URLs using uploadedImages
+                const withTokens = data.replace(/!\[([^\]]*)\]\((image-(\d+))\)/g, (_, alt, token, idx) => {
+                  const index = parseInt(idx, 10);
+                  const src = uploadedImages[index];
+                  return src ? `<img src="${src}" alt="${alt}" class="max-w-full h-auto max-h-20 rounded" />` : '';
+                });
+
+                return withTokens
+                  .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                  .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                  .replace(/^# (.*$)/gm, '<h1 class="text-lg font-bold mb-1">$1</h1>')
+                  .replace(/^• (.*$)/gm, '<li class="ml-4">$1</li>')
+                  .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 underline">$1</a>')
+                  // fallback for any standard image markdown (non-token) -- keeps existing behavior
+                  .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto max-h-20 rounded" />')
+                  .replace(/\n/g, '<br>');
+              })()
             }}
           />
         </div>
@@ -173,6 +301,8 @@ export default function DashboardPage(): React.ReactElement {
   const [editorContent, setEditorContent] = useState<string>('');
   const [documentTitle, setDocumentTitle] = useState<string>('');
   const [session, setSession] = useState<null | { role: 'ADMIN' | 'MANAGER'; permissions?: string[]; docTypes?: string[] }> (null);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [uploadProgress, setUploadProgress] = useState<ProgressStep[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stats: StatItem[] = [
@@ -189,6 +319,42 @@ export default function DashboardPage(): React.ReactElement {
     { id: 4, action: 'New user registered', time: '2 hours ago', status: 'info' },
     { id: 5, action: 'System update', time: '3 hours ago', status: 'info' },
   ];
+
+  const simulateUploadProgress = async (): Promise<void> => {
+    const steps = [
+      { label: 'Uploading', status: 'active' as const },
+      { label: 'Processing', status: 'pending' as const },
+      { label: 'Indexing', status: 'pending' as const },
+      { label: 'Complete', status: 'pending' as const },
+    ];
+
+    setUploadProgress(steps);
+    
+    // Step 1: Uploading
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setUploadProgress(prev => prev.map((step, index) => 
+      index === 0 ? { ...step, status: 'completed' } :
+      index === 1 ? { ...step, status: 'active' } : step
+    ));
+
+    // Step 2: Processing
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setUploadProgress(prev => prev.map((step, index) => 
+      index <= 1 ? { ...step, status: 'completed' } :
+      index === 2 ? { ...step, status: 'active' } : step
+    ));
+
+    // Step 3: Indexing
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setUploadProgress(prev => prev.map((step, index) => 
+      index <= 2 ? { ...step, status: 'completed' } :
+      index === 3 ? { ...step, status: 'active' } : step
+    ));
+
+    // Step 4: Complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setUploadProgress(prev => prev.map(step => ({ ...step, status: 'completed' })));
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
@@ -233,42 +399,57 @@ export default function DashboardPage(): React.ReactElement {
     return types.includes(docType);
   };
 
-  const handleUploadSubmit = () => {
+
+  const handleUploadSubmit = async () => {
     if (uploadMode === 'file') {
       if (selectedFiles.length === 0) {
         alert('Please select at least one file');
         return;
       }
-      
-      // Handle file upload logic here
-      console.log('Uploading files:', selectedFiles);
-      alert(`Uploading ${selectedFiles.length} file(s)...`);
-      
     } else if (uploadMode === 'editor') {
       if (!documentTitle.trim() || !editorContent.trim()) {
         alert('Please provide a document title and content');
         return;
       }
-      
-      // Handle editor content submission here
-      console.log('Creating document:', { title: documentTitle, content: editorContent });
-      alert('Document created successfully!');
     }
     
-    // Reset and close dialog
-    setShowUploadDialog(false);
-    setUploadMode(null);
-    setSelectedFiles([]);
-    setEditorContent('');
-    setDocumentTitle('');
+    setIsUploading(true);
+    
+    try {
+      await simulateUploadProgress();
+      
+      // Show success for a moment
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Reset and close dialog
+      setShowUploadDialog(false);
+      setUploadMode(null);
+      setSelectedFiles([]);
+      setEditorContent('');
+      setDocumentTitle('');
+      setIsUploading(false);
+      setUploadProgress([]);
+      
+      // Show success message
+      alert(uploadMode === 'file' ? 'Files uploaded successfully!' : 'Document created successfully!');
+      
+    } catch (error) {
+      setIsUploading(false);
+      setUploadProgress([]);
+      alert('Upload failed. Please try again.');
+    }
   };
 
   const resetDialog = () => {
+    if (isUploading) return; // Prevent closing during upload
+    
     setShowUploadDialog(false);
     setUploadMode(null);
     setSelectedFiles([]);
     setEditorContent('');
     setDocumentTitle('');
+    setIsUploading(false);
+    setUploadProgress([]);
   };
 
   return (
@@ -444,7 +625,8 @@ export default function DashboardPage(): React.ReactElement {
               </h2>
               <button
                 onClick={resetDialog}
-                className="text-gray-400 hover:text-gray-600"
+                disabled={isUploading}
+                className={`text-gray-400 hover:text-gray-600 ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <X className="h-6 w-6" />
               </button>
@@ -452,7 +634,18 @@ export default function DashboardPage(): React.ReactElement {
 
             {/* Dialog Content */}
             <div className="p-6">
-              {!uploadMode ? (
+              {isUploading ? (
+                // Progress Bar
+                <div className="py-8">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-6 text-center">
+                    {uploadMode === 'file' ? 'Uploading Your Files...' : 'Creating Your Document...'}
+                  </h3>
+                  <ProgressBar steps={uploadProgress} />
+                  <div className="text-center text-sm text-gray-600 mt-4">
+                    Please wait while we process your {uploadMode === 'file' ? 'files' : 'document'}...
+                  </div>
+                </div>
+              ) : !uploadMode ? (
                 // Mode Selection
                 <div className="space-y-4">
                   <p className="text-gray-600 mb-6">Choose how you&apos;d like to add your document:</p>
@@ -470,8 +663,8 @@ export default function DashboardPage(): React.ReactElement {
                       className="p-6 border-2 border-gray-200 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors group"
                     >
                       <Edit3 className="h-12 w-12 text-green-600 mx-auto mb-4 group-hover:scale-110 transition-transform" />
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Upload via Editor</h3>
-                      <p className="text-sm text-gray-600">Create or paste content using our built-in rich text editor</p>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Create with Editor</h3>
+                      <p className="text-sm text-gray-600">Create or paste content using our built-in rich text editor with image support</p>
                     </button>
                   </div>
                 </div>
@@ -533,7 +726,7 @@ export default function DashboardPage(): React.ReactElement {
                 </div>
               ) : (
                 // Editor Mode
-                <div className="space-y-6">
+                <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Document Title
