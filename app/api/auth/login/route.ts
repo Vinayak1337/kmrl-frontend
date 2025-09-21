@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 
 import { prisma } from '@/lib/prisma';
 import { AUTH_COOKIE, signSession } from '@/lib/auth';
+// grants computed directly from DB JSON
 
 export async function POST(req: Request) {
   try {
@@ -22,14 +23,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
+    const rawGrants = (user as unknown as { grants?: Array<{ dept: string; type: string; actions: string[] }> }).grants;
+    const grants: Array<{ dept: string; type: string; actions: string[] }> = Array.isArray(rawGrants) ? rawGrants : [];
     const token = signSession({
       sub: user.id,
       email: user.email,
       name: user.name,
       role: user.role as 'ADMIN' | 'MANAGER',
-      permissions: user.permissions ?? [],
+      permissions: [],
       department: user.department ?? null,
-      docTypes: user.docTypes ?? [],
+      docTypes: [],
+      grants,
     });
 
     const res = NextResponse.json({ ok: true }, { status: 200 });

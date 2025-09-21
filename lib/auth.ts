@@ -15,9 +15,10 @@ export type JwtUser = {
   email: string;
   name: string;
   role: 'ADMIN' | 'MANAGER';
-  permissions: string[];
+  permissions?: string[]; // legacy, may be undefined
   department?: string | null;
-  docTypes?: string[];
+  docTypes?: string[]; // legacy, may be undefined
+  grants?: Array<{ dept: string; type: string; actions: string[] }>;
 };
 
 export function signSession(payload: JwtUser, options?: { expiresIn?: number }) {
@@ -40,6 +41,7 @@ export function verifySession(token: string): JwtUser | null {
       permissions: decoded.permissions || [],
       department: decoded.department ?? null,
       docTypes: decoded.docTypes || [],
+      grants: decoded.grants || [],
     };
   } catch {
     return null;

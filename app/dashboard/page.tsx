@@ -300,9 +300,10 @@ export default function DashboardPage(): React.ReactElement {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [editorContent, setEditorContent] = useState<string>('');
   const [documentTitle, setDocumentTitle] = useState<string>('');
-  const [session, setSession] = useState<null | { role: 'ADMIN' | 'MANAGER'; permissions?: string[]; docTypes?: string[] }> (null);
+  // const [session, setSession] = useState<null | { role: 'ADMIN' | 'MANAGER'; permissions?: string[]; docTypes?: string[] }> (null);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [uploadProgress, setUploadProgress] = useState<ProgressStep[]>([]);
+  const [session, setSession] = useState<null | { role: 'ADMIN' | 'MANAGER'; grants?: Array<{ dept: string; type: string; actions: string[] }> }> (null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stats: StatItem[] = [
@@ -388,15 +389,18 @@ export default function DashboardPage(): React.ReactElement {
   const hasPermission = (perm: string) => {
     if (!session) return false;
     if (session.role === 'ADMIN') return true;
-    const perms = session.permissions || [];
-    return perms.includes('*') || perms.includes(perm);
+    const grants = session.grants || [];
+    // Map perm 'upload' to action 'ingest', 'manage-users' is admin-only
+    if (perm === 'manage-users') return false;
+    if (perm === 'upload') return grants.some(g => g.actions.includes('ingest'));
+    return false;
   };
 
   const hasDocType = (docType: string) => {
     if (!session) return false;
     if (session.role === 'ADMIN') return true;
-    const types = session.docTypes || [];
-    return types.includes(docType);
+    const grants = session.grants || [];
+    return grants.some(g => g.type.toLowerCase() === docType.toLowerCase() && g.actions.includes('read'));
   };
 
 
