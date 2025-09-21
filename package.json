@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ckeditor/ckeditor5-react": "^11.0.0",
+    "ckeditor5": "^46.1.1",
+    "ckeditor5-premium-features": "^46.1.1",
     "framer-motion": "^12.23.16",
     "lucide-react": "^0.542.0",
     "next": "15.5.2",
