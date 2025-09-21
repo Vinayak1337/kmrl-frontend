@@ -201,22 +201,10 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt = `You are an expert HTML analyzer. Given HTML content with embedded images, you will analyze the content and provide insights about the images.`;
 
-    // Create content array for Gemini - properly structured
-    // Structure per Gemini SDK; using 'any' to satisfy SDK flexibility
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const contents: any[] = [{ role: "system", text: systemPrompt }];
+    // Generate content using a single prompt
+    const prompt = `${systemPrompt}\n\nAnalyze this HTML content and describe any images found: ${processedContent.textPart.text}`;
+    const result = await model.generateContent(prompt as string);
     
-    // Add the main prompt with text content
-    contents.push({
-        role: "document",
-      text: `Analyze this HTML content and describe any images found: ${processedContent.textPart.text}`
-    });
-    
-    // Add image parts
-    contents.push(...processedContent.imageParts);
-
-    // Generate content
-    const result = await model.generateContent(contents);
     const response = await result.response;
     const text = response.text();
 
