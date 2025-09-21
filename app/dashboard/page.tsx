@@ -1,4 +1,4 @@
-'use client'; // Add this at the top since it uses React hooks
+'use client'; 
 
 import React, { useState, useRef } from 'react';
 import { LayoutDashboard, FileText, Settings, BarChart3, Bell, Search, Upload, UserPlus, X, File, Edit3 } from 'lucide-react';
@@ -64,7 +64,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
     newText = data.substring(0, start) + replacement + data.substring(end);
     onChange(newText);
 
-    // Restore focus and cursor position
+    // Restore focus
     setTimeout(() => {
       textarea.focus();
       const newPosition = start + replacement.length;
@@ -83,7 +83,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
 
   return (
     <div className="border border-gray-300 rounded-lg overflow-hidden">
-      {/* Formatting Toolbar */}
+      {/*  Toolbar */}
       <div className="bg-gray-50 border-b border-gray-200 p-3">
         <div className="flex flex-wrap gap-2">
           <button
@@ -151,7 +151,7 @@ You can use Markdown formatting:
         onKeyUp={handleTextSelect}
       />
 
-      {/* Preview Section */}
+      {/* Preview */}
       {data && (
         <div className="border-t border-gray-200 bg-gray-50 p-4">
           <div className="text-sm font-medium text-gray-700 mb-2">Preview:</div>
