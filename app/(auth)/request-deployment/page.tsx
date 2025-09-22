@@ -142,7 +142,7 @@ export default function RequestDeploymentPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="light-scope min-h-[calc(100vh-4rem)] bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 text-gray-900 font-sans">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white shadow-2xl rounded-3xl p-10 md:p-14 space-y-10">
           <div className="text-center space-y-4">

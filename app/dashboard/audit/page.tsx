@@ -114,7 +114,7 @@ function renderPage(
   const params = searchParams || {};
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="light-scope min-h-screen bg-gray-50 text-gray-900">
       <div className="max-w-6xl mx-auto p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Audit Logs</h1>
@@ -126,23 +126,23 @@ function renderPage(
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600">Action</label>
-              <input name="action" defaultValue={params.action || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="CREATE_USER" />
+              <input name="action" defaultValue={params.action || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="CREATE_USER" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600">Actor Email</label>
-              <input name="actor" defaultValue={params.actor || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="admin@example.com" />
+              <input name="actor" defaultValue={params.actor || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="admin@example.com" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600">Target Email</label>
-              <input name="target" defaultValue={params.target || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="user@example.com" />
+              <input name="target" defaultValue={params.target || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200" placeholder="user@example.com" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600">From</label>
-              <input type="date" name="from" defaultValue={params.from || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              <input type="date" name="from" defaultValue={params.from || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600">To</label>
-              <input type="date" name="to" defaultValue={params.to || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              <input type="date" name="to" defaultValue={params.to || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200" />
             </div>
           </div>
           <div className="mt-4 flex gap-3">

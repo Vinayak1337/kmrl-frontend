@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, FileText, Settings, BarChart3, Bell, Search, Upload, UserPlus, X, File, Edit3, Image as ImageIcon, Check, Bold as BoldIcon, Italic as ItalicIcon, Heading1, List, Link as LinkIcon } from 'lucide-react';
+import { LayoutDashboard, FileText, BarChart3, Bell, Search, Upload, UserPlus, X, File, Edit3, Image as ImageIcon, Check, Bold as BoldIcon, Italic as ItalicIcon, Heading1, List, Link as LinkIcon } from 'lucide-react';
 
 // Define TypeScript interfaces
 interface RichTextEditorProps {
@@ -295,6 +295,11 @@ export default function DashboardPage(): React.ReactElement {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [editorContent, setEditorContent] = useState<string>('');
   const [documentTitle, setDocumentTitle] = useState<string>('');
+  type DemoPage = { page: number; html?: string; image?: string; content?: Record<string, string> };
+  type DemoPreview = { title?: string; language?: string; languages?: string[]; pages: DemoPage[] };
+  const [demoPreview, setDemoPreview] = useState<null | DemoPreview>(null);
+  const [activePreviewPage, setActivePreviewPage] = useState<number>(1);
+  const [previewLanguage, setPreviewLanguage] = useState<string>('en');
   const [session, setSession] = useState<null | { role: 'ADMIN' | 'MANAGER'; permissions?: string[]; docTypes?: string[]; grants?: Array<{ dept: string; type: string; actions: string[] }> }> (null);
   const [searchInput, setSearchInput] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ id: string | null; title?: string | null; summary?: string | null; textContent?: string }>>([]);
@@ -327,30 +332,28 @@ export default function DashboardPage(): React.ReactElement {
     ];
 
     setUploadProgress(steps);
-    
-    // Step 1: Uploading
-    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    // Keep total around ~4.8s to feel realistic but snappy
+    await sleep(1400); // Uploading
     setUploadProgress(prev => prev.map((step, index) => 
       index === 0 ? { ...step, status: 'completed' } :
       index === 1 ? { ...step, status: 'active' } : step
     ));
 
-    // Step 2: Processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await sleep(1400); // Processing
     setUploadProgress(prev => prev.map((step, index) => 
       index <= 1 ? { ...step, status: 'completed' } :
       index === 2 ? { ...step, status: 'active' } : step
     ));
 
-    // Step 3: Indexing
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await sleep(1100); // Indexing
     setUploadProgress(prev => prev.map((step, index) => 
       index <= 2 ? { ...step, status: 'completed' } :
       index === 3 ? { ...step, status: 'active' } : step
     ));
 
-    // Step 4: Complete
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await sleep(900); // Complete
     setUploadProgress(prev => prev.map(step => ({ ...step, status: 'completed' })));
   };
 
@@ -361,15 +364,41 @@ export default function DashboardPage(): React.ReactElement {
       'application/pdf',
       'application/msword',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
       'text/plain',
       'text/markdown',
       'text/html',
     ]);
-    const validFiles = files.filter(file => validTypes.has(file.type) || /\.(pdf|doc|docx|txt|md|html?)$/i.test(file.name));
-    if (validFiles.length !== files.length) {
-      alert('Unsupported file removed. Supported: PDF, DOC, DOCX, TXT, MD, HTML');
-    }
+    const validFiles = files.filter(file => validTypes.has(file.type) || /\.(pdf|doc|docx|pptx|txt|md|html?)$/i.test(file.name));
+    // Silently drop unsupported files (no popups)
     setSelectedFiles(validFiles);
+    // Try load demo preview for the first file (by name)
+    if (validFiles[0]) {
+      const base = validFiles[0].name.replace(/\.[^.]+$/, '');
+      const slug = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      void loadDemoPreview(slug);
+    }
+  };
+
+  const loadDemoPreview = async (slug: string) => {
+    const tryFetch = async (path: string) => {
+      try {
+        const res = await fetch(path);
+        if (!res.ok) return null;
+        return (await res.json()) as DemoPreview;
+      } catch {
+        return null;
+      }
+    };
+    let data = await tryFetch(`/demo/previews/${slug}.json`);
+    if (!data) data = await tryFetch(`/demo/previews/default.json`);
+    if (data && Array.isArray(data.pages) && data.pages.length > 0) {
+      setDemoPreview(data);
+      setActivePreviewPage(data.pages[0].page || 1);
+      setPreviewLanguage(data.language || 'en');
+    } else {
+      setDemoPreview(null);
+    }
   };
 
   // Load session to gate features by role/permissions
@@ -421,6 +450,8 @@ export default function DashboardPage(): React.ReactElement {
     }
   };
 
+
+  const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
   // Convert very simple markdown-ish content into minimal HTML for ingestion
   const markdownToHtml = (content: string): string => {
@@ -480,7 +511,7 @@ export default function DashboardPage(): React.ReactElement {
       } else if (uploadMode === 'file') {
         // Process files sequentially to keep UI simple
         for (const file of selectedFiles) {
-          let title = file.name.replace(/\.[^.]+$/, '');
+          const title = file.name.replace(/\.[^.]+$/, '');
           if (file.type === 'text/plain' || /\.(txt|md)$/i.test(file.name)) {
             const text = await file.text();
             const htmlFromMd = markdownToHtml(text);
@@ -490,22 +521,31 @@ export default function DashboardPage(): React.ReactElement {
             const html = await file.text();
             await postIngest(title, html);
           } else {
-            alert(`File type not yet supported for server-side parsing: ${file.name}. Use Editor mode for now.`);
+            // Skip unsupported file types silently (no popup)
           }
         }
       }
 
-      // Simulate processing steps visually
-      await new Promise(r => setTimeout(r, 800));
+      // Simulate processing steps visually with realistic pacing (~4.6–4.8s total)
+      const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+      await sleep(1400); // Uploading completes
       setUploadProgress(prev => prev.map((s, i) => i === 0 ? { ...s, status: 'completed' } : i === 1 ? { ...s, status: 'active' } : s));
-      await new Promise(r => setTimeout(r, 700));
+      await sleep(1400); // Processing completes
       setUploadProgress(prev => prev.map((s, i) => i <= 1 ? { ...s, status: 'completed' } : i === 2 ? { ...s, status: 'active' } : s));
-      await new Promise(r => setTimeout(r, 500));
+      await sleep(1100); // Indexing completes
       setUploadProgress(prev => prev.map((s, i) => i <= 2 ? { ...s, status: 'completed' } : i === 3 ? { ...s, status: 'active' } : s));
-      await new Promise(r => setTimeout(r, 400));
+      await sleep(700); // Finalize
       setUploadProgress(prev => prev.map(s => ({ ...s, status: 'completed' })));
 
-      // Reset and close dialog
+      // Prepare redirect to demo page to show slides all at once
+      let slug = 'kochidocs';
+      if (uploadMode === 'file' && selectedFiles[0]) {
+        slug = slugify(selectedFiles[0].name.replace(/\.[^.]+$/, '')) || 'kochidocs';
+      } else if (uploadMode === 'editor' && documentTitle.trim()) {
+        slug = slugify(documentTitle.trim()) || 'kochidocs';
+      }
+
+      // Reset dialog UI then redirect
       setShowUploadDialog(false);
       setUploadMode(null);
       setSelectedFiles([]);
@@ -514,7 +554,9 @@ export default function DashboardPage(): React.ReactElement {
       setIsUploading(false);
       setUploadProgress([]);
 
-      alert(uploadMode === 'file' ? 'Files ingested successfully!' : 'Document ingested successfully!');
+      if (typeof window !== 'undefined') {
+        window.location.href = `/demo?doc=${encodeURIComponent(slug)}&view=all`;
+      }
 
     } catch (error) {
       console.error(error);
@@ -699,16 +741,6 @@ export default function DashboardPage(): React.ReactElement {
                 >
                   Upload Document
                 </button>
-                <button className="w-full text-left px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors">
-                  Start Translation
-                </button>
-                <button className="w-full text-left px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors">
-                  Generate API Key
-                </button>
-                <button className="w-full text-left px-4 py-3 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors flex items-center justify-between">
-                  <span>Settings</span>
-                  <Settings className="h-4 w-4" />
-                </button>
               </div>
             </div>
           </div>
@@ -775,7 +807,7 @@ export default function DashboardPage(): React.ReactElement {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Files (PDF, DOC, DOCX)
+                      Select Files (PDF, DOC, DOCX, PPTX)
                     </label>
                     <div 
                       className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
@@ -786,13 +818,13 @@ export default function DashboardPage(): React.ReactElement {
                         Click to select files or drag and drop
                       </p>
                       <p className="text-sm text-gray-500">
-                        Supports PDF, DOC, and DOCX files
+                        Supports PDF, DOC, DOCX, and PPTX files
                       </p>
                       <input
                         ref={fileInputRef}
                         type="file"
                         multiple
-                        accept=".pdf,.doc,.docx,.txt,.md,.html,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/html"
+                        accept=".pdf,.doc,.docx,.pptx,.txt,.md,.html,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown,text/html"
                         onChange={handleFileSelect}
                         className="hidden"
                       />
@@ -823,6 +855,55 @@ export default function DashboardPage(): React.ReactElement {
                           </div>
                         ))}
                       </div>
+                      {/* Demo preview block (page-wise) */}
+                      {demoPreview && (
+                        <div className="mt-6 border rounded-lg bg-white">
+                          <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50 rounded-t-lg">
+                            <div className="text-sm text-gray-700">
+                              Demo Preview{demoPreview.title ? ` — ${demoPreview.title}` : ''}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {Array.isArray(demoPreview.languages) && demoPreview.languages.length > 0 && (
+                                <select
+                                  value={previewLanguage}
+                                  onChange={(e) => setPreviewLanguage(e.target.value)}
+                                  className="px-2 py-1 text-sm border border-gray-300 rounded"
+                                >
+                                  {demoPreview.languages.map((lng) => (
+                                    <option key={lng} value={lng}>{lng.toUpperCase()}</option>
+                                  ))}
+                                </select>
+                              )}
+                              <div className="flex flex-wrap gap-2">
+                                {demoPreview.pages.map(p => (
+                                  <button
+                                    key={p.page}
+                                    onClick={() => setActivePreviewPage(p.page)}
+                                    className={`px-3 py-1 text-sm rounded border ${activePreviewPage === p.page ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                                  >
+                                    Page {p.page}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="p-4 max-h-80 overflow-y-auto">
+                            {demoPreview.pages.filter(p => p.page === activePreviewPage).map(p => {
+                              const page = p as DemoPage;
+                              const html = page.html || (page.content ? (page.content[previewLanguage] || Object.values(page.content)[0] || '') : '');
+                              return (
+                                <div key={page.page} className="prose prose-sm max-w-none">
+                                  {page.image && (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={page.image} alt={`Slide ${page.page}`} className="mb-4 rounded border max-h-48 w-auto" />
+                                  )}
+                                  <div dangerouslySetInnerHTML={{ __html: html }} />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
