@@ -43,6 +43,7 @@ function Matrix({
                   <td key={a} className="px-4 py-2 text-center">
                     <input
                       type="checkbox"
+                      className="accent-blue-600"
                       disabled={disabled}
                       checked={chosen.includes(a)}
                       onChange={() => toggle(key, a)}
@@ -115,8 +116,8 @@ export default function NewUserPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-3xl mx-auto p-6">
+    <div className="light-scope min-h-screen bg-gray-50 text-gray-900">
+      <div className="max-w-3xl mx-auto p-6 font-sans">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Create User</h1>
 
         {error && <div className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</div>}
@@ -126,25 +127,25 @@ export default function NewUserPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input value={name} onChange={(e) => setName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required minLength={6} />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" required minLength={6} />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-              <input value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Compliance, Operations" />
+              <input value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Compliance, Operations" />
             </div>
           </div>
 
           <div className="flex items-center gap-4">
             <label className="inline-flex items-center gap-2">
-              <input type="checkbox" checked={isAdmin} onChange={(e) => setRole(e.target.checked ? 'ADMIN' : 'MANAGER')} />
+              <input type="checkbox" className="accent-blue-600" checked={isAdmin} onChange={(e) => setRole(e.target.checked ? 'ADMIN' : 'MANAGER')} />
               <span className="text-sm text-gray-700">Admin (all permissions, highest priority)</span>
             </label>
             {!isAdmin && <span className="text-xs text-gray-500">Choose actions per department/type</span>}
@@ -153,7 +154,9 @@ export default function NewUserPage() {
           {!isAdmin && (
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Permissions by Department/Type</label>
-              <Matrix value={matrix} onChange={setMatrix} />
+              <div className="bg-white rounded-lg border">
+                <Matrix value={matrix} onChange={setMatrix} />
+              </div>
               <p className="text-xs text-gray-500">Check actions for each department/type.</p>
             </div>
           )}
@@ -172,4 +175,3 @@ export default function NewUserPage() {
     </div>
   );
 }
-
