@@ -79,11 +79,7 @@ export default function Home() {
   // useInView hooks to detect when sections are in view
   // No framer-motion in restricted build; using static content
 
-  // Animation variants for Framer Motion with explicit Easing type
-  const fadeInDown = undefined;
-  const fadeInUp = undefined;
-
-  // Removed unused slideInLeft variant
+  // Removed animation variables - no framer-motion in restricted build
 
   return (
     <div className="bg-gradient-to-b from-gray-50 via-blue-50 to-white min-h-screen">

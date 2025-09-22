@@ -57,7 +57,16 @@ export async function POST(req: Request) {
           imageCount++;
         }
 
-        const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
+        // Build a single prompt string with all text content
+        const prompt = parts
+          .map(part => {
+            if ('text' in part && part.text) return part.text;
+            return ''; // Skip image parts for now
+          })
+          .filter(Boolean)
+          .join('\n\n');
+        
+        const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text();
         try {
