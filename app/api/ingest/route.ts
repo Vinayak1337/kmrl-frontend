@@ -1,16 +1,23 @@
+export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { OpenAIEmbeddings } from '@langchain/openai';
 
 import { getCollection } from '@/lib/mongo';
-
-function stripHtml(html: string): string {
-  return html.replace(/<script[\s\S]*?<\/script>/gi, '')
-             .replace(/<style[\s\S]*?<\/style>/gi, '')
-             .replace(/<[^>]+>/g, ' ')
-             .replace(/\s+/g, ' ')
-             .trim();
-}
+import { parseHtmlForIngestion } from '@/lib/html';
+import { buildSystemPrompt, buildUserInstruction, type AiAnalysis } from '@/lib/prompt';
+type GeminiPart = { text?: string } | { inlineData: { data: string; mimeType: string } };
+type IngestDoc = {
+  title: string | null;
+  htmlContent: string;
+  textContent: string;
+  summary: string;
+  embedding: number[] | null;
+  ai: AiAnalysis | null;
+  imageCount: number;
+  metadata: { title: string | null; summary: string };
+  createdAt: Date;
+};
 
 export async function POST(req: Request) {
   try {
@@ -20,22 +27,50 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'html is required' }, { status: 400 });
     }
 
-    const textContent = stripHtml(html);
+    const { textContent, images } = parseHtmlForIngestion(html);
 
     // Summarize via Gemini if configured
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
     let summary = '';
+    let analysis: AiAnalysis | null = null;
     if (apiKey) {
       try {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-        const prompt = `Summarize the following document in 5-8 bullet points suitable for busy metro operations managers. Keep references to any safety directives or regulatory items.\n\n${textContent}`;
-        const result = await model.generateContent(prompt as string);
+        const systemPrompt = buildSystemPrompt();
+        const userInstruction = buildUserInstruction();
+        const parts: GeminiPart[] = [
+          { text: systemPrompt },
+          { text: userInstruction },
+          { text: `Full HTML (for reference):\n${html}` },
+          { text: `Plain text: ${textContent}` },
+        ];
+        // Add up to 8 images, max ~2.5MB each to keep within limits
+        const MAX_IMAGES = Number(process.env.INGEST_MAX_IMAGES || 8);
+        const MAX_BYTES = Number(process.env.INGEST_MAX_IMAGE_BYTES || 2_500_000);
+        let imageCount = 0;
+        for (const img of images) {
+          if (imageCount >= MAX_IMAGES) break;
+          if (!img.base64 || !img.mimeType) continue;
+          if (img.bytes > MAX_BYTES) continue;
+          parts.push({ inlineData: { data: img.base64, mimeType: img.mimeType } });
+          imageCount++;
+        }
+
+        const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
         const response = await result.response;
-        summary = response.text();
+        const text = response.text();
+        try {
+          analysis = JSON.parse(text) as AiAnalysis;
+          summary = analysis.overall_summary || '';
+        } catch {
+          analysis = null;
+          summary = text;
+        }
       } catch (e) {
         console.warn('Gemini summarization failed, continuing without summary', e);
         summary = '';
+        analysis = null;
       }
     }
 
@@ -48,32 +83,21 @@ export async function POST(req: Request) {
       embedding = await embedder.embedQuery(contentForEmbedding);
     }
 
-    const coll = await getCollection<{
-      title: string | null;
-      htmlContent: string;
-      textContent: string;
-      summary: string;
-      embedding: number[] | null;
-      createdAt: Date;
-    }>();
-    const doc: {
-      title: string | null;
-      htmlContent: string;
-      textContent: string;
-      summary: string;
-      embedding: number[] | null;
-      createdAt: Date;
-    } = {
+    const coll = await getCollection<IngestDoc>();
+    const doc: IngestDoc = {
       title: body.title || null,
       htmlContent: html,
       textContent,
       summary,
       embedding, // may be null if no OPENAI_API_KEY
+      ai: analysis, // structured partitions if available
+      imageCount: images.length,
+      metadata: { title: body.title || null, summary },
       createdAt: new Date(),
     };
     const result = await coll.insertOne(doc);
 
-    return NextResponse.json({ id: result.insertedId.toString(), summary }, { status: 201 });
+    return NextResponse.json({ id: result.insertedId.toString(), summary, ai: analysis }, { status: 201 });
   } catch (e) {
     console.error('Ingest error', e);
     return NextResponse.json({ error: 'Failed to ingest document' }, { status: 500 });

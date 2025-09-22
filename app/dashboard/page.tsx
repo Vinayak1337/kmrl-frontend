@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, FileText, Settings, BarChart3, Bell, Search, Upload, UserPlus, X, File, Edit3, Image, Check } from 'lucide-react';
+import { LayoutDashboard, FileText, Settings, BarChart3, Bell, Search, Upload, UserPlus, X, File, Edit3, Image as ImageIcon, Check, Bold as BoldIcon, Italic as ItalicIcon, Heading1, List, Link as LinkIcon } from 'lucide-react';
 
 // Define TypeScript interfaces
 interface RichTextEditorProps {
@@ -141,16 +141,12 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
       const start = textarea.selectionStart; 
       const end = textarea.selectionEnd; 
  
-      // Append image to uploadedImages and get its index (use functional update) 
-      let newIndex = 0; 
-      setUploadedImages(prev => { 
-        newIndex = prev.length; 
-        return [...prev, imageUrl]; 
-      }); 
- 
-      // Insert a compact token into the textarea instead of the full data URL 
-      const imageToken = `![Image](image-${newIndex})`; 
-      const newText = data.substring(0, start) + imageToken + data.substring(end); 
+      // Keep local preview list
+      setUploadedImages(prev => ([...prev, imageUrl]));
+      
+      // Insert an inline data URL directly so that parent can ingest without extra state
+      const imageToken = `![Image](${imageUrl})`;
+      const newText = data.substring(0, start) + imageToken + data.substring(end);
       onChange(newText); 
  
       // Restore focus 
@@ -168,58 +164,63 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
   };
 
   return (
-    <div className="border border-gray-300 rounded-lg overflow-hidden">
+    <div className="border border-gray-300 rounded-lg overflow-hidden bg-white">
       {/*  Toolbar */}
-      <div className="bg-gray-50 border-b border-gray-200 p-3">
+      <div className="bg-gray-50 border-b border-gray-200 p-3 sticky top-0 z-10">
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => formatText('bold')}
-            className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100 font-bold"
+            className="h-9 px-3 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 flex items-center justify-center"
             title="Bold"
+            aria-label="Bold"
           >
-            B
+            <BoldIcon className="h-4 w-4 text-gray-800" />
           </button>
           <button
             type="button"
             onClick={() => formatText('italic')}
-            className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100 italic"
+            className="h-9 px-3 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 flex items-center justify-center"
             title="Italic"
+            aria-label="Italic"
           >
-            I
+            <ItalicIcon className="h-4 w-4 text-gray-800" />
           </button>
           <button
             type="button"
             onClick={() => formatText('heading')}
-            className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100 font-semibold"
+            className="h-9 px-3 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 flex items-center justify-center"
             title="Heading"
+            aria-label="Heading"
           >
-            H1
+            <Heading1 className="h-4 w-4 text-gray-800" />
           </button>
           <button
             type="button"
             onClick={() => formatText('bullet')}
-            className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100"
+            className="h-9 px-3 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 flex items-center justify-center"
             title="Bullet Point"
+            aria-label="Bullet List"
           >
-            •
+            <List className="h-4 w-4 text-gray-800" />
           </button>
           <button
             type="button"
             onClick={() => formatText('link')}
-            className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100 text-blue-600"
+            className="h-9 px-3 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 flex items-center justify-center"
             title="Add Link"
+            aria-label="Add Link"
           >
-            Link
+            <LinkIcon className="h-4 w-4 text-gray-800" />
           </button>
           <button
             type="button"
             onClick={() => imageInputRef.current?.click()}
-            className="px-3 py-1 text-sm bg-white border border-gray-300 rounded hover:bg-gray-100 text-green-600 flex items-center"
+            className="h-9 px-3 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-100 flex items-center justify-center"
             title="Upload Image"
+            aria-label="Upload Image"
           >
-            <Image className="h-4 w-4 mr-1" />
-            Image
+            <ImageIcon className="h-4 w-4 text-gray-800" />
           </button>
           <input
             ref={imageInputRef}
@@ -242,10 +243,10 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
         </div>
       </div>
 
-      {/* Text Area - Reduced height */}
+      {/* Text Area - Increased height for visibility */}
       <textarea
         ref={textareaRef}
-        className="w-full h-48 p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full h-60 p-4 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
         placeholder="Start typing your document content...
 
 You can use Markdown formatting:
@@ -264,26 +265,19 @@ You can use Markdown formatting:
 
       {/* Preview - Compact version */}
       {data && (
-        <div className="border-t border-gray-200 bg-gray-50 p-3">
+        <div className="border-t border-gray-200 bg-white p-3">
           <div className="text-xs font-medium text-gray-700 mb-2">Preview:</div>
           <div 
-            className="prose prose-sm max-w-none text-gray-800 text-sm max-h-32 overflow-y-auto"
+            className="prose prose-sm max-w-none text-gray-800 text-sm max-h-48 overflow-y-auto"
             dangerouslySetInnerHTML={{
               __html: (() => {
-                // First convert tokens like image-0 to actual data URLs using uploadedImages
-                const withTokens = data.replace(/!\[([^\]]*)\]\((image-(\d+))\)/g, (_, alt, token, idx) => {
-                  const index = parseInt(idx, 10);
-                  const src = uploadedImages[index];
-                  return src ? `<img src="${src}" alt="${alt}" class="max-w-full h-auto max-h-20 rounded" />` : '';
-                });
-
-                return withTokens
+                return data
                   .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                   .replace(/\*(.*?)\*/g, '<em>$1</em>')
                   .replace(/^# (.*$)/gm, '<h1 class="text-lg font-bold mb-1">$1</h1>')
                   .replace(/^• (.*$)/gm, '<li class="ml-4">$1</li>')
                   .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-600 underline">$1</a>')
-                  // fallback for any standard image markdown (non-token) -- keeps existing behavior
+                  // standard image markdown, including data URLs
                   .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto max-h-20 rounded" />')
                   .replace(/\n/g, '<br>');
               })()
@@ -363,16 +357,18 @@ export default function DashboardPage(): React.ReactElement {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     const files: File[] = fileList ? Array.from(fileList) : [];
-    const validFiles = files.filter(file => 
-      file.type === 'application/pdf' || 
-      file.type === 'application/msword' || 
-      file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    );
-    
+    const validTypes = new Set([
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+      'text/markdown',
+      'text/html',
+    ]);
+    const validFiles = files.filter(file => validTypes.has(file.type) || /\.(pdf|doc|docx|txt|md|html?)$/i.test(file.name));
     if (validFiles.length !== files.length) {
-      alert('Please select only PDF or DOC files');
+      alert('Unsupported file removed. Supported: PDF, DOC, DOCX, TXT, MD, HTML');
     }
-    
     setSelectedFiles(validFiles);
   };
 
@@ -426,6 +422,35 @@ export default function DashboardPage(): React.ReactElement {
   };
 
 
+  // Convert very simple markdown-ish content into minimal HTML for ingestion
+  const markdownToHtml = (content: string): string => {
+    let html = content;
+    html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html = html
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^# (.*)$/gm, '<h1>$1<\/h1>')
+      .replace(/^• (.*)$/gm, '<li>$1<\/li>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1<\/a>')
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" \/>');
+    // Wrap loose lines into paragraphs
+    html = html.split(/\n{2,}/).map(block => `<p>${block.replace(/\n/g, '<br\/>')}<\/p>`).join('');
+    return `<article>${html}<\/article>`;
+  };
+
+  const postIngest = async (title: string, html: string) => {
+    const res = await fetch('/api/ingest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ html, title }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err?.error || 'Ingest failed');
+    }
+    return res.json();
+  };
+
   const handleUploadSubmit = async () => {
     if (uploadMode === 'file') {
       if (selectedFiles.length === 0) {
@@ -442,11 +467,44 @@ export default function DashboardPage(): React.ReactElement {
     setIsUploading(true);
     
     try {
-      await simulateUploadProgress();
-      
-      // Show success for a moment
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      setUploadProgress([
+        { label: 'Uploading', status: 'active' },
+        { label: 'Processing', status: 'pending' },
+        { label: 'Indexing', status: 'pending' },
+        { label: 'Complete', status: 'pending' },
+      ]);
+
+      if (uploadMode === 'editor') {
+        const htmlBody = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${documentTitle}</title></head><body>${markdownToHtml(editorContent)}</body></html>`;
+        await postIngest(documentTitle, htmlBody);
+      } else if (uploadMode === 'file') {
+        // Process files sequentially to keep UI simple
+        for (const file of selectedFiles) {
+          let title = file.name.replace(/\.[^.]+$/, '');
+          if (file.type === 'text/plain' || /\.(txt|md)$/i.test(file.name)) {
+            const text = await file.text();
+            const htmlFromMd = markdownToHtml(text);
+            const htmlBody = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title></head><body>${htmlFromMd}</body></html>`;
+            await postIngest(title, htmlBody);
+          } else if (file.type === 'text/html' || /\.(html?)$/i.test(file.name)) {
+            const html = await file.text();
+            await postIngest(title, html);
+          } else {
+            alert(`File type not yet supported for server-side parsing: ${file.name}. Use Editor mode for now.`);
+          }
+        }
+      }
+
+      // Simulate processing steps visually
+      await new Promise(r => setTimeout(r, 800));
+      setUploadProgress(prev => prev.map((s, i) => i === 0 ? { ...s, status: 'completed' } : i === 1 ? { ...s, status: 'active' } : s));
+      await new Promise(r => setTimeout(r, 700));
+      setUploadProgress(prev => prev.map((s, i) => i <= 1 ? { ...s, status: 'completed' } : i === 2 ? { ...s, status: 'active' } : s));
+      await new Promise(r => setTimeout(r, 500));
+      setUploadProgress(prev => prev.map((s, i) => i <= 2 ? { ...s, status: 'completed' } : i === 3 ? { ...s, status: 'active' } : s));
+      await new Promise(r => setTimeout(r, 400));
+      setUploadProgress(prev => prev.map(s => ({ ...s, status: 'completed' })));
+
       // Reset and close dialog
       setShowUploadDialog(false);
       setUploadMode(null);
@@ -455,14 +513,14 @@ export default function DashboardPage(): React.ReactElement {
       setDocumentTitle('');
       setIsUploading(false);
       setUploadProgress([]);
-      
-      // Show success message
-      alert(uploadMode === 'file' ? 'Files uploaded successfully!' : 'Document created successfully!');
-      
+
+      alert(uploadMode === 'file' ? 'Files ingested successfully!' : 'Document ingested successfully!');
+
     } catch (error) {
+      console.error(error);
       setIsUploading(false);
       setUploadProgress([]);
-      alert('Upload failed. Please try again.');
+      alert((error as Error)?.message || 'Upload failed. Please try again.');
     }
   };
 
@@ -659,8 +717,8 @@ export default function DashboardPage(): React.ReactElement {
 
       {/* Upload Dialog */}
       {showUploadDialog && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100]">
+          <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
             {/* Dialog Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
@@ -677,7 +735,7 @@ export default function DashboardPage(): React.ReactElement {
             </div>
 
             {/* Dialog Content */}
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto flex-1">
               {isUploading ? (
                 // Progress Bar
                 <div className="py-8">
@@ -734,7 +792,7 @@ export default function DashboardPage(): React.ReactElement {
                         ref={fileInputRef}
                         type="file"
                         multiple
-                        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        accept=".pdf,.doc,.docx,.txt,.md,.html,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown,text/html"
                         onChange={handleFileSelect}
                         className="hidden"
                       />
@@ -780,7 +838,7 @@ export default function DashboardPage(): React.ReactElement {
                       value={documentTitle}
                       onChange={(e) => setDocumentTitle(e.target.value)}
                       placeholder="Enter document title..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder:text-gray-500 bg-white"
                     />
                   </div>
                   

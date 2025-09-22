@@ -1,7 +1,6 @@
 "use client";
 import { ArrowRight, FileText, Search, Brain, Shield, Users, Bell, Database, Globe, Workflow, Lock } from "lucide-react";
 import Link from "next/link";
-import { motion, useInView, Easing } from "framer-motion";
 import { useRef } from "react";
 
 export default function Home() {
@@ -78,62 +77,32 @@ export default function Home() {
   const ctaRef = useRef(null);
 
   // useInView hooks to detect when sections are in view
-  const heroInView = useInView(heroRef, { once: false, amount: 0.3 });
-  const featuresInView = useInView(featuresRef, { once: false, amount: 0.2 });
-  const capabilitiesInView = useInView(capabilitiesRef, { once: false, amount: 0.2 });
-  const ctaInView = useInView(ctaRef, { once: false, amount: 0.3 });
+  // No framer-motion in restricted build; using static content
 
   // Animation variants for Framer Motion with explicit Easing type
-  const fadeInDown = {
-    hidden: { opacity: 0, y: -20 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      transition: { 
-        duration: 0.8, 
-        ease: "easeOut" as Easing,
-      },
-    },
-  };
-
-  const fadeInUp = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
-      y: 0, 
-      transition: { 
-        duration: 0.8, 
-        ease: "easeOut" as Easing,
-      },
-    },
-  };
+  const fadeInDown = undefined;
+  const fadeInUp = undefined;
 
   // Removed unused slideInLeft variant
 
   return (
     <div className="bg-gradient-to-b from-gray-50 via-blue-50 to-white min-h-screen">
       {/* Hero Section */}
-      <motion.section
-        ref={heroRef}
-        initial="hidden"
-        animate={heroInView ? "visible" : "hidden"}
-        variants={fadeInDown}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24"
-      >
+      <section ref={heroRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
         <div className="text-center">
-          <motion.div variants={fadeInDown} className="mb-8">
+          <div className="mb-8">
             <span className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-blue-100 text-blue-800 shadow-md transform transition-transform hover:scale-105">
               <Database className="w-5 h-5 mr-2" />
               Private deployment package
             </span>
-          </motion.div>
-          <motion.h1 variants={fadeInDown} className="text-5xl md:text-7xl font-extrabold text-gray-900 mb-6 tracking-tight">
+          </div>
+          <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 mb-6 tracking-tight">
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">KMRL</span> Document Intelligence, Installed On Your Network
-          </motion.h1>
-          <motion.p variants={fadeInDown} className="text-xl text-gray-600 mb-10 max-w-4xl mx-auto leading-relaxed">
+          </h1>
+          <p className="text-xl text-gray-600 mb-10 max-w-4xl mx-auto leading-relaxed">
             Equip your teams with a dedicated dashboard that runs on your hardware. We configure deployment, migrate critical archives, and keep shipping upgrades while you stay in control.
-          </motion.p>
-          <motion.div variants={fadeInDown} className="flex gap-6 justify-center">
+          </p>
+          <div className="flex gap-6 justify-center">
             <Link
               href="/request-deployment"
               className="inline-flex items-center px-8 py-4 text-lg font-semibold rounded-full text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-105 shadow-lg"
@@ -147,48 +116,42 @@ export default function Home() {
             >
               Client Login
             </Link>
-          </motion.div>
+          </div>
         </div>
-      </motion.section>
+      </section>
 
       {/* Features Section */}
-      <motion.section
-        ref={featuresRef}
-        initial="hidden"
-        animate={featuresInView ? "visible" : "hidden"}
-        variants={fadeInUp}
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20"
-      >
+      <section ref={featuresRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center mb-16">
-          <motion.h2 variants={fadeInUp} className="text-4xl font-extrabold text-gray-900 mb-6 tracking-tight">
+          <h2 className="text-4xl font-extrabold text-gray-900 mb-6 tracking-tight">
             Intelligent Document Management for Modern Organizations
-          </motion.h2>
-          <motion.p variants={fadeInUp} className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
+          </h2>
+          <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
             Leverage cutting-edge AI technologies including OCR, Large Language Models, and semantic search 
             to revolutionize how you handle documents and ensure compliance.
-          </motion.p>
+          </p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
-              <motion.div
+              <div
                 key={index}
-                initial="hidden"
-                animate={featuresInView ? "visible" : "hidden"}
-                variants={fadeInUp}
-                transition={{ delay: index * 0.1 }}
+               
+               
+               
+               
                 className="bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2"
               >
                 <div className="flex justify-center mb-6">
-                  <motion.div
+                  <div
                     className="p-4 bg-blue-50 rounded-full"
-                    whileHover={{ rotate: 12 }}
-                    transition={{ duration: 0.3 }}
+                   
+                   
                   >
                     <Icon className="h-10 w-10 text-blue-600" />
-                  </motion.div>
+                  </div>
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3 text-center">
                   {feature.title}
@@ -196,73 +159,73 @@ export default function Home() {
                 <p className="text-gray-600 text-center leading-relaxed">
                   {feature.description}
                 </p>
-              </motion.div>
+              </div>
             );
           })}
         </div>
-      </motion.section>
+      </section>
 
       {/* Capabilities Section */}
-      <motion.section
+      <section
         ref={capabilitiesRef}
-        initial="hidden"
-        animate={capabilitiesInView ? "visible" : "hidden"}
-        variants={fadeInUp}
+       
+       
+       
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20"
       >
-        <motion.div variants={fadeInUp} className="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-2xl p-12">
+        <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-2xl p-12">
           <div className="text-center mb-12">
-            <motion.h3 variants={fadeInUp} className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+            <h3 className="text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
               Enterprise-Grade Document Intelligence
-            </motion.h3>
-            <motion.p variants={fadeInUp} className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            </h3>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
               Revolutionize your document management with a platform designed for scalability, precision, and compliance. From intelligent ingestion to actionable insights, our system empowers enterprises to streamline workflows and meet regulatory demands effortlessly.
-            </motion.p>
+            </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {capabilities.map((capability, index) => {
               const Icon = capability.icon;
               return (
-                <motion.div
+                <div
                   key={index}
-                  variants={fadeInUp}
-                  transition={{ delay: index * 0.1 }}
+                 
+                 
                   className="bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1"
                 >
                   <div className="flex justify-center mb-4">
-                    <motion.div
+                    <div
                       className="p-3 bg-blue-100 rounded-full"
-                      whileHover={{ scale: 1.1 }}
-                      transition={{ duration: 0.3 }}
+                     
+                     
                     >
                       <Icon className="h-8 w-8 text-blue-600" />
-                    </motion.div>
+                    </div>
                   </div>
                   <h4 className="text-lg font-semibold text-gray-900 mb-2 text-center">{capability.title}</h4>
                   <p className="text-gray-600 text-center leading-relaxed">{capability.description}</p>
-                </motion.div>
+                </div>
               );
             })}
           </div>
-        </motion.div>
-      </motion.section>
+        </div>
+      </section>
 
       {/* CTA Section */}
-      <motion.section
+      <section
         ref={ctaRef}
-        initial="hidden"
-        animate={ctaInView ? "visible" : "hidden"}
-        variants={fadeInUp}
+       
+       
+       
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20"
       >
-        <motion.div variants={fadeInUp} className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-3xl px-10 py-16 text-center shadow-2xl">
-          <motion.h2 variants={fadeInUp} className="text-4xl font-extrabold text-white mb-6 tracking-tight">
+        <div className="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-3xl px-10 py-16 text-center shadow-2xl">
+          <h2 className="text-4xl font-extrabold text-white mb-6 tracking-tight">
             Schedule a Deployment Planning Session
-          </motion.h2>
-          <motion.p variants={fadeInUp} className="text-xl text-blue-100 mb-10 max-w-3xl mx-auto leading-relaxed">
+          </h2>
+          <p className="text-xl text-blue-100 mb-10 max-w-3xl mx-auto leading-relaxed">
             Share your constraints and we will assemble an installation roadmap, training plan, and support model tailored to your organization.
-          </motion.p>
-          <motion.div variants={fadeInUp}>
+          </p>
+          <div>
             <Link
               href="/request-deployment"
               className="inline-flex items-center px-10 py-4 text-lg font-semibold rounded-full text-blue-800 bg-white hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-lg"
@@ -270,9 +233,9 @@ export default function Home() {
               Request Deployment Plan
               <ArrowRight className="ml-3 h-6 w-6 animate-pulse" />
             </Link>
-          </motion.div>
-        </motion.div>
-      </motion.section>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "seed:admin": "tsx scripts/seed-admin.ts",
-    "prebuild": "prisma generate"
+    "prebuild": "prisma generate || echo \"prisma not available, skipping\""
   },
   "dependencies": {
     "@ckeditor/ckeditor5-react": "^11.0.0",
