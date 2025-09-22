@@ -4,7 +4,6 @@ import bcrypt from 'bcryptjs';
 
 import { prisma } from '@/lib/prisma';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
-import { grantsToTokens, tokensToGrants } from '@/lib/permissions';
 
 async function requireAdmin() {
   const token = (await cookies()).get(AUTH_COOKIE)?.value;

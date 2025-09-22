@@ -1,8 +1,8 @@
 "use client";
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/UI/card';
+import { Select } from '@/components/UI/select';
 
 type DemoPage = { page: number; html?: string; image?: string; content?: Record<string, string> };
 type DemoPreview = { title?: string; language?: string; languages?: string[]; pages: DemoPage[] };

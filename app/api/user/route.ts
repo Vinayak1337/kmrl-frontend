@@ -163,9 +163,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Types vary by SDK; keep 'any' here with a lint exception to match SDK's accepted input.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ContentPart = any;
 
 export async function POST(request: NextRequest) {
   // Require authenticated session

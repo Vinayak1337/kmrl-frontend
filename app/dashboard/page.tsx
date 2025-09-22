@@ -73,8 +73,6 @@ const ProgressBar: React.FC<{ steps: ProgressStep[] }> = ({ steps }) => {
 
 const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
 
-  const [selectedText, setSelectedText] = useState<string>('');
-  const [showFormatting, setShowFormatting] = useState<boolean>(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -234,6 +232,7 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ data, onChange }) => {
         {uploadedImages.length > 0 && (
           <div className="mt-3 flex items-center space-x-2 overflow-x-auto">
             {uploadedImages.map((src, i) => (
+              // eslint-disable-next-line @next/next/no-img-element
               <img key={i} src={src} alt={`upload-${i}`} className="h-16 w-16 object-cover rounded-md border" />
             ))}
           </div>
@@ -323,39 +322,6 @@ export default function DashboardPage(): React.ReactElement {
     { id: 5, action: 'System update', time: '3 hours ago', status: 'info' },
   ];
 
-  const simulateUploadProgress = async (): Promise<void> => {
-    const steps = [
-      { label: 'Uploading', status: 'active' as const },
-      { label: 'Processing', status: 'pending' as const },
-      { label: 'Indexing', status: 'pending' as const },
-      { label: 'Complete', status: 'pending' as const },
-    ];
-
-    setUploadProgress(steps);
-
-    const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-    // Keep total around ~4.8s to feel realistic but snappy
-    await sleep(1400); // Uploading
-    setUploadProgress(prev => prev.map((step, index) => 
-      index === 0 ? { ...step, status: 'completed' } :
-      index === 1 ? { ...step, status: 'active' } : step
-    ));
-
-    await sleep(1400); // Processing
-    setUploadProgress(prev => prev.map((step, index) => 
-      index <= 1 ? { ...step, status: 'completed' } :
-      index === 2 ? { ...step, status: 'active' } : step
-    ));
-
-    await sleep(1100); // Indexing
-    setUploadProgress(prev => prev.map((step, index) => 
-      index <= 2 ? { ...step, status: 'completed' } :
-      index === 3 ? { ...step, status: 'active' } : step
-    ));
-
-    await sleep(900); // Complete
-    setUploadProgress(prev => prev.map(step => ({ ...step, status: 'completed' })));
-  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
