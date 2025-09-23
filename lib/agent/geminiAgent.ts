@@ -99,10 +99,12 @@ export async function analyzeDocumentWithGemini(options: {
   maxLoops?: number;
 }): Promise<AgentResult> {
   const { pages, apiKey } = options;
-  const modelName = options.model || 'gemini-2.0-flash-001';
+  const modelCandidates = [options.model || 'gemini-2.0-flash-001', 'gemini-2.0-flash', 'gemini-1.5-flash'];
   const maxLoops = options.maxLoops ?? Math.max(3, Math.min(16, pages.length + 2));
   const client = new GoogleGenerativeAI(apiKey);
-  const model = client.getGenerativeModel({ model: modelName });
+  let model = client.getGenerativeModel({ model: modelCandidates[0] });
+
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
   const provided: number[] = [];
   // Start with page 1 if available
@@ -120,7 +122,25 @@ export async function analyzeDocumentWithGemini(options: {
         if (im?.base64 && im?.mimeType) parts.push({ inlineData: { data: im.base64, mimeType: im.mimeType } });
       }
     }
-    const result = await model.generateContent({ contents: [{ role: 'user', parts }] } as any);
+    let result;
+    let attempt = 0;
+    for (; attempt < 3; attempt++) {
+      try {
+        result = await model.generateContent({ contents: [{ role: 'user', parts }] } as any);
+        break;
+      } catch (e: any) {
+        const isOverloaded = e?.status === 503 || /overloaded|unavailable/i.test(String(e?.message || ''));
+        if (isOverloaded && attempt < 2) {
+          // Rotate model and backoff with jitter
+          const nextIndex = (attempt + 1) % modelCandidates.length;
+          model = client.getGenerativeModel({ model: modelCandidates[nextIndex] });
+          const backoff = 800 * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
+          await sleep(backoff);
+          continue;
+        }
+        throw e;
+      }
+    }
     const text = result?.response?.text?.() ?? '';
 
     let parsed: unknown = null;
