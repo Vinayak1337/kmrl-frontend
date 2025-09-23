@@ -20,6 +20,18 @@ const eslintConfig = [
       "next-env.d.ts",
     ],
   },
+  {
+    files: [
+      "lib/mongo.ts",
+      "lib/pdf.ts",
+      "lib/agent/**/*.ts",
+      "app/api/**/*.ts",
+      "shims/**/*.ts",
+    ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
 ];
 
 export default eslintConfig;

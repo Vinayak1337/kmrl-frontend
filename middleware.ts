@@ -21,6 +21,8 @@ export default async function middleware(req: NextRequest) {
     '/api/auth/logout',
     '/api/auth/session',
     '/api/requests',
+    '/api/status',  // Public status endpoint
+    '/api/search/vector',  // Public vector search for testing
   ]);
 
   // If hitting login or request-deployment and already authenticated, bounce to dashboard

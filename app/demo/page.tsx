@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/UI/card';
-import { Select } from '@/components/UI/select';
+import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/UI/select';
+import { Button } from '@/components/UI/button';
 
 type DemoPage = { page: number; html?: string; image?: string; content?: Record<string, string> };
 type DemoPreview = { title?: string; language?: string; languages?: string[]; pages: DemoPage[] };
@@ -65,50 +66,32 @@ export default function DemoPage(): React.ReactElement {
           <CardTitle>Demo Preview{data?.title ? ` — ${data.title}` : ''}</CardTitle>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600">Language</label>
-              <Select value={language} onChange={(e) => setLanguage(e.target.value)}>
-                {languages.map((lng) => (
-                  <option key={lng} value={lng}>{lng.toUpperCase()}</option>
-                ))}
+              <span className="text-sm text-gray-600">Language</span>
+              <Select value={language} onValueChange={setLanguage} placeholder="Language">
+                <SelectTrigger />
+                <SelectContent>
+                  {languages.map((lng) => (
+                    <SelectItem key={lng} value={lng}>{lng.toUpperCase()}</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setViewMode('all')}
-                className={`px-3 py-2 text-sm rounded-lg border ${viewMode === 'all' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-              >
-                All slides
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('single')}
-                className={`px-3 py-2 text-sm rounded-lg border ${viewMode === 'single' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'}`}
-              >
-                Single slide
-              </button>
+              <Button variant={viewMode === 'all' ? 'default' : 'outline'} onClick={() => setViewMode('all')}>All slides</Button>
+              <Button variant={viewMode === 'single' ? 'default' : 'outline'} onClick={() => setViewMode('single')}>Single slide</Button>
             </div>
             {viewMode === 'single' && data?.pages?.length ? (
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setActivePage((p) => Math.max(1, p - 1))}
-                  className="px-3 py-2 text-sm rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                >
-                  Prev
-                </button>
-                <Select value={String(activePage)} onChange={(e) => setActivePage(Number(e.target.value))}>
-                  {data.pages.map((p) => (
-                    <option key={p.page} value={String(p.page)}>Slide {p.page}</option>
-                  ))}
+                <Button variant="outline" onClick={() => setActivePage((p) => Math.max(1, p - 1))}>Prev</Button>
+                <Select value={String(activePage)} onValueChange={(v) => setActivePage(Number(v))} placeholder="Slide">
+                  <SelectTrigger />
+                  <SelectContent>
+                    {data.pages.map((p) => (
+                      <SelectItem key={p.page} value={String(p.page)}>Slide {p.page}</SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-                <button
-                  type="button"
-                  onClick={() => setActivePage((p) => (data.pages ? Math.min(data.pages[data.pages.length - 1]?.page || p, p + 1) : p))}
-                  className="px-3 py-2 text-sm rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                >
-                  Next
-                </button>
+                <Button variant="outline" onClick={() => setActivePage((p) => (data.pages ? Math.min(data.pages[data.pages.length - 1]?.page || p, p + 1) : p))}>Next</Button>
               </div>
             ) : null}
           </div>

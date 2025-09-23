@@ -11,6 +11,10 @@ Here is the phased plan:
 
 # Next.js Frontend Project Outline and Phases
 
+References:
+- Ingestion & Agent: see `INGESTION_AND_AGENT.md`
+- Project status: see `PROJECT_STATUS.md`
+
 Tech Stack & Project Structure
 	•	Framework & Language: Next.js 13+ (React) with App Router (using primarily Server Components and Routes). Use TypeScript on the frontend for type safety and maintainability.
 	•	UI & Styling: Tailwind CSS for rapid, utility-first styling. Use Lucide (Lucide React Icons) for iconography throughout the app.

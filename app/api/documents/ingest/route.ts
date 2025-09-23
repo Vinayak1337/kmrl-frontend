@@ -1,0 +1,476 @@
+export const runtime = 'nodejs';
+import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { cookies } from 'next/headers';
+import { AUTH_COOKIE, verifySession } from '@/lib/auth';
+import { getCollection, ensureDocumentIndexes } from '@/lib/mongo';
+import { analyzeDocumentWithGemini, type AgentPage } from '@/lib/agent/geminiAgent';
+import { extractPdfPagesFromBase64 } from '@/lib/pdf';
+
+// Types for document processing
+type DocumentNode = {
+  id: string;
+  pageRange: { start: number; end: number };
+  content: string;
+  images: Array<{ page: number; base64: string; mimeType: string; caption?: string }>;
+  topicSummary?: string;
+  summary: string;
+  keyPoints: string[];
+  actionableItems: string[];
+  criticalFlags?: string[];
+  crossDepartments?: string[];
+  needsImage?: boolean;
+  nextNodeId?: string;
+  prevNodeId?: string;
+};
+
+type ProcessedDocument = {
+  id: string;
+  title: string;
+  originalFormat: string;
+  totalPages: number;
+  language: string;
+  nodes: DocumentNode[];
+  fullSummary: string;
+  metadata: {
+    createdAt: Date;
+    uploadedBy: string;
+    department?: string;
+    documentType?: string;
+    tags?: string[];
+  };
+  raw?: { type: string; content: string; text?: string };
+};
+
+type IngestRequest = {
+  documents?: Array<{ type: 'pdf' | 'image' | 'text' | 'html' | 'doc'; content: string; filename?: string }>;
+  html?: string;
+  title?: string;
+  department?: string;
+  documentType?: string;
+  tags?: string[];
+};
+
+type DocumentInput = { type: 'pdf' | 'image' | 'text' | 'html' | 'doc'; content: string; filename?: string };
+
+async function extractContentFromDocument(doc: DocumentInput): Promise<{ text: string; images: Array<{ base64: string; mimeType: string; page?: number }>; pageCount: number }> {
+  switch (doc.type) {
+    case 'html': {
+      const htmlContent = doc.content;
+      const textContent = htmlContent.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+      const images: Array<{ base64: string; mimeType: string }> = [];
+      const imgRegex = /<img[^>]+src=\"data:([^;]+);base64,([^\"]+)\"/g;
+      let match;
+      while ((match = imgRegex.exec(htmlContent)) !== null) {
+        images.push({ base64: match[2], mimeType: match[1] });
+      }
+      return { text: textContent, images, pageCount: 1 };
+    }
+    case 'text':
+      return { text: doc.content, images: [], pageCount: 1 };
+    case 'image':
+      return { text: '', images: [{ base64: doc.content, mimeType: 'image/png' }], pageCount: 1 };
+    case 'pdf': {
+      try {
+        const { pages, pageCount } = await extractPdfPagesFromBase64(doc.content);
+        const text = pages.map((p) => `\n\n[Page ${p.index}] ${p.text}`).join(' ').trim();
+        return { text, images: [], pageCount };
+      } catch (e) {
+        console.warn('PDF extraction failed; storing raw only', e);
+        return { text: '', images: [], pageCount: 0 };
+      }
+    }
+    case 'doc':
+      console.warn(`Document type ${doc.type} requires additional processing libraries`);
+      return { text: doc.content, images: [], pageCount: 1 };
+    default:
+      return { text: doc.content || '', images: [], pageCount: 1 };
+  }
+}
+
+function buildManagerFocusedPrompt(meta?: { department?: string; documentType?: string }): string {
+  const dept = meta?.department ? `Department: ${meta.department}` : 'Department: (unspecified)';
+  const dtype = meta?.documentType ? `Document Type: ${meta.documentType}` : 'Document Type: (unspecified)';
+  return `You are a senior document analyst for Kochi Metro Rail Limited (KMRL).
+
+Goal: Equip KMRL stakeholders (station controllers, rolling‑stock engineers, finance officers, executive directors) with rapid, trustworthy, manager‑focused snapshots while preserving traceability to the source.
+
+Context:\n- ${dept}\n- ${dtype}
+
+Priorities:\n1) Extract decisions/actions (shift/day/week).\n2) Emphasize compliance and deadlines (CMRS/MoHUA, audits, training).\n3) Highlight cross‑department dependencies.\n4) Surface risks (safety/compliance/service) and parameters/limits.
+
+Language: English only (translate then summarize).
+
+Output JSON only (no extra text):\n{\n  "nodes": [{\n    "pageRange": { "start": 1, "end": 3 },\n    "topicSummary": "Short label",\n    "detailedSummary": "3–6 sentences, manager-ready",\n    "keyPoints": ["parameter/limit", "policy change", "budget", "who is impacted"],\n    "actionableItems": [{ "owner": "<role|dept>", "action": "<what>", "due": "<date|window>", "impact": "<risk|benefit>" }],\n    "criticalFlags": ["safety", "compliance", "service"],\n    "crossDepartments": ["Engineering"],\n    "needsImage": false\n  }],\n  "overallSummary": "Deadlines, decisions, risks, impacted departments",\n  "documentType": "safety_circular | procurement | hr_policy | technical_specification | other",\n  "urgencyLevel": "high | medium | low",\n  "departments": ["Engineering", "Operations", "Safety", "Procurement", "HR", "Finance"]\n}`;
+}
+
+async function processDocumentWithAI(
+  text: string,
+  images: Array<{ base64: string; mimeType: string }>,
+  apiKey: string,
+  meta?: { department?: string; documentType?: string }
+): Promise<{ nodes: Partial<DocumentNode>[]; fullSummary: string; documentType?: string; departments?: string[] }> {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const prompt = buildManagerFocusedPrompt(meta);
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }, { text: `Document Content (raw text):\n${text}` }] }],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      generationConfig: { responseMimeType: 'application/json' as any },
+    });
+    const responseText = result.response.text();
+    try {
+      const parsed = JSON.parse(responseText);
+      interface ParsedNode { pageRange?: { start: number; end: number }; detailedSummary?: string; topicSummary?: string; keyPoints?: string[]; actionableItems?: Array<string | { owner?: string; action?: string; due?: string; impact?: string }>; criticalFlags?: string[]; crossDepartments?: string[]; needsImage?: boolean }
+      const nodes = ((parsed.nodes as ParsedNode[]) || []).map((node: ParsedNode, index: number) => ({
+        pageRange: node.pageRange || { start: index + 1, end: index + 1 },
+        content: text.substring(
+          Math.floor(((node.pageRange?.start || index + 1) - 1) * text.length / 10) || 0,
+          Math.floor((node.pageRange?.end || index + 1) * text.length / 10) || text.length
+        ),
+        topicSummary: node.topicSummary || undefined,
+        summary: (node.detailedSummary || node.topicSummary || '').trim(),
+        keyPoints: Array.isArray(node.keyPoints) ? node.keyPoints.map((kp) => String(kp).trim()).filter(Boolean) : [],
+        actionableItems: Array.isArray(node.actionableItems)
+          ? node.actionableItems.map((ai) => {
+              if (typeof ai === 'string') return ai.trim();
+              const owner = (ai.owner || '').trim();
+              const act = (ai.action || '').trim();
+              const due = (ai.due || '').trim();
+              const imp = (ai.impact || '').trim();
+              const parts = [owner ? `Owner: ${owner}` : '', act || '', due ? `Due: ${due}` : '', imp ? `Impact: ${imp}` : ''].filter(Boolean).join(' — ');
+              return parts || '';
+            }).filter(Boolean)
+          : [],
+        criticalFlags: node.criticalFlags || [],
+        crossDepartments: node.crossDepartments || [],
+        needsImage: Boolean(node.needsImage),
+      }));
+      return { nodes, fullSummary: parsed.overallSummary || 'Document processed successfully', documentType: parsed.documentType, departments: parsed.departments };
+    } catch {
+      return { nodes: [{ pageRange: { start: 1, end: 1 }, content: text, summary: responseText, keyPoints: [], actionableItems: [] }], fullSummary: responseText.substring(0, 500) };
+    }
+  } catch (error) {
+    console.error('AI processing error:', error);
+    return { nodes: [{ pageRange: { start: 1, end: 1 }, content: text, summary: 'AI unavailable; using raw content.', keyPoints: [], actionableItems: [] }], fullSummary: text.substring(0, 500) };
+  }
+}
+
+async function createLinkedStructure(nodes: Partial<DocumentNode>[]): Promise<DocumentNode[]> {
+  const linked: DocumentNode[] = [];
+  for (let index = 0; index < nodes.length; index++) {
+    const node = nodes[index];
+    linked.push({
+      id: `node-${index + 1}`,
+      pageRange: node.pageRange || { start: index + 1, end: index + 1 },
+      content: node.content || '',
+      images: node.images || [],
+      summary: node.summary || '',
+      keyPoints: node.keyPoints || [],
+      actionableItems: node.actionableItems || [],
+      nextNodeId: index < nodes.length - 1 ? `node-${index + 2}` : undefined,
+      prevNodeId: index > 0 ? `node-${index}` : undefined,
+    });
+  }
+  return linked;
+}
+
+function heuristicChunkNodes(text: string, opts?: { per?: number }): Partial<DocumentNode>[] {
+  const per = Math.max(800, Math.min(3000, opts?.per || 1600));
+  const chunks: string[] = [];
+  const parts = text.split(/\n{2,}/g).map((p) => p.trim()).filter(Boolean);
+  let buf = '';
+  for (const p of parts) {
+    if ((buf + '\n\n' + p).length > per && buf) { chunks.push(buf.trim()); buf = p; }
+    else { buf = buf ? buf + '\n\n' + p : p; }
+  }
+  if (buf) chunks.push(buf.trim());
+  if (chunks.length === 0) chunks.push(text.slice(0, per));
+  return chunks.map((c, i) => ({ pageRange: { start: i + 1, end: i + 1 }, content: c, summary: c.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').slice(0, 500), keyPoints: [], actionableItems: [] }));
+}
+export async function POST(request: NextRequest) {
+  // Require authentication
+  const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const session = token ? verifySession(token) : null;
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  try {
+    const body = await request.json() as IngestRequest;
+    
+    // Check for Gemini API key
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'GEMINI_API_KEY is not configured' },
+        { status: 500 }
+      );
+    }
+    
+    // Ensure indexes exist (idempotent)
+    await ensureDocumentIndexes();
+
+    // Handle legacy single HTML document
+    if (body.html && !body.documents) {
+      body.documents = [{
+        type: 'html',
+        content: body.html,
+        filename: body.title || 'untitled.html'
+      }];
+    }
+    
+    if (!body.documents || body.documents.length === 0) {
+      return NextResponse.json(
+        { error: 'No documents provided for ingestion' },
+        { status: 400 }
+      );
+    }
+    
+    // Process all documents
+    const processedDocuments: ProcessedDocument[] = [];
+
+    for (const doc of body.documents) {
+      // Extract content from document
+      const { text, images, pageCount } = await extractContentFromDocument(doc);
+
+      if (!text && images.length === 0 && doc.type !== 'pdf') {
+        console.warn(`Document ${doc.filename} has no extractable content`);
+        continue;
+      }
+
+      // Choose processing path
+      let linkedNodes: DocumentNode[] = [];
+      let overallSummary = '';
+
+      if (doc.type === 'pdf') {
+        // Extract pages once for robust fallback
+        const { pages } = await extractPdfPagesFromBase64(doc.content);
+        const MAX_PAGES = Number(process.env.INGEST_MAX_PDF_PAGES || 40);
+        const limited = pages.slice(0, Math.max(1, MAX_PAGES));
+
+        // Try agentic analysis first
+        try {
+          const agentPages: AgentPage[] = limited.map((p) => ({ index: p.index, text: p.text, images: [] }));
+          const agentResult = await analyzeDocumentWithGemini({ pages: agentPages, apiKey });
+          const partial = agentResult.nodes.map((n) => ({
+            pageRange: n.pageRange,
+            content: n.content,
+            summary: n.summary,
+            keyPoints: n.keyPoints,
+            actionableItems: n.actionableItems,
+            images: (n.images || []).map((im) => ({ page: n.pageRange.start, base64: im.base64, mimeType: im.mimeType })),
+          }));
+          linkedNodes = await createLinkedStructure(partial);
+          overallSummary = agentResult.overallSummary || '';
+
+          // If agent failed to properly structure (single node) but we have multiple pages, fallback to per-page nodes
+          const agentBad = /agent timeout/i.test(overallSummary || '') || linkedNodes.length <= 1;
+          if (agentBad && limited.length > 1) {
+            const perPageNodes = limited.map((p) => ({
+              pageRange: { start: p.index, end: p.index },
+              content: p.text,
+              summary: p.text.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').slice(0, 500),
+              keyPoints: [],
+              actionableItems: [],
+            }));
+            linkedNodes = await createLinkedStructure(perPageNodes);
+            overallSummary = text.slice(0, 600);
+          }
+        } catch (e) {
+          console.warn('Gemini agent failed for PDF; falling back to summarization/per-page nodes', e);
+          // If multiple pages, construct per-page nodes to retain navigation
+          if (limited.length > 1) {
+            const perPageNodes = limited.map((p) => ({
+              pageRange: { start: p.index, end: p.index },
+              content: p.text,
+              summary: p.text.split(/(?<=[.!?])\s+/).slice(0, 2).join(' ').slice(0, 500),
+              keyPoints: [],
+              actionableItems: [],
+            }));
+            linkedNodes = await createLinkedStructure(perPageNodes);
+            overallSummary = text.slice(0, 600);
+          } else {
+            const aiResult = await processDocumentWithAI(text, images, apiKey, { department: body.department, documentType: body.documentType });
+            linkedNodes = await createLinkedStructure(aiResult.nodes);
+            overallSummary = aiResult.fullSummary;
+          }
+        }
+      } else {
+        // Default summarization + structuring
+        const aiResult = await processDocumentWithAI(text, images, apiKey, { department: body.department, documentType: body.documentType });
+        linkedNodes = await createLinkedStructure(aiResult.nodes);
+        overallSummary = aiResult.fullSummary;
+        if (linkedNodes.length <= 1 && (text?.length || 0) > 4000) {
+          linkedNodes = await createLinkedStructure(heuristicChunkNodes(text, { per: 1800 }));
+          overallSummary = (overallSummary || text).slice(0, 600);
+        }
+      }
+
+      // Assign images to appropriate nodes based on page numbers (best-effort)
+      if (images.length > 0 && linkedNodes.length > 0) {
+        images.forEach((img, idx) => {
+          const nodeIndex = Math.floor((idx * linkedNodes.length) / images.length);
+          if (linkedNodes[nodeIndex]) {
+            linkedNodes[nodeIndex].images.push({
+              page: img.page || idx + 1,
+              base64: img.base64,
+              mimeType: img.mimeType,
+              caption: `Image ${idx + 1}`,
+            });
+          }
+        });
+      }
+
+      // Create processed document with raw storage
+      const processedDoc: ProcessedDocument = {
+        id: `doc-${Date.now()}-${Buffer.from(doc.filename || 'doc').toString('base64').substring(0, 8)}`,
+        title: doc.filename || body.title || 'Untitled Document',
+        originalFormat: doc.type,
+        totalPages: pageCount,
+        language: 'en',
+        nodes: linkedNodes,
+        fullSummary: overallSummary,
+        metadata: {
+          createdAt: new Date(),
+          uploadedBy: session.sub,
+          department: body.department,
+          documentType: body.documentType,
+          tags: body.tags || [],
+        },
+        raw: {
+          type: doc.type,
+          content: doc.content,
+          text,
+        },
+      };
+
+      processedDocuments.push(processedDoc);
+    }
+    
+    // Store in MongoDB
+    const collection = await getCollection<ProcessedDocument>();
+    
+    if (processedDocuments.length === 1) {
+      // Single document
+      const result = await collection.insertOne(processedDocuments[0]);
+      return NextResponse.json({
+        success: true,
+        documentId: result.insertedId.toString(),
+        summary: processedDocuments[0].fullSummary,
+        nodeCount: processedDocuments[0].nodes.length,
+        documentType: processedDocuments[0].metadata.documentType
+      }, { status: 201 });
+    } else {
+      // Multiple documents
+      const result = await collection.insertMany(processedDocuments);
+      return NextResponse.json({
+        success: true,
+        documentsProcessed: Object.keys(result.insertedIds).length,
+        documentIds: Object.values(result.insertedIds).map(id => id.toString()),
+        summaries: processedDocuments.map(d => ({
+          id: d.id,
+          title: d.title,
+          summary: d.fullSummary,
+          nodeCount: d.nodes.length
+        }))
+      }, { status: 201 });
+    }
+    
+  } catch (error) {
+    console.error('Document ingestion error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to ingest documents',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// GET endpoint to retrieve processed documents
+export async function GET(request: NextRequest) {
+  // Require authentication
+  const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const session = token ? verifySession(token) : null;
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  try {
+    const { searchParams } = new URL(request.url);
+    const documentId = searchParams.get('id');
+    const department = searchParams.get('department');
+    const documentType = searchParams.get('type');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = parseInt(searchParams.get('page') || '0');
+    const pageSize = parseInt(searchParams.get('pageSize') || '0');
+    
+    const collection = await getCollection<ProcessedDocument>();
+    
+    if (documentId) {
+      // Retrieve specific document
+      const document = await collection.findOne({ id: documentId });
+      if (!document) {
+        return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+      }
+      return NextResponse.json(document);
+    }
+    
+    // Build query filter
+    const filter: Record<string, unknown> = {};
+    if (department) filter['metadata.department'] = department;
+    if (documentType) filter['metadata.documentType'] = documentType;
+    
+    // Count for pagination
+    const totalCount = await collection.countDocuments(filter);
+    
+    // Retrieve multiple documents
+    const cursor = collection
+      .find(filter)
+      .sort({ 'metadata.createdAt': -1 });
+    if (pageSize > 0) {
+      cursor.skip(Math.max(0, page) * Math.max(1, pageSize)).limit(Math.max(1, pageSize));
+    } else {
+      cursor.limit(limit);
+    }
+    const documents = await cursor.toArray();
+    
+    // Return summary view for list (defensive: handle partial/legacy docs)
+    const summaries = documents.map((doc) => {
+      const anyDoc = doc as unknown as { id?: string; _id?: { toString?: () => string }; title?: string; fullSummary?: string; nodes?: unknown[]; metadata?: { createdAt?: Date; department?: string; documentType?: string; tags?: string[] } };
+      const nodes = Array.isArray(anyDoc?.nodes) ? (anyDoc.nodes as unknown[]) : [];
+      const metadata = (anyDoc?.metadata ?? {}) as { createdAt?: Date; department?: string; documentType?: string; tags?: string[] };
+      return {
+        id: anyDoc?.id ?? anyDoc?._id?.toString?.() ?? '',
+        title: anyDoc?.title ?? 'Untitled',
+        summary: anyDoc?.fullSummary ?? '',
+        nodeCount: nodes.length,
+        createdAt: metadata.createdAt ?? null,
+        department: metadata.department ?? null,
+        documentType: metadata.documentType ?? null,
+        tags: Array.isArray(metadata.tags) ? metadata.tags : [],
+      };
+    });
+    
+    return NextResponse.json({
+      documents: summaries,
+      total: summaries.length,
+      totalCount,
+      page: isNaN(page) ? 0 : page,
+      pageSize: pageSize || limit,
+    });
+    
+  } catch (error) {
+    console.error('Document retrieval error:', error);
+    return NextResponse.json(
+      { 
+        error: 'Failed to retrieve documents',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
+      { status: 500 }
+    );
+  }
+}
