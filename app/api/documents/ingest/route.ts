@@ -5,7 +5,9 @@ import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
 import { getCollection, ensureDocumentIndexes } from '@/lib/mongo';
 import { analyzeDocumentWithGemini, type AgentPage } from '@/lib/agent/geminiAgent';
-import { extractPdfPagesFromBase64 } from '@/lib/pdf';
+import { extractPdfPagesFromBase64, extractPdfPagesWithImagesFromBase64 } from '@/lib/pdf';
+import { prisma } from '@/lib/prisma';
+import { buildManagerMdPrompt, type ManagerAnalysisJSON, type ManagerNodeJSON } from '@/lib/prompt';
 
 // Types for document processing
 type DocumentNode = {
@@ -15,11 +17,23 @@ type DocumentNode = {
   images: Array<{ page: number; base64: string; mimeType: string; caption?: string }>;
   topicSummary?: string;
   summary: string;
+  // Markdown friendly fields for rendering
+  summaryMd?: string;
+  keyPointsMd?: string;
+  actionsMd?: string;
   keyPoints: string[];
   actionableItems: string[];
   criticalFlags?: string[];
   crossDepartments?: string[];
   needsImage?: boolean;
+  meta?: {
+    slideType?: string;
+    entities?: string[];
+    decisions?: string[];
+    deadlines?: string[];
+    risks?: string[];
+    stakeholders?: string[];
+  };
   nextNodeId?: string;
   prevNodeId?: string;
 };
@@ -31,13 +45,20 @@ type ProcessedDocument = {
   totalPages: number;
   language: string;
   nodes: DocumentNode[];
-  fullSummary: string;
+  fullSummary: string; // legacy plain summary
+  overallMd?: string;  // executive MD summary
   metadata: {
     createdAt: Date;
     uploadedBy: string;
     department?: string;
     documentType?: string;
     tags?: string[];
+    // optional classification flags
+    inferred?: {
+      department?: string | null;
+      documentType?: string | null;
+      source?: 'gemini' | 'rule' | 'manual';
+    };
   };
   raw?: { type: string; content: string; text?: string };
 };
@@ -49,6 +70,8 @@ type IngestRequest = {
   department?: string;
   documentType?: string;
   tags?: string[];
+  // Optional pre-parsed pages (client-provided), including images in base64
+  pages?: Array<{ index: number; text?: string; images?: Array<{ base64: string; mimeType: string }> }>;
 };
 
 type DocumentInput = { type: 'pdf' | 'image' | 'text' | 'html' | 'doc'; content: string; filename?: string };
@@ -88,20 +111,14 @@ async function extractContentFromDocument(doc: DocumentInput): Promise<{ text: s
   }
 }
 
-function buildManagerFocusedPrompt(meta?: { department?: string; documentType?: string }): string {
-  const dept = meta?.department ? `Department: ${meta.department}` : 'Department: (unspecified)';
-  const dtype = meta?.documentType ? `Document Type: ${meta.documentType}` : 'Document Type: (unspecified)';
-  return `You are a senior document analyst for Kochi Metro Rail Limited (KMRL).
-
-Goal: Equip KMRL stakeholders (station controllers, rolling‑stock engineers, finance officers, executive directors) with rapid, trustworthy, manager‑focused snapshots while preserving traceability to the source.
-
-Context:\n- ${dept}\n- ${dtype}
-
-Priorities:\n1) Extract decisions/actions (shift/day/week).\n2) Emphasize compliance and deadlines (CMRS/MoHUA, audits, training).\n3) Highlight cross‑department dependencies.\n4) Surface risks (safety/compliance/service) and parameters/limits.
-
-Language: English only (translate then summarize).
-
-Output JSON only (no extra text):\n{\n  "nodes": [{\n    "pageRange": { "start": 1, "end": 3 },\n    "topicSummary": "Short label",\n    "detailedSummary": "3–6 sentences, manager-ready",\n    "keyPoints": ["parameter/limit", "policy change", "budget", "who is impacted"],\n    "actionableItems": [{ "owner": "<role|dept>", "action": "<what>", "due": "<date|window>", "impact": "<risk|benefit>" }],\n    "criticalFlags": ["safety", "compliance", "service"],\n    "crossDepartments": ["Engineering"],\n    "needsImage": false\n  }],\n  "overallSummary": "Deadlines, decisions, risks, impacted departments",\n  "documentType": "safety_circular | procurement | hr_policy | technical_specification | other",\n  "urgencyLevel": "high | medium | low",\n  "departments": ["Engineering", "Operations", "Safety", "Procurement", "HR", "Finance"]\n}`;
+function mdToPlain(md?: string): string {
+  if (!md) return '';
+  return md
+    .replace(/^#{1,6}\s+/gm, '') // headings
+    .replace(/[*_`>]+/g, '') // formatting
+    .replace(/^\s*[-*]\s+/gm, '• ') // bullets
+    .replace(/\s+/g, ' ') // collapse
+    .trim();
 }
 
 async function processDocumentWithAI(
@@ -109,10 +126,10 @@ async function processDocumentWithAI(
   images: Array<{ base64: string; mimeType: string }>,
   apiKey: string,
   meta?: { department?: string; documentType?: string }
-): Promise<{ nodes: Partial<DocumentNode>[]; fullSummary: string; documentType?: string; departments?: string[] }> {
+): Promise<{ nodes: Partial<DocumentNode>[]; fullSummary: string; overallMd?: string; documentType?: string; departments?: string[] }> {
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
-  const prompt = buildManagerFocusedPrompt(meta);
+  const prompt = buildManagerMdPrompt(meta);
   try {
     const result = await model.generateContent({
       contents: [{ role: 'user', parts: [{ text: prompt }, { text: `Document Content (raw text):\n${text}` }] }],
@@ -121,16 +138,17 @@ async function processDocumentWithAI(
     });
     const responseText = result.response.text();
     try {
-      const parsed = JSON.parse(responseText);
-      interface ParsedNode { pageRange?: { start: number; end: number }; detailedSummary?: string; topicSummary?: string; keyPoints?: string[]; actionableItems?: Array<string | { owner?: string; action?: string; due?: string; impact?: string }>; criticalFlags?: string[]; crossDepartments?: string[]; needsImage?: boolean }
-      const nodes = ((parsed.nodes as ParsedNode[]) || []).map((node: ParsedNode, index: number) => ({
+      const parsed = JSON.parse(responseText) as ManagerAnalysisJSON;
+      const nodes = (Array.isArray(parsed.nodes) ? parsed.nodes : []).map((node: ManagerNodeJSON, index: number) => ({
         pageRange: node.pageRange || { start: index + 1, end: index + 1 },
         content: text.substring(
           Math.floor(((node.pageRange?.start || index + 1) - 1) * text.length / 10) || 0,
           Math.floor((node.pageRange?.end || index + 1) * text.length / 10) || text.length
         ),
-        topicSummary: node.topicSummary || undefined,
-        summary: (node.detailedSummary || node.topicSummary || '').trim(),
+        summary: (node.summaryMd || '').replace(/^#+\s*/gm, '').split('\n').slice(0, 2).join(' ').trim(),
+        summaryMd: node.summaryMd || undefined,
+        keyPointsMd: node.keyPointsMd || undefined,
+        actionsMd: node.actionsMd || undefined,
         keyPoints: Array.isArray(node.keyPoints) ? node.keyPoints.map((kp) => String(kp).trim()).filter(Boolean) : [],
         actionableItems: Array.isArray(node.actionableItems)
           ? node.actionableItems.map((ai) => {
@@ -139,15 +157,19 @@ async function processDocumentWithAI(
               const act = (ai.action || '').trim();
               const due = (ai.due || '').trim();
               const imp = (ai.impact || '').trim();
-              const parts = [owner ? `Owner: ${owner}` : '', act || '', due ? `Due: ${due}` : '', imp ? `Impact: ${imp}` : ''].filter(Boolean).join(' — ');
+              const parts = [owner ? `Owner: ${owner}` : '', act || '', due ? `Due: ${due}` : '', imp ? `Impact: ${imp}` : '']
+                .filter(Boolean)
+                .join(' — ');
               return parts || '';
             }).filter(Boolean)
           : [],
-        criticalFlags: node.criticalFlags || [],
-        crossDepartments: node.crossDepartments || [],
+        criticalFlags: Array.isArray(node.criticalFlags) ? node.criticalFlags : [],
+        crossDepartments: Array.isArray(node.crossDepartments) ? node.crossDepartments : [],
         needsImage: Boolean(node.needsImage),
       }));
-      return { nodes, fullSummary: parsed.overallSummary || 'Document processed successfully', documentType: parsed.documentType, departments: parsed.departments };
+      const overallMd = parsed.overallMd || '';
+      const fullSummary = mdToPlain(overallMd).slice(0, 1000) || 'Document processed successfully';
+      return { nodes, fullSummary, overallMd, documentType: parsed.documentType, departments: parsed.departments };
     } catch {
       return { nodes: [{ pageRange: { start: 1, end: 1 }, content: text, summary: responseText, keyPoints: [], actionableItems: [] }], fullSummary: responseText.substring(0, 500) };
     }
@@ -167,6 +189,9 @@ async function createLinkedStructure(nodes: Partial<DocumentNode>[]): Promise<Do
       content: node.content || '',
       images: node.images || [],
       summary: node.summary || '',
+      summaryMd: node.summaryMd,
+      keyPointsMd: node.keyPointsMd,
+      actionsMd: node.actionsMd,
       keyPoints: node.keyPoints || [],
       actionableItems: node.actionableItems || [],
       nextNodeId: index < nodes.length - 1 ? `node-${index + 2}` : undefined,
@@ -243,27 +268,58 @@ export async function POST(request: NextRequest) {
       // Choose processing path
       let linkedNodes: DocumentNode[] = [];
       let overallSummary = '';
+      let aiDocType: string | undefined;
+      let aiDepartments: string[] | undefined;
+      let aiOverallMd: string | undefined;
 
       if (doc.type === 'pdf') {
         // Extract pages once for robust fallback
-        const { pages } = await extractPdfPagesFromBase64(doc.content);
+        // Prefer server-side page images when available (requires 'canvas' dependency). Fallback to text-only if canvas not present.
+        let limitedWithImages: Array<{ index: number; text: string; images: Array<{ base64: string; mimeType: string }> }> = [];
+        try {
+          const { pages: richPages } = await extractPdfPagesWithImagesFromBase64(doc.content, { scale: 2, imagesPerPage: 1 });
+          limitedWithImages = richPages;
+        } catch {
+          const { pages } = await extractPdfPagesFromBase64(doc.content);
+          limitedWithImages = pages.map((p) => ({ index: p.index, text: p.text, images: [] }));
+        }
         const MAX_PAGES = Number(process.env.INGEST_MAX_PDF_PAGES || 40);
-        const limited = pages.slice(0, Math.max(1, MAX_PAGES));
+        const limited = limitedWithImages.slice(0, Math.max(1, MAX_PAGES));
 
         // Try agentic analysis first
         try {
-          const agentPages: AgentPage[] = limited.map((p) => ({ index: p.index, text: p.text, images: [] }));
+          // Prefer client-provided page images/text if present
+          const provided: Array<{ index: number; text?: string; images?: Array<{ base64: string; mimeType: string }> }>
+            = Array.isArray((body as IngestRequest).pages) ? (body as IngestRequest).pages as Array<{ index: number; text?: string; images?: Array<{ base64: string; mimeType: string }> }> : [];
+          const byIndex = new Map<number, { text?: string; images?: Array<{ base64: string; mimeType: string }> }>();
+          provided.forEach((pg) => { byIndex.set(pg.index, { text: pg.text, images: Array.isArray(pg.images) ? pg.images : [] }); });
+
+          const agentPages: AgentPage[] = limited.map((p) => {
+            const override = byIndex.get(p.index);
+            return {
+              index: p.index,
+              text: (override?.text || p.text || ''),
+              images: (override?.images && override.images.length ? override.images : p.images)?.map((im) => ({ base64: im.base64, mimeType: im.mimeType })) || [],
+            };
+          });
           const agentResult = await analyzeDocumentWithGemini({ pages: agentPages, apiKey });
           const partial = agentResult.nodes.map((n) => ({
             pageRange: n.pageRange,
             content: n.content,
             summary: n.summary,
+            summaryMd: (n as any).pageMd,
             keyPoints: n.keyPoints,
             actionableItems: n.actionableItems,
+            meta: (n as any).meta,
             images: (n.images || []).map((im) => ({ page: n.pageRange.start, base64: im.base64, mimeType: im.mimeType })),
           }));
           linkedNodes = await createLinkedStructure(partial);
           overallSummary = agentResult.overallSummary || '';
+          // If agent provided MD executive summary, store it
+          if (agentResult.overallMd) {
+            // Attach to processedDoc later via aiOverallMd variable
+            aiOverallMd = agentResult.overallMd;
+          }
 
           // If agent failed to properly structure (single node) but we have multiple pages, fallback to per-page nodes
           const agentBad = /agent timeout/i.test(overallSummary || '') || linkedNodes.length <= 1;
@@ -295,6 +351,13 @@ export async function POST(request: NextRequest) {
             const aiResult = await processDocumentWithAI(text, images, apiKey, { department: body.department, documentType: body.documentType });
             linkedNodes = await createLinkedStructure(aiResult.nodes);
             overallSummary = aiResult.fullSummary;
+            aiDocType = aiResult.documentType;
+            aiDepartments = aiResult.departments;
+            aiOverallMd = aiResult.overallMd;
+            if (aiResult.overallMd) {
+              // attach MD on document level if present
+              // will be saved below in processedDoc
+            }
           }
         }
       } else {
@@ -302,6 +365,9 @@ export async function POST(request: NextRequest) {
         const aiResult = await processDocumentWithAI(text, images, apiKey, { department: body.department, documentType: body.documentType });
         linkedNodes = await createLinkedStructure(aiResult.nodes);
         overallSummary = aiResult.fullSummary;
+        aiDocType = aiResult.documentType;
+        aiDepartments = aiResult.departments;
+        aiOverallMd = aiResult.overallMd;
         if (linkedNodes.length <= 1 && (text?.length || 0) > 4000) {
           linkedNodes = await createLinkedStructure(heuristicChunkNodes(text, { per: 1800 }));
           overallSummary = (overallSummary || text).slice(0, 600);
@@ -324,6 +390,10 @@ export async function POST(request: NextRequest) {
       }
 
       // Create processed document with raw storage
+      // Determine classification (prefer user-input, else inferred)
+      const chosenDepartment = body.department || (aiDepartments && aiDepartments[0]) || undefined;
+      const chosenDocType = body.documentType || aiDocType || undefined;
+
       const processedDoc: ProcessedDocument = {
         id: `doc-${Date.now()}-${Buffer.from(doc.filename || 'doc').toString('base64').substring(0, 8)}`,
         title: doc.filename || body.title || 'Untitled Document',
@@ -332,12 +402,18 @@ export async function POST(request: NextRequest) {
         language: 'en',
         nodes: linkedNodes,
         fullSummary: overallSummary,
+        overallMd: aiOverallMd,
         metadata: {
           createdAt: new Date(),
           uploadedBy: session.sub,
-          department: body.department,
-          documentType: body.documentType,
+          department: chosenDepartment,
+          documentType: chosenDocType,
           tags: body.tags || [],
+          inferred: (!body.department || !body.documentType) ? {
+            department: body.department ? null : ((aiDepartments && aiDepartments[0]) || null),
+            documentType: body.documentType ? null : (aiDocType || null),
+            source: 'gemini',
+          } : undefined,
         },
         raw: {
           type: doc.type,
@@ -355,12 +431,30 @@ export async function POST(request: NextRequest) {
     if (processedDocuments.length === 1) {
       // Single document
       const result = await collection.insertOne(processedDocuments[0]);
+      // Audit log (best-effort)
+      try {
+        await prisma.userAudit.create({
+          data: {
+            actorId: session.sub,
+            targetUserId: session.sub, // document is stored in Mongo; use actor again for linkage
+            action: 'DOCUMENT_INGESTED',
+            details: {
+              documentId: processedDocuments[0].id,
+              title: processedDocuments[0].title,
+              nodeCount: processedDocuments[0].nodes.length,
+              department: processedDocuments[0].metadata.department,
+              documentType: processedDocuments[0].metadata.documentType,
+            },
+          },
+        });
+      } catch {}
       return NextResponse.json({
         success: true,
         documentId: result.insertedId.toString(),
         summary: processedDocuments[0].fullSummary,
         nodeCount: processedDocuments[0].nodes.length,
-        documentType: processedDocuments[0].metadata.documentType
+        documentType: processedDocuments[0].metadata.documentType,
+        department: processedDocuments[0].metadata.department,
       }, { status: 201 });
     } else {
       // Multiple documents
@@ -373,7 +467,9 @@ export async function POST(request: NextRequest) {
           id: d.id,
           title: d.title,
           summary: d.fullSummary,
-          nodeCount: d.nodes.length
+          nodeCount: d.nodes.length,
+          documentType: d.metadata.documentType,
+          department: d.metadata.department,
         }))
       }, { status: 201 });
     }
@@ -423,6 +519,33 @@ export async function GET(request: NextRequest) {
     const filter: Record<string, unknown> = {};
     if (department) filter['metadata.department'] = department;
     if (documentType) filter['metadata.documentType'] = documentType;
+
+    // Enforce permission-based visibility for MANAGER role
+    if (session.role !== 'ADMIN') {
+      const grants = Array.isArray(session.grants) ? session.grants : [];
+      if (grants.length === 0) {
+        // No access
+        return NextResponse.json({ documents: [], total: 0, totalCount: 0, page: 0, pageSize: pageSize || limit });
+      }
+      const toTitle = (s: string) => s.toLowerCase().replace(/(^|[_\s-])(\w)/g, (_, p1, c) => (p1 ? ' ' : '') + c.toUpperCase());
+      const or: Array<Record<string, string>> = [];
+      grants
+        .filter((g) => g.dept && g.type && Array.isArray((g as any).actions) && (g as any).actions.includes('read'))
+        .forEach((g) => {
+          const deptVariants = [g.dept, g.dept.toLowerCase(), toTitle(g.dept)];
+          const typeVariants = [g.type, g.type.toLowerCase()];
+          for (const dv of deptVariants) {
+            for (const tv of typeVariants) {
+              or.push({ 'metadata.department': dv, 'metadata.documentType': tv });
+            }
+          }
+        });
+      if (or.length > 0) {
+        (filter as any)['$or'] = or;
+      } else {
+        return NextResponse.json({ documents: [], total: 0, totalCount: 0, page: 0, pageSize: pageSize || limit });
+      }
+    }
     
     // Count for pagination
     const totalCount = await collection.countDocuments(filter);

@@ -30,6 +30,10 @@ interface DocumentNode {
   }>;
   topicSummary?: string;
   summary: string;
+  // Markdown variants (preferred rendering)
+  summaryMd?: string;
+  keyPointsMd?: string;
+  actionsMd?: string;
   keyPoints: string[];
   actionableItems: string[];
   criticalFlags?: string[];
@@ -47,6 +51,7 @@ interface ProcessedDocument {
   language: string;
   nodes: DocumentNode[];
   fullSummary: string;
+  overallMd?: string;
   metadata: {
     createdAt: Date;
     uploadedBy: string;
@@ -94,6 +99,49 @@ export default function DocumentDetailPage() {
   }, [documentId, loadDocument]);
 
   const currentNode = document?.nodes[currentNodeIndex];
+
+  // Minimal Markdown -> HTML (safe subset)
+  const mdToHtml = (md: string): string => {
+    const escape = (s: string) => s
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const lines = md.split(/\r?\n/);
+    let html = '';
+    let inList = false;
+    const flushP = (buf: string[]) => {
+      if (!buf.length) return;
+      const text = escape(buf.join(' '))
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/_(.+?)_/g, '<em>$1</em>');
+      html += `<p>${text}</p>`;
+      buf.length = 0;
+    };
+    const pbuf: string[] = [];
+    for (const raw of lines) {
+      const line = raw.trimEnd();
+      if (!line.trim()) {
+        if (inList) { html += '</ul>'; inList = false; }
+        flushP(pbuf);
+        continue;
+      }
+      if (/^###\s+/.test(line)) { if (inList) { html += '</ul>'; inList = false; } flushP(pbuf); html += `<h3>${escape(line.replace(/^###\s+/, ''))}</h3>`; continue; }
+      if (/^##\s+/.test(line)) { if (inList) { html += '</ul>'; inList = false; } flushP(pbuf); html += `<h2>${escape(line.replace(/^##\s+/, ''))}</h2>`; continue; }
+      if (/^#\s+/.test(line))  { if (inList) { html += '</ul>'; inList = false; } flushP(pbuf); html += `<h1>${escape(line.replace(/^#\s+/, ''))}</h1>`; continue; }
+      if (/^[-*]\s+/.test(line)) {
+        flushP(pbuf);
+        if (!inList) { html += '<ul>'; inList = true; }
+        const item = line.replace(/^[-*]\s+/, '');
+        const esc = escape(item).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').replace(/_(.+?)_/g, '<em>$1</em>');
+        html += `<li>${esc}</li>`;
+        continue;
+      }
+      pbuf.push(line);
+    }
+    if (inList) html += '</ul>';
+    flushP(pbuf);
+    return html;
+  };
   const copySummary = async () => {
     if (!document || !currentNode) return;
     const header = `${document.title} — Section ${currentNodeIndex + 1} (Pages ${currentNode.pageRange.start}-${currentNode.pageRange.end})`;
@@ -213,10 +261,15 @@ export default function DocumentDetailPage() {
       {/* Document Summary */}
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">
-            Document Summary
-          </h2>
-          <p className="text-gray-700">{document.fullSummary}</p>
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">Document Summary</h2>
+          {document.overallMd ? (
+            <div
+              className="prose prose-sm max-w-none text-gray-800"
+              dangerouslySetInnerHTML={{ __html: mdToHtml(document.overallMd) }}
+            />
+          ) : (
+            <p className="text-gray-700">{document.fullSummary}</p>
+          )}
           
           {document.metadata.tags && document.metadata.tags.length > 0 && (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -293,7 +346,20 @@ export default function DocumentDetailPage() {
               {/* Node Summary */}
               <div className="mb-6">
                 <h4 className="font-semibold text-gray-900 mb-2">Summary</h4>
-                <p className="text-gray-700">{currentNode.summary}</p>
+                {currentNode.summaryMd ? (
+                  currentNode.summaryMd.trim().startsWith("```") ? (
+                    <pre className="overflow-auto bg-gray-50 border rounded p-3 text-sm text-gray-800">
+                      <code>{currentNode.summaryMd}</code>
+                    </pre>
+                  ) : (
+                    <div
+                      className="prose prose-sm max-w-none text-gray-800"
+                      dangerouslySetInnerHTML={{ __html: mdToHtml(currentNode.summaryMd) }}
+                    />
+                  )
+                ) : (
+                  <p className="text-gray-700">{currentNode.summary}</p>
+                )}
               </div>
 
               {/* Critical Flags and Cross-Departments */}
@@ -323,40 +389,54 @@ export default function DocumentDetailPage() {
               )}
 
               {/* Key Points */}
-              {currentNode.keyPoints.length > 0 && (
+              {(currentNode.keyPointsMd || currentNode.keyPoints.length > 0) && (
                 <div className="mb-6">
                   <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600" />
                     Key Points
                   </h4>
-                  <ul className="space-y-2">
-                    {currentNode.keyPoints.slice(0, 8).map((point, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-green-600 mt-1">•</span>
-                        <span className="text-gray-700">{point}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {currentNode.keyPointsMd ? (
+                    <div
+                      className="prose prose-sm max-w-none text-gray-800"
+                      dangerouslySetInnerHTML={{ __html: mdToHtml(currentNode.keyPointsMd) }}
+                    />
+                  ) : (
+                    <ul className="space-y-2">
+                      {currentNode.keyPoints.slice(0, 8).map((point, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-green-600 mt-1">•</span>
+                          <span className="text-gray-700">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
 
               {/* Actionable Items */}
-              {currentNode.actionableItems.length > 0 && (
+              {(currentNode.actionsMd || currentNode.actionableItems.length > 0) && (
                 <div className="mb-6">
                   <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 text-orange-600" />
                     Actionable Items
                   </h4>
-                  <ul className="space-y-2">
-                    {currentNode.actionableItems.slice(0, 6).map((item, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="text-orange-600 mt-1">!</span>
-                        <span className="text-gray-700 font-medium">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {currentNode.actionsMd ? (
+                    <div
+                      className="prose prose-sm max-w-none text-gray-800"
+                      dangerouslySetInnerHTML={{ __html: mdToHtml(currentNode.actionsMd) }}
+                    />
+                  ) : (
+                    <ul className="space-y-2">
+                      {currentNode.actionableItems.slice(0, 6).map((item, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-orange-600 mt-1">!</span>
+                          <span className="text-gray-700 font-medium">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {/* Due Dates */}
-                  {extractDueDates(currentNode.actionableItems).length > 0 && (
+                  {(!currentNode.actionsMd && extractDueDates(currentNode.actionableItems).length > 0) && (
                     <div className="mt-3 text-sm">
                       <span className="font-semibold text-gray-900">Due Dates: </span>
                       {extractDueDates(currentNode.actionableItems).map((d, i) => (
