@@ -12,6 +12,7 @@
     "seed:admin": "tsx scripts/seed-admin.ts",
     "test:ingest": "tsx scripts/test-document-ingestion.ts",
     "test:pipeline": "tsx scripts/test-pipeline.ts",
+    "test:md": "tsx scripts/check-ingestion-md.ts",
     "prebuild": "prisma generate || echo \"prisma not available, skipping\""
   },
   "dependencies": {
@@ -33,6 +34,7 @@
     "next": "15.5.2",
     "nodemailer": "^7.0.6",
     "pdfjs-dist": "^4.10.38",
+    "canvas": "^2.11.2",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },

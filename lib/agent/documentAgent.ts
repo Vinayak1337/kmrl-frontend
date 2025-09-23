@@ -110,7 +110,7 @@ export async function analyzeDocumentWithAgent(options: {
         const pageIndex = typeof args.index === 'number' ? args.index : 1;
         const page = await getPage(pageIndex);
         const payload = page
-          ? { index: page.index, text: page.text, images: page.images?.slice(0, 4) || [] }
+          ? { index: page.index, text: page.text, images: page.images || [] }
           : { error: `Page ${pageIndex} not found` };
         messages.push(resp);
         messages.push(new ToolMessage({ content: JSON.stringify(payload), tool_call_id: call.id }));
@@ -145,7 +145,7 @@ export async function analyzeDocumentWithAgent(options: {
         summary: n.summary || '',
         keyPoints: Array.isArray(n.keyPoints) ? n.keyPoints : [],
         actionableItems: Array.isArray(n.actionableItems) ? n.actionableItems : [],
-        images: Array.isArray(n.images) ? n.images.slice(0, 4) : [],
+        images: Array.isArray(n.images) ? n.images : [],
       }));
       return { nodes, overallSummary: parsed.overallSummary || '' };
     }
@@ -168,7 +168,7 @@ export async function analyzeDocumentWithAgent(options: {
         summary: 'Agent did not return structured JSON in time. Please retry.',
         keyPoints: [],
         actionableItems: [],
-        images: pages[0]?.images?.slice(0, 2) || [],
+        images: pages[0]?.images || [],
       },
     ],
     overallSummary: 'Agent timeout.',

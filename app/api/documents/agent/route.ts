@@ -58,8 +58,10 @@ export async function POST(request: NextRequest) {
       content: n.content,
       images: n.images?.map((im) => ({ page: n.pageRange.start, base64: im.base64, mimeType: im.mimeType })) || [],
       summary: n.summary,
+      summaryMd: (n as any).pageMd || undefined,
       keyPoints: n.keyPoints,
       actionableItems: n.actionableItems,
+      meta: (n as any).meta || undefined,
       nextNodeId: i < result.nodes.length - 1 ? `node-${i + 2}` : undefined,
       prevNodeId: i > 0 ? `node-${i}` : undefined,
     }));

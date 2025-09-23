@@ -36,7 +36,7 @@ export interface DashboardStats {
 }
 
 // Upload documents to ingestion API
-export async function uploadDocuments(documents: DocumentToUpload[]): Promise<unknown> {
+export async function uploadDocuments(documents: DocumentToUpload[], options?: { pages?: Array<{ index: number; text?: string; images?: Array<{ base64: string; mimeType: string }> }> }): Promise<unknown> {
   // Persist via ingestion API with metadata
   const top = documents[0] || ({} as DocumentToUpload);
   const body = {
@@ -44,6 +44,7 @@ export async function uploadDocuments(documents: DocumentToUpload[]): Promise<un
     department: top.department,
     documentType: top.documentType,
     tags: top.tags,
+    pages: options?.pages,
   };
   const response = await fetch('/api/documents/ingest', {
     method: 'POST',

@@ -10,42 +10,83 @@ export type AgentNode = {
   keyPoints: string[];
   actionableItems: string[];
   images: AgentImage[];
+  pageMd?: string;
+  meta?: {
+    slideType?: string;
+    entities?: string[];
+    decisions?: string[];
+    deadlines?: string[];
+    risks?: string[];
+    stakeholders?: string[];
+  };
 };
 
 export type AgentResult = {
   nodes: AgentNode[];
   overallSummary: string;
+  overallMd?: string;
 };
 
 function buildInstruction(totalPages: number, providedPages: number[]): string {
-  return `You are a KMRL document analysis agent.
-Analyze page-by-page. Only some pages are provided per turn.
-Available pages: ${totalPages}. Provided now: [${providedPages.join(', ')}].
+  return `You are a precise page-by-page summarizer for slide decks and PDFs (presentations, SRS, proposals). You will be given pages one at a time. Read only the pages provided so far. If more context is needed to summarise a page faithfully, request the next page by index. Continue until you can produce the required outputs.
 
-Manager focus:
-- Extract decisions, deadlines, compliance items (e.g., CMRS/MoHUA), and parameters/limits.
-- Call out cross-department dependencies and risks (safety/compliance/service).
-- Group consecutive pages with the same topic into one node.
-- Always write in English.
+LANGUAGE NORMALIZATION
+- Normalize ALL source content to English silently (do not mention translation).
 
-For each node, return:
+QUALITY BAR
+- Be faithful to the page. Do not invent facts. If something is unclear, write "[unclear]".
+- Preserve concrete data (numbers, dates, names, IDs) exactly as seen. Convert currency units only if explicitly stated on the page.
+- Expand acronyms on first use only if the expansion can be inferred from the page; otherwise keep the acronym.
+
+CONTENT SELECTION — Include Only What’s Required
+- Summarize only what is necessary and material according to the document/page intent.
+- Must-have: core message, key facts, decisions, constraints, metrics/tables’ insights, timelines/deadlines, risks, stakeholders/entities, next steps.
+- Exclude unless essential: marketing fluff, repeated slogans/headers, decorative captions, boilerplate disclaimers, agenda footers, slide numbers, watermark text, non-informative labels.
+- If a page is sparse, keep the summary brief. If dense, prioritize the top 4–8 most important points and compress the rest. Avoid duplication across pages.
+
+Available pages: ${totalPages}. Provided now: [${providedPages.join(', ')}]. Start from page 1 and proceed sequentially when needed.
+
+OUTPUT FORMAT (STRICT)
+- For each covered pageRange, emit one fenced Markdown code block (pageMd) with this template (omit sections that don’t apply):
+\n\n\`\`\`md
+# Page i — <Detected Title>
+## Slide Type
+- <Title / Section Header / Content / Table / Chart / Timeline / Image-heavy / Appendix>
+
+## Core Message
+- 1–2 bullets stating the main point.
+
+## Key Points
+- 4–8 bullets with the most important facts.
+- **Key Data & Insights:** 3–6 bullets (only if table/chart)
+
+## Outcomes / Implications
+- Decisions, deadlines, risks, or next steps.
+
+## Entities & Terms
+- Important people/orgs/systems/terms.
+
+## Notes for Consistency (optional)
+- Formatting/terminology notes.
+\`\`\`
+
+For each node include in JSON:
 - pageRange {start, end}
-- content: representative snippet
-- summary: 3–6 sentences, manager-ready
-- keyPoints: 3–8 bullets (facts, parameters, KPIs)
-- actionableItems: 0–5 bullets as strings like "Owner: <role|dept> — <action> — Due: <date> — Impact: <risk|benefit>"
-- images: up to 4 images as {base64, mimeType} if present
+- pageMd: the fenced Markdown block above (one block per pageRange)
+- images: ALL images for that pageRange as {base64, mimeType}
+- meta: { slideType, entities[], decisions[], deadlines[], risks[], stakeholders[] } (optional)
 
-Protocol (JSON only):
+Group consecutive pages that discuss the same topic into one pageRange.
+
+Protocol (JSON only; no commentary outside JSON):
 - To fetch another page: {"action":"request","index":<1-based>}
-- To finish: {"action":"final","result": {"nodes":[...],"overallSummary":"..."}}
-No commentary.`;
+- To finish: {"action":"final","result": {"nodes":[...],"overallSummary":"...","overallMd":"## Executive Summary..."}}`;
 }
 
 function pageToParts(page: AgentPage): Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> {
   const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = [];
   parts.push({ text: `Page ${page.index} text:\n${page.text}` });
-  for (const img of page.images.slice(0, 4)) {
+  for (const img of page.images) {
     if (img.base64 && img.mimeType) parts.push({ inlineData: { data: img.base64, mimeType: img.mimeType } });
   }
   return parts;
@@ -68,13 +109,18 @@ export async function analyzeDocumentWithGemini(options: {
   if (pages[0]) provided.push(1);
 
   for (let iter = 0; iter < maxLoops; iter++) {
-    let promptStr = buildInstruction(pages.length, provided) + '\n\n';
+    // Build rich content with inline images where available
+    const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = [];
+    parts.push({ text: buildInstruction(pages.length, provided) });
     for (const idx of provided) {
       const pg = pages[idx - 1];
       if (!pg) continue;
-      promptStr += `Page ${pg.index} text:\n${pg.text}\n\n`;
+      parts.push({ text: `\n\nPage ${pg.index} text:\n${pg.text}` });
+      for (const im of (pg.images || [])) {
+        if (im?.base64 && im?.mimeType) parts.push({ inlineData: { data: im.base64, mimeType: im.mimeType } });
+      }
     }
-    const result = await model.generateContent(promptStr);
+    const result = await model.generateContent({ contents: [{ role: 'user', parts }] } as any);
     const text = result?.response?.text?.() ?? '';
 
     let parsed: unknown = null;
@@ -110,10 +156,14 @@ export async function analyzeDocumentWithGemini(options: {
           summary: String(nn.summary || ''),
           keyPoints: Array.isArray(nn.keyPoints) ? (nn.keyPoints as string[]) : [],
           actionableItems: Array.isArray(nn.actionableItems) ? (nn.actionableItems as string[]) : [],
-          images: Array.isArray(nn.images) ? (nn.images as AgentImage[]).slice(0, 4) : [],
+          images: Array.isArray(nn.images) ? (nn.images as AgentImage[]) : [],
+          pageMd: typeof (nn as any).pageMd === 'string' ? String((nn as any).pageMd) : undefined,
+          meta: (typeof (nn as any).meta === 'object' && (nn as any).meta !== null) ? (nn as any).meta as AgentNode['meta'] : undefined,
         };
       });
-      return { nodes, overallSummary: String(pobj.result.overallSummary || '') };
+      const overallMd = typeof (pobj.result as any).overallMd === 'string' ? String((pobj.result as any).overallMd) : undefined;
+      const overallSummary = String((pobj.result as any).overallSummary || '') || (overallMd ? overallMd.replace(/[#*_>`-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600) : '');
+      return { nodes, overallSummary, overallMd };
     }
   }
 
@@ -127,7 +177,7 @@ export async function analyzeDocumentWithGemini(options: {
         summary: 'Gemini agent could not finalize JSON in time.',
         keyPoints: [],
         actionableItems: [],
-        images: first?.images?.slice(0, 2) || [],
+        images: first?.images || [],
       },
     ],
     overallSummary: 'Agent timeout.',
