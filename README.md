@@ -71,6 +71,11 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+See also:
+- Ingestion & Agent guide: `INGESTION_AND_AGENT.md`
+- Project status: `PROJECT_STATUS.md`
+- Workflow tracker: `WORKFLOW_TRACKER.md`
+
 ## 📁 Project Structure
 
 ```
@@ -114,15 +119,32 @@ npm run lint         # Run ESLint
 npm run type-check   # TypeScript type checking
 ```
 
+## 🗃 Database & Utilities
+
+```bash
+# Prisma client
+npm run db:generate
+
+# Push Prisma schema to MongoDB
+npm run db:push
+
+# Seed an admin user
+npm run seed:admin
+```
+
+## 🧪 Testing & API
+
+- See `API_TESTING_GUIDE.md` for endpoint testing tips.
+- Ingestion & Agent guide: `INGESTION_AND_AGENT.md`.
+- Project status and next steps: `PROJECT_STATUS.md`.
+
 ## 🌐 Environment Variables
 
 Key environment variables (see `.env.example` for full list):
 
-- `NEXT_PUBLIC_API_URL`: Backend API endpoint
-- `NEXT_PUBLIC_AI_SERVICE_URL`: AI service endpoint
-- `NEXT_PUBLIC_TRANSLATION_API_KEY`: Translation service API key
-- `NEXTAUTH_SECRET`: Authentication secret
-- `DATABASE_URL`: Database connection string
+- `MONGODB_URI`, `MONGODB_DB_NAME`, `MONGODB_COLLECTION`
+- `GEMINI_API_KEY` (from `.env`)
+- `AUTH_SECRET` (JWT for middleware)
 
 ## 📱 Pages Overview
 
@@ -133,6 +155,7 @@ Key environment variables (see `.env.example` for full list):
 
 ### Protected Pages
 - `/dashboard` - Main application dashboard
+- `/dashboard/[id]` - Document detail with sections, chat, feedback
 - `/profile` - User profile management (coming soon)
 - `/settings` - Application settings (coming soon)
 
@@ -207,9 +230,8 @@ Refer to `FRONTEND.md` for detailed development phases:
 
 ## 🐛 Known Issues
 
-- Backend integration pending
-- Translation API integration not yet implemented
-- Some dashboard features are placeholders
+- Atlas Vector Search not yet wired; similarity computed in app for now
+- Word document parsing uses placeholder; add mammoth for production
 
 ## 📚 Resources
 

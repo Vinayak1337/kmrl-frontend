@@ -10,6 +10,8 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "seed:admin": "tsx scripts/seed-admin.ts",
+    "test:ingest": "tsx scripts/test-document-ingestion.ts",
+    "test:pipeline": "tsx scripts/test-pipeline.ts",
     "prebuild": "prisma generate || echo \"prisma not available, skipping\""
   },
   "dependencies": {
@@ -30,6 +32,7 @@
     "mongodb": "^6.20.0",
     "next": "15.5.2",
     "nodemailer": "^7.0.6",
+    "pdfjs-dist": "^4.10.38",
     "react": "19.1.0",
     "react-dom": "19.1.0"
   },
