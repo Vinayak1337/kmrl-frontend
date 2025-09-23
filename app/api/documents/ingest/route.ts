@@ -128,14 +128,34 @@ async function processDocumentWithAI(
   meta?: { department?: string; documentType?: string }
 ): Promise<{ nodes: Partial<DocumentNode>[]; fullSummary: string; overallMd?: string; documentType?: string; departments?: string[] }> {
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+  const modelCandidates = ['gemini-2.0-flash-exp', 'gemini-2.0-flash-001', 'gemini-1.5-flash'];
+  let modelIndex = 0;
+  let model = genAI.getGenerativeModel({ model: modelCandidates[modelIndex] });
   const prompt = buildManagerMdPrompt(meta);
   try {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }, { text: `Document Content (raw text):\n${text}` }] }],
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      generationConfig: { responseMimeType: 'application/json' as any },
-    });
+    const contents = [{ role: 'user', parts: [{ text: prompt }, { text: `Document Content (raw text):\n${text}` }] }];
+    const genConfig = { responseMimeType: 'application/json' as unknown as never };
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    let result: Awaited<ReturnType<typeof model.generateContent>> | undefined;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        result = await (model as any).generateContent({ contents, generationConfig: genConfig });
+        break;
+      } catch (e: unknown) {
+        const err = e as { status?: number; message?: string };
+        const overloaded = err?.status === 503 || /overloaded|unavailable/i.test(String(err?.message || ''));
+        if (overloaded && attempt < 3) {
+          // rotate model and backoff with jitter
+          modelIndex = (modelIndex + 1) % modelCandidates.length;
+          model = genAI.getGenerativeModel({ model: modelCandidates[modelIndex] });
+          const backoff = 900 * Math.pow(2, attempt) + Math.floor(Math.random() * 250);
+          await sleep(backoff);
+          continue;
+        }
+        throw e;
+      }
+    }
     const responseText = result.response.text();
     try {
       const parsed = JSON.parse(responseText) as ManagerAnalysisJSON;

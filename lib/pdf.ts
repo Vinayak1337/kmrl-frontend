@@ -67,9 +67,10 @@ export type PdfPageWithImages = { index: number; text: string; images: PageImage
 async function getNodeCanvas(): Promise<null | { createCanvas: (w: number, h: number) => any; ImageData: any }>
 {
   try {
-    // Lazy import to avoid build-time issues if canvas isn't installed
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = await import('canvas');
+    // Lazy, non-static import to avoid bundler resolution when not installed
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const dynImport = new Function('m', 'return import(m)');
+    const mod = await (dynImport as (m: string) => Promise<any>)('canvas');
     return { createCanvas: (mod as any).createCanvas, ImageData: (mod as any).ImageData };
   } catch {
     return null;
@@ -107,11 +108,18 @@ export async function extractPdfPagesWithImagesFromBase64(base64: string, opts?:
 
   // Scoped filter for noisy TT warnings
   const originalWarn = console.warn;
+  const originalErr = console.error;
   console.warn = (...args: unknown[]) => {
     const first = args[0];
     const msg = typeof first === 'string' ? first : (first instanceof Error ? first.message : String(first ?? ''));
     if (/^TT: undefined function/i.test(msg)) return;
     originalWarn(...(args as [unknown, ...unknown[]]));
+  };
+  console.error = (...args: unknown[]) => {
+    const first = args[0];
+    const msg = typeof first === 'string' ? first : (first instanceof Error ? first.message : String(first ?? ''));
+    if (/^TT: undefined function/i.test(msg)) return;
+    originalErr(...(args as [unknown, ...unknown[]]));
   };
 
   const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
@@ -150,6 +158,7 @@ export async function extractPdfPagesWithImagesFromBase64(base64: string, opts?:
   } finally {
     try { await pdf.destroy(); } catch {}
     console.warn = originalWarn;
+    console.error = originalErr;
   }
   return { pages, pageCount };
 }
