@@ -138,6 +138,8 @@ Phase 4: Optimization, Error Handling & Deployment Prep
 ## Environment Variables
 
 - MONGO_URI: MongoDB connection string used by Prisma.
+- MONGODB_URI / MONGODB_DB_NAME / MONGODB_COLLECTION: MongoDB driver for documents.
+- MONGODB_NODES_COLLECTION: Collection name for node documents (default: `document_nodes`).
 - AUTH_SECRET: Secret key for signing JWT session cookies.
 - SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/SMTP_FROM: SMTP credentials for sending emails.
 - DEPLOYMENT_NOTIFY_TO: Recipient address for deployment request notifications.

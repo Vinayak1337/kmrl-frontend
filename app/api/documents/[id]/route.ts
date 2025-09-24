@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
+import type { DocumentNodeRecord } from '@/types/documents';
 
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -14,6 +15,11 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     type StoredDoc = { id: string };
     const collection = await getCollection<StoredDoc>();
     const result = await (collection as unknown as { deleteOne: (f: Partial<StoredDoc>) => Promise<{ deletedCount: number }> }).deleteOne({ id });
+    try {
+      const nodes = await getCollection<DocumentNodeRecord>(process.env.MONGODB_NODES_COLLECTION || 'document_nodes');
+      // Best-effort cleanup of node documents for this document
+      await (nodes as unknown as { deleteMany: (f: Partial<DocumentNodeRecord>) => Promise<void> }).deleteMany?.({ docId: id });
+    } catch {}
     if (!result?.deletedCount) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }

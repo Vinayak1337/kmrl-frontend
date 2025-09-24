@@ -4,6 +4,7 @@ import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
 import { reprocessFromRaw, type PipelineNode } from '@/lib/ingest/pipeline';
+import type { DocumentNodeRecord } from '@/types/documents';
 
 // Summarizer prompt handled via analyzeDocumentWithGemini in agent or simple fallback
 
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const { type = 'general', message = '', reprocess = true } = body || {};
 
     type StoredNode = PipelineNode & { embedding?: number[] };
-    type StoredDoc = { id: string; title: string; raw?: { type: string; content: string; text?: string }; nodes?: StoredNode[]; metadata?: Record<string, unknown> };
+    type StoredDoc = { id: string; title: string; raw?: { type: string; content: string; text?: string }; nodeCount?: number; metadata?: Record<string, unknown> };
     const coll = await getCollection<StoredDoc>();
     const doc = await coll.findOne({ id });
     if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
@@ -39,10 +40,34 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         const geminiKey = process.env.GEMINI_API_KEY as string;
         const { nodes, fullSummary } = await reprocessFromRaw(doc.raw, geminiKey, { department: (doc.metadata as any)?.department, documentType: (doc.metadata as any)?.documentType });
 
+        // Replace node documents for this doc
+        try {
+          const nodesCollection = await getCollection<DocumentNodeRecord>(process.env.MONGODB_NODES_COLLECTION || 'document_nodes');
+          await (nodesCollection as unknown as { deleteMany: (f: Partial<DocumentNodeRecord>) => Promise<void> }).deleteMany?.({ docId: id });
+          const mapped: DocumentNodeRecord[] = (nodes as StoredNode[]).map((n, idx) => {
+            const order = idx + 1;
+            const nodeId = n.id || `node-${order}`;
+            const uid = `${id}#${nodeId}`;
+            const title = (n as any).topicSummary || (n.summary || '').split(/[.!?]/)[0]?.slice(0, 80) || `Section ${order}`;
+            return {
+              uid, docId: id, nodeId, order, title,
+              pageRange: n.pageRange, content: n.content, images: (n as any).images || [],
+              summary: n.summary, keyPoints: n.keyPoints || [], actionableItems: n.actionableItems || [],
+              nextNodeId: n.nextNodeId, prevNodeId: n.prevNodeId,
+              nodeCount: nodes.length,
+              department: (doc.metadata as any)?.department,
+              documentType: (doc.metadata as any)?.documentType,
+              tags: (doc.metadata as any)?.tags || [],
+              createdAt: new Date(),
+            };
+          });
+          if (mapped.length > 0) await nodesCollection.insertMany(mapped);
+        } catch {}
+
         updated = {
           ...updated,
           $set: {
-            nodes: nodes as StoredNode[],
+            nodeCount: (nodes as StoredNode[]).length,
             fullSummary: fullSummary,
             'metadata.updatedAt': new Date(),
           },

@@ -38,6 +38,7 @@ export const DocumentSearch: React.FC<DocumentSearchProps> = ({
   onDocumentClick
 }) => {
   const [query, setQuery] = useState('');
+  const [titleQuery, setTitleQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -158,6 +159,43 @@ export const DocumentSearch: React.FC<DocumentSearchProps> = ({
                     label="Sections"
                   />
                 </div>
+              </div>
+
+              {/* Optional: Jump to a section by exact title */}
+              <div className="space-y-2 md:col-span-3">
+                <Label>Jump to Section Title (exact match)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={titleQuery}
+                    onChange={(e) => setTitleQuery(e.target.value)}
+                    placeholder="e.g., Safety Compliance Update"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={async () => {
+                      const title = titleQuery.trim();
+                      if (!title) return;
+                      try {
+                        const res = await fetch(`/api/nodes?title=${encodeURIComponent(title)}&firstOnly=true`, {
+                          credentials: 'include'
+                        });
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        const first = Array.isArray(data.results) ? data.results[0] : undefined;
+                        if (first && first.docId && first.nodeId && first.uid) {
+                          // open document focused on this node
+                          window.open(`/dashboard/${first.docId}?uid=${encodeURIComponent(first.uid)}`, '_blank');
+                        }
+                      } catch (e) {
+                        // noop
+                      }
+                    }}
+                  >
+                    Go
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500">When multiple nodes share a title, the first match is opened.</p>
               </div>
             </div>
           </div>

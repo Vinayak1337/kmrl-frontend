@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/UI/button';
 import { 
@@ -51,6 +51,7 @@ interface ProcessedDocument {
   totalPages: number;
   language: string;
   nodes: DocumentNode[];
+  nodeCount?: number;
   fullSummary: string;
   overallMd?: string;
   metadata: {
@@ -64,12 +65,18 @@ interface ProcessedDocument {
 
 export default function DocumentDetailPage() {
   const params = useParams();
+  const search = useSearchParams();
   const documentId = params?.id as string;
   
   const [document, setDocument] = useState<ProcessedDocument | null>(null);
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [nodes, setNodes] = useState<DocumentNode[]>([]);
+  const [totalNodes, setTotalNodes] = useState<number>(0);
+  const [page, setPage] = useState<number>(0);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [loadingNodes, setLoadingNodes] = useState<boolean>(false);
 
   const loadDocument = useCallback(async () => {
     setLoading(true);
@@ -99,7 +106,48 @@ export default function DocumentDetailPage() {
     }
   }, [documentId, loadDocument]);
 
-  const currentNode = document?.nodes[currentNodeIndex];
+  const loadNodesPage = useCallback(async (p: number, size: number, replace = false) => {
+    setLoadingNodes(true);
+    try {
+      const res = await fetch(`/api/documents/${documentId}/nodes?page=${p}&limit=${size}`, { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = Array.isArray(data.nodes) ? data.nodes : [];
+      setTotalNodes(Number(data.total || list.length));
+      setNodes((prev) => (replace ? list : [...prev, ...list]));
+    } finally {
+      setLoadingNodes(false);
+    }
+  }, [documentId]);
+
+  useEffect(() => {
+    if (!documentId) return;
+    const uid = search?.get('uid');
+    const init = async () => {
+      if (uid) {
+        try {
+          const r = await fetch(`/api/nodes/${encodeURIComponent(uid)}`, { credentials: 'include' });
+          if (r.ok) {
+            const data = await r.json();
+            const order = Number(data?.node?.order || 1);
+            const size = pageSize;
+            const targetPage = Math.max(0, Math.floor((order - 1) / size));
+            setPage(targetPage);
+            await loadNodesPage(targetPage, size, true);
+            const localIndex = (order - 1) - (targetPage * size);
+            setCurrentNodeIndex(Math.max(0, Math.min(localIndex, size - 1)));
+            return;
+          }
+        } catch {}
+      }
+      await loadNodesPage(0, pageSize, true);
+      setPage(0);
+      setCurrentNodeIndex(0);
+    };
+    void init();
+  }, [documentId, pageSize, loadNodesPage]);
+
+  const currentNode = nodes[currentNodeIndex];
 
   // Minimal Markdown -> HTML (safe subset)
   const mdToHtml = (md: string): string => {
@@ -145,7 +193,8 @@ export default function DocumentDetailPage() {
   };
   const copySummary = async () => {
     if (!document || !currentNode) return;
-    const header = `${document.title} — Section ${currentNodeIndex + 1} (Pages ${currentNode.pageRange.start}-${currentNode.pageRange.end})`;
+    const absoluteIndex = (page * pageSize) + currentNodeIndex + 1;
+    const header = `${document.title} — Section ${absoluteIndex} (Pages ${currentNode.pageRange.start}-${currentNode.pageRange.end})`;
     const points = (currentNode.keyPoints || []).slice(0, 8).map((p) => `- ${p}`).join('\n');
     const actions = (currentNode.actionableItems || []).slice(0, 6).map((a) => `• ${a}`).join('\n');
     const text = [
@@ -173,8 +222,12 @@ export default function DocumentDetailPage() {
   const navigateNode = (direction: 'prev' | 'next') => {
     if (direction === 'prev' && currentNodeIndex > 0) {
       setCurrentNodeIndex(currentNodeIndex - 1);
-    } else if (direction === 'next' && document && currentNodeIndex < document.nodes.length - 1) {
-      setCurrentNodeIndex(currentNodeIndex + 1);
+    } else if (direction === 'next') {
+      const absNext = (page * pageSize) + currentNodeIndex + 1;
+      const total = totalNodes || document?.nodeCount || document?.nodes?.length || 0;
+      if (absNext < total && currentNodeIndex < nodes.length - 1) {
+        setCurrentNodeIndex(currentNodeIndex + 1);
+      }
     }
   };
 
@@ -293,7 +346,7 @@ export default function DocumentDetailPage() {
               </div>
               <div>
                 <span className="text-gray-600">Sections:</span>
-                <span className="ml-2 font-medium">{document.nodes.length}</span>
+                <span className="ml-2 font-medium">{totalNodes || document.nodeCount || document.nodes.length}</span>
               </div>
               <div>
                 <span className="text-gray-600">Format:</span>
@@ -308,7 +361,7 @@ export default function DocumentDetailPage() {
           <div className="border-b px-6 py-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold">
-                Section {currentNodeIndex + 1} of {document.nodes.length}
+                Section {(page * pageSize) + currentNodeIndex + 1} of {totalNodes || document.nodeCount || document.nodes.length}
               </h3>
               <div className="flex items-center gap-2">
                 <Button
@@ -327,7 +380,7 @@ export default function DocumentDetailPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => navigateNode('next')}
-                  disabled={currentNodeIndex === document.nodes.length - 1}
+                  disabled={((page * pageSize) + currentNodeIndex + 1) >= (totalNodes || document.nodeCount || document.nodes.length)}
                   className="p-2 h-auto"
                 >
                   <ChevronRight className="h-5 w-5" />
@@ -488,19 +541,60 @@ export default function DocumentDetailPage() {
             </div>
           )}
 
-          {/* Quick Navigation */}
+          {/* Quick Navigation for current page */}
           <div className="border-t px-6 py-4">
-            <div className="flex gap-2 flex-wrap">
-              {document.nodes.map((_, index) => (
+            <div className="flex gap-2 flex-wrap items-center justify-between">
+              <div className="flex gap-2 flex-wrap">
+                {nodes.map((_, index) => (
+                  <Button
+                    key={index}
+                    size="sm"
+                    variant={index === currentNodeIndex ? 'default' : 'outline'}
+                    onClick={() => setCurrentNodeIndex(index)}
+                  >
+                    Section {(page * pageSize) + index + 1}
+                  </Button>
+                ))}
+              </div>
+              <div className="flex gap-2">
                 <Button
-                  key={index}
+                  variant="outline"
                   size="sm"
-                  variant={index === currentNodeIndex ? 'default' : 'outline'}
-                  onClick={() => setCurrentNodeIndex(index)}
+                  disabled={loadingNodes || page === 0}
+                  onClick={async () => {
+                    const prev = Math.max(0, page - 1);
+                    setPage(prev);
+                    await loadNodesPage(prev, pageSize, true);
+                    setCurrentNodeIndex(0);
+                  }}
                 >
-                  Section {index + 1}
+                  Previous Page
                 </Button>
-              ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={loadingNodes || ((page + 1) * pageSize) >= (totalNodes || document.nodeCount || document.nodes.length)}
+                  onClick={async () => {
+                    const next = page + 1;
+                    setPage(next);
+                    await loadNodesPage(next, pageSize, true);
+                    setCurrentNodeIndex(0);
+                  }}
+                >
+                  Next Page
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={loadingNodes || ((page + 1) * pageSize) >= (totalNodes || document.nodeCount || document.nodes.length)}
+                  onClick={async () => {
+                    const next = page + 1;
+                    setPage(next);
+                    await loadNodesPage(next, pageSize);
+                  }}
+                >
+                  Load More
+                </Button>
+              </div>
             </div>
           </div>
         </div>
