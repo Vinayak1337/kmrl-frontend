@@ -29,8 +29,17 @@ export function ChatBox({ docId }: { docId?: string }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Chat failed');
-      setMessages((m) => [...m, { role: 'assistant', content: data.reply || '' }]);
-    } catch {
+
+      const replyText = data && data.reply && String(data.reply).trim() ? String(data.reply) : null;
+      if (replyText) {
+        setMessages((m) => [...m, { role: 'assistant', content: replyText }]);
+      } else if (Array.isArray(data?.citations) && data.citations.length > 0) {
+        setMessages((m) => [...m, { role: 'assistant', content: 'I found matching document passages but could not generate a summary. Try rephrasing your question.' }]);
+      } else {
+        setMessages((m) => [...m, { role: 'assistant', content: 'No relevant documents found. Upload documents or try a broader query.' }]);
+      }
+    } catch (err) {
+      console.error('Chat error (client):', err);
       setMessages((m) => [...m, { role: 'assistant', content: 'Sorry, I could not answer that.' }]);
     } finally {
       setLoading(false);
