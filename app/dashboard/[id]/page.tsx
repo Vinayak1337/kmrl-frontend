@@ -13,11 +13,11 @@ import {
   ChevronLeft,
   AlertCircle,
   CheckCircle,
-  XCircle,
-  Languages
+  XCircle
 } from 'lucide-react';
 import { ChatBox } from '@/components/dashboard/ChatBox';
 import { FeedbackForm } from '@/components/dashboard/FeedbackForm';
+import { DocumentReader } from '@/components/dashboard/DocumentReader';
 
 interface DocumentNode {
   id: string;
@@ -70,10 +70,6 @@ export default function DocumentDetailPage() {
   const [currentNodeIndex, setCurrentNodeIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [translatedSummary, setTranslatedSummary] = useState<{[key: string]: string}>({});
-  const [translating, setTranslating] = useState(false);
-  const [showTranslation, setShowTranslation] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<'hindi' | 'malayalam'>('hindi');
 
   const loadDocument = useCallback(async () => {
     setLoading(true);
@@ -104,159 +100,6 @@ export default function DocumentDetailPage() {
   }, [documentId, loadDocument]);
 
   const currentNode = document?.nodes[currentNodeIndex];
-
-  // Translation function using Lecto AI
-  const translateText = async (text: string, targetLanguage: 'hindi' | 'malayalam'): Promise<string> => {
-    try {
-      // Lecto AI can handle larger text blocks, but we'll still chunk for better performance
-      const MAX_CHUNK_SIZE = 3000; // Lecto AI can handle larger chunks
-      const chunks = [];
-      
-      if (text.length > MAX_CHUNK_SIZE) {
-        // Split by paragraphs first to maintain context
-        const paragraphs = text.split('\n\n');
-        let currentChunk = '';
-        
-        for (const paragraph of paragraphs) {
-          if ((currentChunk + paragraph).length > MAX_CHUNK_SIZE && currentChunk) {
-            chunks.push(currentChunk.trim());
-            currentChunk = paragraph;
-          } else {
-            currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
-          }
-        }
-        
-        if (currentChunk) {
-          chunks.push(currentChunk.trim());
-        }
-      } else {
-        chunks.push(text);
-      }
-
-      // Translate each chunk with Lecto AI
-      const translatedChunks = await Promise.all(
-        chunks.map(async (chunk, index) => {
-          // Add small delay between requests to avoid rate limiting
-          if (index > 0) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-
-          console.log('Making translation request:', {
-            chunk: chunk.substring(0, 100) + '...',
-            targetLanguage: targetLanguage === 'hindi' ? 'hi' : 'ml',
-            sourceLanguage: 'en'
-          });
-
-          const response = await fetch('/api/translate', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              text: chunk,
-              targetLanguage: targetLanguage === 'hindi' ? 'hi' : 'ml',
-              sourceLanguage: 'en'
-            }),
-          });
-
-          console.log('Response status:', response.status, response.statusText);
-
-          if (!response.ok) {
-            // Get response text first, then try to parse as JSON
-            const responseText = await response.text();
-            console.error('Full error response:', responseText);
-            
-            let errorData: any = {};
-            try {
-              errorData = JSON.parse(responseText);
-            } catch (e) {
-              console.error('Could not parse error response as JSON');
-              errorData = { error: responseText || response.statusText };
-            }
-            
-            console.error('Parsed error data:', errorData);
-            throw new Error(`Translation failed (${response.status}): ${errorData.error || responseText || response.statusText}`);
-          }
-
-          const responseText = await response.text();
-          console.log('Success response text:', responseText);
-
-          let data: any;
-          try {
-            data = JSON.parse(responseText);
-          } catch (e) {
-            console.error('Could not parse success response as JSON:', responseText);
-            throw new Error('Invalid JSON response from translation service');
-          }
-
-          const success = data.success ?? true;
-          const translated = (data.translatedText ?? data.translation ?? data.translated) ?? '';
-
-          if (success === false && !translated) {
-            throw new Error(`Translation unsuccessful: ${JSON.stringify(data)}`);
-          }
-
-          if (!translated) {
-            // API returned success but no translated text — provide a helpful fallback message
-            console.warn('Translation API returned no translated text:', data);
-            return `[No translation returned from service for ${targetLanguage}]`;
-          }
-
-          return translated;
-        })
-      );
-
-      return translatedChunks.join('\n\n');
-      
-    } catch (error) {
-      console.error('Translation error:', error);
-      
-      // More specific error messages
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      if (errorMessage.includes('401') || errorMessage.includes('403')) {
-        return `[Invalid API key or unauthorized access] ${text.substring(0, 100)}...`;
-      } else if (errorMessage.includes('429')) {
-        return `[Rate limit exceeded - please try again later] ${text.substring(0, 100)}...`;
-      } else {
-        return `[Translation service temporarily unavailable] ${text.substring(0, 100)}...`;
-      }
-    }
-  };
-
-  const handleTranslate = async () => {
-    if (!document || !currentNode) return;
-    
-    setTranslating(true);
-    try {
-      const summaryKey = `${currentNodeIndex}-${selectedLanguage}`;
-      
-      if (!translatedSummary[summaryKey]) {
-        // Prepare text to translate
-        const textToTranslate = [
-          currentNode.topicSummary ? `Topic: ${currentNode.topicSummary}` : '',
-          'Summary:',
-          currentNode.summary,
-          currentNode.keyPoints.length > 0 ? 'Key Points:' : '',
-          ...currentNode.keyPoints.slice(0, 8),
-          currentNode.actionableItems.length > 0 ? 'Actionable Items:' : '',
-          ...currentNode.actionableItems.slice(0, 6)
-        ].filter(Boolean).join('\n');
-
-        const translated = await translateText(textToTranslate, selectedLanguage);
-        
-        setTranslatedSummary(prev => ({
-          ...prev,
-          [summaryKey]: translated
-        }));
-      }
-      
-      setShowTranslation(true);
-    } catch (error) {
-      console.error('Translation failed:', error);
-    } finally {
-      setTranslating(false);
-    }
-  };
 
   // Minimal Markdown -> HTML (safe subset)
   const mdToHtml = (md: string): string => {
@@ -300,7 +143,6 @@ export default function DocumentDetailPage() {
     flushP(pbuf);
     return html;
   };
-
   const copySummary = async () => {
     if (!document || !currentNode) return;
     const header = `${document.title} — Section ${currentNodeIndex + 1} (Pages ${currentNode.pageRange.start}-${currentNode.pageRange.end})`;
@@ -331,10 +173,8 @@ export default function DocumentDetailPage() {
   const navigateNode = (direction: 'prev' | 'next') => {
     if (direction === 'prev' && currentNodeIndex > 0) {
       setCurrentNodeIndex(currentNodeIndex - 1);
-      setShowTranslation(false); // Hide translation when navigating
     } else if (direction === 'next' && document && currentNodeIndex < document.nodes.length - 1) {
       setCurrentNodeIndex(currentNodeIndex + 1);
-      setShowTranslation(false); // Hide translation when navigating
     }
   };
 
@@ -492,31 +332,7 @@ export default function DocumentDetailPage() {
                 >
                   <ChevronRight className="h-5 w-5" />
                 </Button>
-                <Button variant="outline" size="sm" onClick={copySummary} className="ml-2">
-                  Copy Summary
-                </Button>
-                
-                {/* Translation Button and Language Selector */}
-                <div className="flex items-center gap-2 ml-2">
-                  <select
-                    value={selectedLanguage}
-                    onChange={(e) => setSelectedLanguage(e.target.value as 'hindi' | 'malayalam')}
-                    className="text-xs border border-gray-300 rounded px-2 py-1"
-                  >
-                    <option value="hindi">हिन्दी</option>
-                    <option value="malayalam">മലയാളം</option>
-                  </select>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleTranslate}
-                    disabled={translating}
-                    className="flex items-center gap-2"
-                  >
-                    <Languages className="h-4 w-4" />
-                    {translating ? 'Translating...' : 'Translate'}
-                  </Button>
-                </div>
+                <Button variant="outline" size="sm" onClick={copySummary} className="ml-2">Copy Summary</Button>
               </div>
             </div>
           </div>
@@ -526,27 +342,6 @@ export default function DocumentDetailPage() {
               {/* Topic label */}
               {currentNode.topicSummary && (
                 <div className="mb-3 text-sm text-gray-600">Topic: <span className="font-medium">{currentNode.topicSummary}</span></div>
-              )}
-
-              {/* Translation Display */}
-              {showTranslation && translatedSummary[`${currentNodeIndex}-${selectedLanguage}`] && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                    <Languages className="h-4 w-4" />
-                    Translation ({selectedLanguage === 'hindi' ? 'हिन्दी' : 'മലയാളം'})
-                  </h4>
-                  <div className="text-blue-800 whitespace-pre-wrap">
-                    {translatedSummary[`${currentNodeIndex}-${selectedLanguage}`]}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowTranslation(false)}
-                    className="mt-3"
-                  >
-                    Hide Translation
-                  </Button>
-                </div>
               )}
 
               {/* Node Summary */}
