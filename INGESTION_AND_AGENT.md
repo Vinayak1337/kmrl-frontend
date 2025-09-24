@@ -6,7 +6,7 @@ This guide documents the end-to-end flow for uploading documents, analyzing them
 
 Flow (current):
 - Upload via dashboard → POST `/api/upload` (validation + logging)
-- AI processing → POST `/api/documents/ingest` persists to MongoDB: linked-list nodes with summaries, actions, metadata, embeddings
+- AI processing → POST `/api/documents/ingest` persists to MongoDB: document record + node documents (linked-list) with summaries, actions, metadata
 - Optional agent analysis (ad hoc) → POST `/api/documents/agent` (Gemini) returns nodes without persistence
 - Retrieval → GET `/api/documents/ingest` returns summaries or full document by `id`
 - Chat → POST `/api/chat` answers questions over all docs or a specific document using keyword-based retrieval (no embeddings)
@@ -79,19 +79,26 @@ curl -X POST http://localhost:3000/api/documents/agent \
   - Auth required
   - Query: `id?`, `department?`, `type?`, `limit=10`
   - Returns summary rows with defensive defaults (no crash on missing fields): `{ id, title, summary, nodeCount, createdAt, department, documentType, tags }`
+  - GET with `id` returns the document with nodes attached from the `document_nodes` collection.
+
+### Nodes API
+- GET `/api/documents/{id}/nodes?limit=&page=` — list nodes for a document, ordered.
+- GET `/api/nodes/{uid}?neighbors=true` — fetch a single node by uid (`docId#node-1`) with optional prev/next.
+- GET `/api/nodes?title=...&docId?=...` — fetch the first node by title (useful when multiple nodes share a title).
 
 ## Data Model (Persistence)
 
 ```ts
-// Document-level
-type ProcessedDocument = {
+// Document-level (collection: documents)
+type DocumentRecord = {
   id: string;
   title: string;
-  originalFormat: string; // 'html' | 'text' | 'image' | 'pdf' | 'doc'
+  originalFormat: 'html'|'text'|'image'|'pdf'|'doc';
   totalPages: number;
   language: string;
-  nodes: DocumentNode[];
+  nodeCount: number; // nodes stored in separate collection
   fullSummary: string;
+  overallMd?: string;
   metadata: {
     createdAt: Date;
     uploadedBy: string;
@@ -99,22 +106,31 @@ type ProcessedDocument = {
     documentType?: string;
     tags?: string[];
   };
-  embedding?: number[]; // optional (Phase 3)
   raw?: { type: string; content: string; text?: string };
 };
 
-// Node-level
-type DocumentNode = {
-  id: string;
+// Node-level (collection: document_nodes)
+type DocumentNodeRecord = {
+  uid: string; // `${docId}#${nodeId}`
+  docId: string;
+  nodeId: string; // e.g. node-1
+  order: number; // 1-based
+  title?: string;
   pageRange: { start: number; end: number };
   content: string;
-  images: Array<{ page: number; base64: string; mimeType: string; caption?: string }>;
+  images: Array<{ page?: number; base64: string; mimeType: string; caption?: string }>;
   summary: string;
   keyPoints: string[];
   actionableItems: string[];
-  embedding?: number[]; // optional (Phase 3)
+  criticalFlags?: string[];
+  crossDepartments?: string[];
   nextNodeId?: string;
   prevNodeId?: string;
+  nodeCount?: number; // convenience
+  department?: string; // denorms for filtering
+  documentType?: string;
+  tags?: string[];
+  createdAt?: Date;
 };
 ```
 
@@ -127,7 +143,7 @@ type DocumentNode = {
 
 - Text Search API
   - POST `/api/search/vector` with `{ query, limit, searchNodes, department?, documentType? }`
-  - Returns ranked results using keyword scoring across titles, summaries, and nodes; includes document metadata and optional node details.
+  - Returns ranked results using keyword scoring across titles, summaries, and nodes; includes document metadata and optional node details. When `searchNodes=true`, results are built from `document_nodes`.
 
 - Chat
   - POST `/api/chat` with `{ messages, docId? }`
@@ -147,3 +163,12 @@ type DocumentNode = {
 
 ---
 Last updated after Phase 3 (persistence, vector search, chat, feedback) wiring.
+
+## Migration
+
+- Why migrate: historic documents store nodes embedded in `documents`. New features (node-level APIs/search) use `document_nodes`. Backfilling ensures consistent behavior and indexing across all documents and avoids branching logic.
+- Run:
+  - Dry-run: `npm run migrate:nodes -- --dry-run`
+  - Execute: `npm run migrate:nodes`
+  - Single doc: `npm run migrate:nodes -- --docId <doc-id>`
+  - Overwrite nodes for a doc: `npm run migrate:nodes -- --docId <doc-id> --overwrite`

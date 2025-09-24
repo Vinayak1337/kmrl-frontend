@@ -1,6 +1,7 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCollection } from '@/lib/mongo';
+import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 function scoreTextMatch(query: string, text: string): number {
   const terms = new Set(query.toLowerCase().split(/\W+/).filter(Boolean));
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     // Embeddings disabled: perform keyword scoring across stored text
     
     // Get collection
-    const collection = await getCollection();
+    const collection = await getCollection<DocumentRecord>();
     
     // Build filter
     const filter: Record<string, unknown> = {};
@@ -43,33 +44,39 @@ export async function POST(request: NextRequest) {
     const results = [];
     
     if (searchNodes) {
-      // Search at node level for more granular results
-      for (const doc of (documents as unknown as Array<{ id: string; title: string; fullSummary: string; nodes?: Array<{ id?: string; summary?: string; content?: string; keyPoints?: string[]; actionableItems?: string[]; criticalFlags?: string[]; crossDepartments?: string[]; pageRange?: { start: number; end: number } }>; metadata?: { tags?: string[] } }>)) {
-        if (!doc.nodes || !Array.isArray(doc.nodes)) continue;
-        for (const node of doc.nodes) {
-          const text = [
-            node.summary,
-            node.content,
-            ...(node.keyPoints || []),
-            ...(node.actionableItems || []),
-            ...(node.criticalFlags || []),
-            ...(node.crossDepartments || []),
-            ...((doc.metadata?.tags as string[] | undefined) || []),
-          ].join(' ');
-          const similarity = scoreTextMatch(query, text);
-          results.push({
-            documentId: doc.id,
-            documentTitle: doc.title,
-            nodeId: node.id,
-            nodeSummary: node.summary,
-            keyPoints: node.keyPoints,
-            actionableItems: node.actionableItems,
-            tags: doc.metadata?.tags || [],
-            pageRange: node.pageRange,
-            similarity,
-            type: 'node'
-          });
+      // Search node collection for granular results
+      const nodesCollection = await getCollection<DocumentNodeRecord>(process.env.MONGODB_NODES_COLLECTION || 'document_nodes');
+      const nodes = await nodesCollection.find({}).limit(1000).toArray();
+      // Build quick doc metadata map
+      const docMeta = new Map<string, { title: string; tags: string[] }>();
+      for (const node of nodes) {
+        if (!docMeta.has(node.docId)) {
+          const d = documents.find((x) => x.id === node.docId) || await collection.findOne({ id: node.docId }, { projection: { title: 1, metadata: 1 } } as any);
+          docMeta.set(node.docId, { title: d?.title || 'Untitled', tags: ((d?.metadata as any)?.tags || []) as string[] });
         }
+        const meta = docMeta.get(node.docId)!;
+        const text = [
+          node.summary,
+          node.content,
+          ...(node.keyPoints || []),
+          ...(node.actionableItems || []),
+          ...(node.criticalFlags || []),
+          ...(node.crossDepartments || []),
+          ...(meta.tags || []),
+        ].join(' ');
+        const similarity = scoreTextMatch(query, text);
+        results.push({
+          documentId: node.docId,
+          documentTitle: meta.title,
+          nodeId: node.nodeId,
+          nodeSummary: node.summary,
+          keyPoints: node.keyPoints,
+          actionableItems: node.actionableItems,
+          tags: meta.tags || [],
+          pageRange: node.pageRange,
+          similarity,
+          type: 'node'
+        });
       }
     } else {
       // Search at document level
