@@ -542,10 +542,18 @@ async function processDocumentWithAI(
 				}
 			);
 			const overallMd = parsed.overallMd || '';
-			const cleanedOverall = mdToPlain(overallMd);
-			const fullSummary = isBadAiSummary(cleanedOverall, text)
-				? autoGenerateSummary(text)
-				: cleanedOverall.slice(0, 1000);
+			const cleanedOverall = overallMd ? mdToPlain(overallMd) : '';
+			let fullSummary = cleanedOverall.slice(0, 1000);
+			if (!fullSummary || isBadAiSummary(fullSummary, text)) {
+				fullSummary = sentenceSummary(text, {
+					maxSentences: 4,
+					minChars: 120,
+					maxChars: 360
+				});
+				if (isBadAiSummary(fullSummary, text)) {
+					fullSummary = autoGenerateSummary(text);
+				}
+			}
 			return {
 				nodes,
 				fullSummary,
@@ -1032,6 +1040,25 @@ export async function POST(request: NextRequest) {
 				nodeCount: linkedNodes.length,
 				fullSummary: overallSummary,
 				overallMd: aiOverallMd,
+				keywords: Array.from(
+					new Set(
+						linkedNodes.flatMap(node => {
+							const maybeRecord =
+								node as unknown as Partial<DocumentNodeRecord>;
+							if (Array.isArray(maybeRecord.keywords)) {
+								return maybeRecord.keywords as string[];
+							}
+							return extractKeywords(
+								node.summary || node.content || '',
+								node.keyPoints || [],
+								node.actionableItems || []
+							);
+						})
+					)
+				)
+					.filter(k => typeof k === 'string' && k.trim().length > 0)
+					.map(k => k.trim())
+					.slice(0, 30),
 				metadata: {
 					createdAt: new Date(),
 					uploadedBy: session.sub,
@@ -1076,7 +1103,7 @@ export async function POST(request: NextRequest) {
 						(n.summary || '').split(/[.!?]/)[0]?.slice(0, 80) ||
 						`Section ${order}`;
 					const keywords = extractKeywords(
-						n.summary || '',
+						n.summary || n.content || '',
 						n.keyPoints || [],
 						n.actionableItems || []
 					);

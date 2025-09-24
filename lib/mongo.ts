@@ -1,5 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { MongoClient, type Collection, type Db, type Document } from 'mongodb';
+import { MongoClient } from 'mongodb';
+import type { Collection, Db, Document } from 'mongodb';
+import type { DocumentRecord } from '@/types/documents';
 
 // Simple in-memory fallback for tests (no external Mongo required)
 type MemDoc = Record<string, any>;
@@ -149,7 +150,6 @@ class MemoryCollection<T extends Document> {
 			} else if ('$match' in stage) {
 				data = data.filter(d => matchesFilter(d, (stage as any).$match));
 			} else if ('$project' in stage) {
-				const proj = (stage as any).$project;
 				data = data.map(d => {
 					const nodeCount = Array.isArray(d.nodes) ? d.nodes.length : 0;
 					return { ...d, nodeCount } as any;
@@ -220,10 +220,11 @@ export async function getMongo(): Promise<{ client: MongoClient; db: Db }> {
 	return { client, db };
 }
 
-export async function getCollection<T extends Document = Document>(
-	name?: string
+export async function getCollection<T extends Document = DocumentRecord>(
+	collectionName?: string
 ): Promise<Collection<T>> {
-	const collName = name || process.env.MONGODB_COLLECTION || 'documents';
+	const collName =
+		collectionName || process.env.MONGODB_COLLECTION || 'documents';
 	if (MEM_ENABLED) {
 		return new MemoryCollection<T>(collName) as any;
 	}
@@ -268,7 +269,7 @@ export async function ensureDocumentIndexes(): Promise<void> {
 			{ key: { 'metadata.documentType': 1 }, name: 'doctype_1' },
 			{ key: { 'metadata.createdAt': -1 }, name: 'createdAt_-1' }
 		]);
-	} catch (e) {
+	} catch {
 		// Ignore if unsupported (e.g., in-memory) or already exists
 	}
 	indexesEnsured = true;
@@ -301,10 +302,8 @@ export async function ensureNodeIndexes(): Promise<void> {
 			{ key: { createdAt: -1 }, name: 'n_createdAt_-1' },
 			{ key: { titleNormalized: 1 }, name: 'title_norm_1' }
 		]);
-	} catch (e) {
+	} catch {
 		// Ignore if unsupported
 	}
 	nodeIndexesEnsured = true;
 }
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-explicit-any */

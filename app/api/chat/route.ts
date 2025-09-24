@@ -5,8 +5,26 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
+import { ObjectId } from 'mongodb';
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string };
+type ChatHistoryRecord = {
+	_id?: ObjectId;
+	sessionId: string;
+	userId: string;
+	docId?: string;
+	messages: ChatMessage[];
+	citations?: Array<{
+		index: number;
+		docId: string;
+		nodeId: string;
+		title?: string;
+		pageRange?: { start?: number; end?: number };
+		score?: number;
+	}>;
+	createdAt: Date;
+	updatedAt: Date;
+};
 
 function scoreTextMatch(query: string, text: string): number {
 	const terms = new Set(query.toLowerCase().split(/\W+/).filter(Boolean));
@@ -24,13 +42,29 @@ export async function POST(req: NextRequest) {
 
 	try {
 		const body = await req.json();
-		const messages: ChatMessage[] = Array.isArray(body.messages)
+		const sessionId: string = body.sessionId || `${session.sub}-${Date.now()}`;
+		const clientMessages: ChatMessage[] = Array.isArray(body.messages)
 			? body.messages
 			: [];
 		const docId: string | undefined = body.docId || undefined;
 		const topK: number = Math.max(1, Math.min(10, Number(body.topK) || 5));
 
-		const lastUser = [...messages].reverse().find(m => m.role === 'user');
+		const historyCollection = await getCollection<ChatHistoryRecord>(
+			process.env.MONGODB_CHAT_COLLECTION || 'chat_sessions'
+		);
+		const historyFilter: Record<string, unknown> = {
+			userId: session.sub,
+			docId: docId || null
+		};
+		if (sessionId) historyFilter.sessionId = sessionId;
+		const existingHistory = await historyCollection
+			.find(historyFilter)
+			.sort({ updatedAt: -1 })
+			.limit(1)
+			.next();
+		const historyMessages = existingHistory?.messages || [];
+		const mergedMessages = [...historyMessages, ...clientMessages];
+		const lastUser = [...mergedMessages].reverse().find(m => m.role === 'user');
 		const query = lastUser?.content?.trim() || '';
 		if (!query)
 			return NextResponse.json(
@@ -48,6 +82,7 @@ export async function POST(req: NextRequest) {
 			content?: string;
 			keyPoints?: string[];
 			actionableItems?: string[];
+			uid?: string;
 		};
 		type Candidate = {
 			docId: string;
@@ -73,7 +108,8 @@ export async function POST(req: NextRequest) {
 					node.summary,
 					node.content,
 					...(node.keyPoints || []),
-					...(node.actionableItems || [])
+					...(node.actionableItems || []),
+					...(node.keywords || [])
 				].join(' ');
 				const score = scoreTextMatch(query, text);
 				candidates.push({
@@ -81,6 +117,7 @@ export async function POST(req: NextRequest) {
 					title: doc?.title || 'Untitled',
 					node: {
 						id: node.nodeId,
+						uid: node.uid,
 						pageRange: node.pageRange,
 						summary: node.summary,
 						content: node.content,
@@ -97,11 +134,13 @@ export async function POST(req: NextRequest) {
 						node.summary,
 						node.content,
 						...((node.keyPoints || []) as string[]),
-						...((node.actionableItems || []) as string[])
+						...((node.actionableItems || []) as string[]),
+						...((node.keywords || []) as string[])
 					].join(' ');
 					const score = scoreTextMatch(query, text);
 					const mapped: NodeForChat = {
 						id: node.id || node.nodeId || 'node',
+						uid: node.uid || `${doc.id}#${node.nodeId || node.id || 'node'}`,
 						pageRange: node.pageRange,
 						summary: node.summary,
 						content: node.content,
@@ -141,7 +180,8 @@ export async function POST(req: NextRequest) {
 					node.summary,
 					node.content,
 					...(node.keyPoints || []),
-					...(node.actionableItems || [])
+					...(node.actionableItems || []),
+					...(node.keywords || [])
 				].join(' ');
 				const score = scoreTextMatch(query, text);
 				candidates.push({
@@ -149,6 +189,7 @@ export async function POST(req: NextRequest) {
 					title,
 					node: {
 						id: node.nodeId,
+						uid: node.uid,
 						pageRange: node.pageRange,
 						summary: node.summary,
 						content: node.content,
@@ -171,6 +212,7 @@ export async function POST(req: NextRequest) {
 						const score = scoreTextMatch(query, text);
 						const mapped: NodeForChat = {
 							id: node.id || node.nodeId || 'node',
+							uid: node.uid || `${d.id}#${node.nodeId || node.id || 'node'}`,
 							pageRange: node.pageRange,
 							summary: node.summary,
 							content: node.content,
@@ -247,12 +289,104 @@ Actionable: ${(c.node.actionableItems || []).join('; ')}`
 			index: i + 1,
 			docId: c.docId,
 			nodeId: c.node.id,
-			score: c.score
+			score: c.score,
+			title: c.title,
+			pageRange: c.node.pageRange,
+			uid: c.node.uid
 		}));
 
-		return NextResponse.json({ reply, citations });
+		const finalMessages: ChatMessage[] = [
+			...mergedMessages,
+			{ role: 'assistant', content: reply }
+		];
+		await historyCollection.updateOne(
+			{ sessionId, userId: session.sub, docId: docId ?? undefined },
+			{
+				$set: {
+					sessionId,
+					userId: session.sub,
+					docId: docId ?? undefined,
+					messages: finalMessages,
+					citations,
+					updatedAt: new Date()
+				},
+				$setOnInsert: { createdAt: new Date() }
+			},
+			{ upsert: true }
+		);
+
+		return NextResponse.json({ reply, citations, sessionId });
 	} catch (e) {
 		console.error('Chat error', e);
 		return NextResponse.json({ error: 'Chat failed' }, { status: 500 });
+	}
+}
+
+export async function GET(req: NextRequest) {
+	const token = (await cookies()).get(AUTH_COOKIE)?.value;
+	const session = token ? verifySession(token) : null;
+	if (!session)
+		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+	try {
+		const { searchParams } = new URL(req.url);
+		const sessionId = searchParams.get('sessionId');
+		const docId = searchParams.get('docId');
+		const historyCollection = await getCollection<ChatHistoryRecord>(
+			process.env.MONGODB_CHAT_COLLECTION || 'chat_sessions'
+		);
+		const filter: Record<string, unknown> = { userId: session.sub };
+		if (sessionId) filter.sessionId = sessionId;
+		if (docId !== null) filter.docId = docId || null;
+		const record = await historyCollection
+			.find(filter)
+			.sort({ updatedAt: -1 })
+			.limit(1)
+			.next();
+		if (!record)
+			return NextResponse.json({ messages: [], sessionId: sessionId || null });
+		const response: Record<string, unknown> = {
+			sessionId: record.sessionId,
+			docId: record.docId || null,
+			messages: record.messages,
+			updatedAt: record.updatedAt
+		};
+		if ((record as any).citations) {
+			response.citations = (record as any).citations;
+		}
+		return NextResponse.json(response);
+	} catch (err) {
+		console.error('Chat history error', err);
+		return NextResponse.json(
+			{ error: 'Failed to load history' },
+			{ status: 500 }
+		);
+	}
+}
+
+export async function DELETE(req: NextRequest) {
+	const token = (await cookies()).get(AUTH_COOKIE)?.value;
+	const session = token ? verifySession(token) : null;
+	if (!session)
+		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+	try {
+		const { searchParams } = new URL(req.url);
+		const sessionId = searchParams.get('sessionId');
+		const docId = searchParams.get('docId');
+		const historyCollection = await getCollection<ChatHistoryRecord>(
+			process.env.MONGODB_CHAT_COLLECTION || 'chat_sessions'
+		);
+		const filter: Record<string, unknown> = { userId: session.sub };
+		if (sessionId) filter.sessionId = sessionId;
+		if (docId !== null) filter.docId = docId || null;
+		await historyCollection.deleteMany(filter);
+		return NextResponse.json({ success: true });
+	} catch (err) {
+		console.error('Chat history delete error', err);
+		return NextResponse.json(
+			{ error: 'Failed to delete history' },
+			{ status: 500 }
+		);
 	}
 }
