@@ -345,7 +345,7 @@ export default function DocumentDetailPage() {
 	}
 
 	return (
-		<div className='min-h-screen bg-gray-100'>
+		<div className='min-h-screen bg-gradient-to-b from-gray-50 via-blue-50 to-white'>
 			{/* Header */}
 			<div className='bg-white shadow-sm border-b'>
 				<div className='max-w-6xl mx-auto px-4 py-4'>
@@ -525,7 +525,7 @@ export default function DocumentDetailPage() {
 						</div>
 
 						{currentNode && (
-							<div className='p-6'>
+							<div className='p-6 space-y-6'>
 								{currentNode.topicSummary && (
 									<div className='mb-3 text-sm text-gray-600'>
 										Topic:{' '}
@@ -610,6 +610,8 @@ export default function DocumentDetailPage() {
 										<p className='text-gray-700'>{currentNode.summary}</p>
 									)}
 								</div>
+
+								{/* Removed image/voice reader card as requested */}
 
 								{/* Critical Flags and Cross-Departments */}
 								{(currentNode.criticalFlags?.length ||
