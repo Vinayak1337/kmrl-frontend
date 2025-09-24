@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCollection } from '@/lib/mongo';
+import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 export async function GET() {
   try {
@@ -11,20 +12,15 @@ export async function GET() {
     let processedToday = 0;
     
     try {
-      const collection = await getCollection();
+      const collection = await getCollection<DocumentRecord>();
       documentCount = await collection.countDocuments();
       
       // Get sample document structure
       const sampleDoc = await collection.findOne({});
       
-      // Count total nodes across all documents
-      const pipeline = [
-        { $project: { nodeCount: { $size: { $ifNull: ['$nodes', []] } } } },
-        { $group: { _id: null, total: { $sum: '$nodeCount' } } }
-      ];
-      
-      const nodeCountResult = await collection.aggregate(pipeline).toArray();
-      totalNodes = nodeCountResult[0]?.total || 0;
+      // Count total nodes across all documents (node collection)
+      const nodeCollection = await getCollection<DocumentNodeRecord>(process.env.MONGODB_NODES_COLLECTION || 'document_nodes');
+      totalNodes = await nodeCollection.countDocuments();
       
       // Count documents processed today
       const today = new Date();
@@ -75,8 +71,8 @@ export async function GET() {
         },
         sampleDocument: sampleDoc ? {
           hasNodes: Array.isArray(sampleDoc.nodes) && sampleDoc.nodes.length > 0,
-          nodeCount: sampleDoc.nodes?.length || 0,
-          hasEmbedding: !!sampleDoc.embedding,
+          nodeCount: (sampleDoc as any).nodeCount || sampleDoc.nodes?.length || 0,
+          hasEmbedding: false,
           structure: {
             id: !!sampleDoc.id,
             title: !!sampleDoc.title,

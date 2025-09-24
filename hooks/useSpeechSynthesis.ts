@@ -1,172 +1,212 @@
-"use client";
+'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface UseSpeechSynthesisOptions {
-  voice?: SpeechSynthesisVoice | null;
-  rate?: number;
-  pitch?: number;
-  volume?: number;
-  onStart?: () => void;
-  onEnd?: () => void;
-  onError?: (error: Event) => void;
+	voice?: SpeechSynthesisVoice | null;
+	rate?: number;
+	pitch?: number;
+	volume?: number;
+	onStart?: () => void;
+	onEnd?: () => void;
+	onError?: (error: Event) => void;
 }
 
 export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
-  const {
-    voice = null,
-    rate = 1,
-    pitch = 1,
-    volume = 1,
-    onStart,
-    onEnd,
-    onError
-  } = options;
+	const {
+		voice = null,
+		rate = 1,
+		pitch = 1,
+		volume = 1,
+		onStart,
+		onEnd,
+		onError
+	} = options;
 
-  const [isSupported] = useState(() => 'speechSynthesis' in window);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(voice);
-  
-  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+	const [isSupported, setIsSupported] = useState(false);
+	const [isSpeaking, setIsSpeaking] = useState(false);
+	const [isPaused, setIsPaused] = useState(false);
+	const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+	const [selectedVoice, setSelectedVoice] =
+		useState<SpeechSynthesisVoice | null>(voice);
 
-  // Load available voices
-  useEffect(() => {
-    if (!isSupported) return;
+	const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-    const loadVoices = () => {
-      const availableVoices = window.speechSynthesis.getVoices();
-      setVoices(availableVoices);
-      
-      // Auto-select first English voice if none selected
-      if (!selectedVoice && availableVoices.length > 0) {
-        const englishVoice = availableVoices.find(v => v.lang.startsWith('en')) || availableVoices[0];
-        setSelectedVoice(englishVoice);
-      }
-    };
+	// Detect support on mount
+	useEffect(() => {
+		if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+			setIsSupported(true);
+		}
+	}, []);
 
-    // Load voices immediately
-    loadVoices();
+	// Load available voices
+	useEffect(() => {
+		if (!isSupported || typeof window === 'undefined') return;
 
-    // Some browsers load voices asynchronously
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
+		const loadVoices = () => {
+			const availableVoices = window.speechSynthesis.getVoices();
+			setVoices(availableVoices);
 
-    return () => {
-      if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = null;
-      }
-    };
-  }, [isSupported, selectedVoice]);
+			// Auto-select first English voice if none selected
+			if (!selectedVoice && availableVoices.length > 0) {
+				const englishVoice =
+					availableVoices.find(v => v.lang.startsWith('en')) ||
+					availableVoices[0];
+				setSelectedVoice(englishVoice);
+			}
+		};
 
-  // Monitor speech synthesis state
-  useEffect(() => {
-    if (!isSupported) return;
+		// Load voices immediately
+		loadVoices();
 
-    const checkSpeakingState = () => {
-      setIsSpeaking(window.speechSynthesis.speaking);
-      setIsPaused(window.speechSynthesis.paused);
-    };
+		// Some browsers load voices asynchronously
+		if (window.speechSynthesis.onvoiceschanged !== undefined) {
+			window.speechSynthesis.onvoiceschanged = loadVoices;
+		}
 
-    const interval = setInterval(checkSpeakingState, 100);
-    return () => clearInterval(interval);
-  }, [isSupported]);
+		return () => {
+			if (window.speechSynthesis.onvoiceschanged !== undefined) {
+				window.speechSynthesis.onvoiceschanged = null;
+			}
+		};
+	}, [isSupported, selectedVoice]);
 
-  const speak = useCallback((text: string) => {
-    if (!isSupported || !text.trim()) return;
+	// Monitor speech synthesis state
+	useEffect(() => {
+		if (!isSupported || typeof window === 'undefined') return;
 
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
+		const checkSpeakingState = () => {
+			setIsSpeaking(window.speechSynthesis.speaking);
+			setIsPaused(window.speechSynthesis.paused);
+		};
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Set voice and speech parameters
-    if (selectedVoice) {
-      utterance.voice = selectedVoice;
-    }
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.volume = volume;
+		const interval = setInterval(checkSpeakingState, 100);
+		return () => clearInterval(interval);
+	}, [isSupported]);
 
-    // Set up event handlers
-    utterance.onstart = () => {
-      setIsSpeaking(true);
-      setIsPaused(false);
-      onStart?.();
-    };
+	const cancelCurrentUtterance = () => {
+		if (currentUtteranceRef.current) {
+			currentUtteranceRef.current.onend = null;
+			currentUtteranceRef.current.onerror = null;
+			currentUtteranceRef.current.onpause = null;
+			currentUtteranceRef.current.onresume = null;
+			currentUtteranceRef.current = null;
+		}
+	};
 
-    utterance.onend = () => {
-      setIsSpeaking(false);
-      setIsPaused(false);
-      currentUtteranceRef.current = null;
-      onEnd?.();
-    };
+	const speak = useCallback(
+		(text: string) => {
+			if (!isSupported || typeof window === 'undefined' || !text.trim()) return;
 
-    utterance.onerror = (event) => {
-      setIsSpeaking(false);
-      setIsPaused(false);
-      currentUtteranceRef.current = null;
-      onError?.(event);
-      console.error('Speech synthesis error:', event);
-    };
+			// Cancel any ongoing speech
+			window.speechSynthesis.cancel();
+			cancelCurrentUtterance();
 
-    utterance.onpause = () => {
-      setIsPaused(true);
-    };
+			const utterance = new SpeechSynthesisUtterance(text);
 
-    utterance.onresume = () => {
-      setIsPaused(false);
-    };
+			// Set voice and speech parameters
+			if (selectedVoice) {
+				utterance.voice = selectedVoice;
+			}
+			utterance.rate = rate;
+			utterance.pitch = pitch;
+			utterance.volume = volume;
 
-    currentUtteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-  }, [isSupported, selectedVoice, rate, pitch, volume, onStart, onEnd, onError]);
+			// Set up event handlers
+			utterance.onstart = () => {
+				setIsSpeaking(true);
+				setIsPaused(false);
+				onStart?.();
+			};
 
-  const pause = useCallback(() => {
-    if (isSupported && isSpeaking && !isPaused) {
-      window.speechSynthesis.pause();
-    }
-  }, [isSupported, isSpeaking, isPaused]);
+			utterance.onend = () => {
+				setIsSpeaking(false);
+				setIsPaused(false);
+				cancelCurrentUtterance();
+				onEnd?.();
+			};
 
-  const resume = useCallback(() => {
-    if (isSupported && isSpeaking && isPaused) {
-      window.speechSynthesis.resume();
-    }
-  }, [isSupported, isSpeaking, isPaused]);
+			utterance.onerror = event => {
+				setIsSpeaking(false);
+				setIsPaused(false);
+				cancelCurrentUtterance();
+				onError?.(event);
+				console.error('Speech synthesis error:', event);
+			};
 
-  const cancel = useCallback(() => {
-    if (isSupported) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      setIsPaused(false);
-      currentUtteranceRef.current = null;
-    }
-  }, [isSupported]);
+			utterance.onpause = () => {
+				setIsPaused(true);
+			};
 
-  // Get voice by name (helper function)
-  const getVoiceByName = useCallback((name: string) => {
-    return voices.find(voice => voice.name === name) || null;
-  }, [voices]);
+			utterance.onresume = () => {
+				setIsPaused(false);
+			};
 
-  // Get voices by language
-  const getVoicesByLanguage = useCallback((language: string) => {
-    return voices.filter(voice => voice.lang.startsWith(language));
-  }, [voices]);
+			currentUtteranceRef.current = utterance;
+			window.speechSynthesis.speak(utterance);
+		},
+		[isSupported, selectedVoice, rate, pitch, volume, onStart, onEnd, onError]
+	);
 
-  return {
-    isSupported,
-    isSpeaking,
-    isPaused,
-    voices,
-    selectedVoice,
-    speak,
-    pause,
-    resume,
-    cancel,
-    setSelectedVoice,
-    getVoiceByName,
-    getVoicesByLanguage
-  };
+	const pause = useCallback(() => {
+		if (
+			isSupported &&
+			typeof window !== 'undefined' &&
+			isSpeaking &&
+			!isPaused
+		) {
+			window.speechSynthesis.pause();
+		}
+	}, [isSupported, isSpeaking, isPaused]);
+
+	const resume = useCallback(() => {
+		if (
+			isSupported &&
+			typeof window !== 'undefined' &&
+			isSpeaking &&
+			isPaused
+		) {
+			window.speechSynthesis.resume();
+		}
+	}, [isSupported, isSpeaking, isPaused]);
+
+	const cancel = useCallback(() => {
+		if (isSupported && typeof window !== 'undefined') {
+			window.speechSynthesis.cancel();
+			setIsSpeaking(false);
+			setIsPaused(false);
+			cancelCurrentUtterance();
+		}
+	}, [isSupported]);
+
+	// Get voice by name (helper function)
+	const getVoiceByName = useCallback(
+		(name: string) => {
+			return voices.find(voice => voice.name === name) || null;
+		},
+		[voices]
+	);
+
+	// Get voices by language
+	const getVoicesByLanguage = useCallback(
+		(language: string) => {
+			return voices.filter(voice => voice.lang.startsWith(language));
+		},
+		[voices]
+	);
+
+	return {
+		isSupported,
+		isSpeaking,
+		isPaused,
+		voices,
+		selectedVoice,
+		speak,
+		pause,
+		resume,
+		cancel,
+		setSelectedVoice,
+		getVoiceByName,
+		getVoicesByLanguage
+	};
 }

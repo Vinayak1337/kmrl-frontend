@@ -1,55 +1,133 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { Button } from '@/components/UI/button';
-import { Input } from '@/components/UI/input';
 import { Textarea } from '@/components/UI/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/UI/radio-group';
+import {
+	Select,
+	SelectTrigger,
+	SelectContent,
+	SelectItem,
+	SelectValue
+} from '@/components/UI/select';
+import {
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+	CardFooter
+} from '@/components/UI/card';
+import { useToast } from '@/components/UI/use-toast';
+
+const FEEDBACK_TYPES = [
+	{ value: 'correction', label: 'Correction' },
+	{ value: 'missing_info', label: 'Missing Info' },
+	{ value: 'reprocess', label: 'Trigger Reprocess' },
+	{ value: 'other', label: 'Other' }
+];
 
 export function FeedbackForm({ docId }: { docId: string }) {
-  const [type, setType] = useState('correction');
-  const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
+	const [type, setType] = useState('correction');
+	const [message, setMessage] = useState('');
+	const [severity, setSeverity] = useState('medium');
+	const [sending, setSending] = useState(false);
+	const { toast } = useToast();
 
-  const submit = async () => {
-    if (!message.trim()) return;
-    setSending(true);
-    setStatus(null);
-    try {
-      const res = await fetch(`/api/documents/${docId}/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ type, message, reprocess: true })
-      });
-      if (!res.ok) throw new Error('Failed');
-      setMessage('');
-      setStatus('Submitted. Reprocessing triggered.');
-    } catch {
-      setStatus('Failed to submit feedback.');
-    } finally {
-      setSending(false);
-    }
-  };
+	const submit = async () => {
+		if (!message.trim()) {
+			toast({
+				title: 'Message required',
+				description: 'Please enter a short description.'
+			});
+			return;
+		}
+		setSending(true);
+		try {
+			const res = await fetch(`/api/documents/${docId}/feedback`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				credentials: 'include',
+				body: JSON.stringify({ type, message, severity })
+			});
+			if (!res.ok) throw new Error('Failed');
+			setMessage('');
+			toast({
+				title: 'Feedback submitted',
+				description: 'We will review and follow up shortly.'
+			});
+		} catch {
+			toast({
+				title: 'Submission failed',
+				description: 'Please try again later.',
+				variant: 'destructive'
+			});
+		} finally {
+			setSending(false);
+		}
+	};
 
-  return (
-    <div className="bg-white rounded-lg shadow-sm p-4 border">
-      <h3 className="text-md font-semibold text-gray-900 mb-2">Submit Feedback</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
-        <div>
-          <label className="block text-xs text-gray-600 mb-1">Type</label>
-          <Input value={type} onChange={(e) => setType(e.target.value)} placeholder="correction|missing_data|other" />
-        </div>
-        <div className="md:col-span-2">
-          <label className="block text-xs text-gray-600 mb-1">Message</label>
-          <Textarea value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Describe the issue or missing info…" />
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <Button onClick={submit} disabled={sending || !message.trim()}>Submit</Button>
-        {status && <span className="text-sm text-gray-600">{status}</span>}
-      </div>
-    </div>
-  );
+	return (
+		<Card className='border shadow-sm'>
+			<CardHeader>
+				<CardTitle className='text-base'>Submit Feedback</CardTitle>
+				<CardDescription>
+					Flag issues or request reprocessing for this document.
+				</CardDescription>
+			</CardHeader>
+			<CardContent className='space-y-4'>
+				<div className='space-y-2'>
+					<label className='text-xs text-muted-foreground'>Feedback type</label>
+					<Select value={type} onValueChange={setType}>
+						<SelectTrigger className='w-full'>
+							<SelectValue placeholder='Choose type' />
+						</SelectTrigger>
+						<SelectContent>
+							{FEEDBACK_TYPES.map(option => (
+								<SelectItem key={option.value} value={option.value}>
+									{option.label}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</div>
+				<div className='space-y-2'>
+					<label className='text-xs text-muted-foreground'>Severity</label>
+					<RadioGroup
+						value={severity}
+						onValueChange={setSeverity}
+						className='grid grid-cols-3 gap-2 text-sm text-muted-foreground'>
+						<label className='flex items-center gap-2 rounded-md border px-3 py-2'>
+							<RadioGroupItem value='low' /> Low
+						</label>
+						<label className='flex items-center gap-2 rounded-md border px-3 py-2'>
+							<RadioGroupItem value='medium' /> Medium
+						</label>
+						<label className='flex items-center gap-2 rounded-md border px-3 py-2'>
+							<RadioGroupItem value='high' /> High
+						</label>
+					</RadioGroup>
+				</div>
+				<div className='space-y-2'>
+					<label className='text-xs text-muted-foreground'>Details</label>
+					<Textarea
+						value={message}
+						onChange={event => setMessage(event.target.value)}
+						placeholder='Describe the issue or missing info…'
+						rows={4}
+					/>
+				</div>
+			</CardContent>
+			<CardFooter className='flex items-center justify-between'>
+				<Button
+					onClick={submit}
+					disabled={sending || !message.trim()}
+					size='sm'>
+					{sending ? 'Sending…' : 'Submit Feedback'}
+				</Button>
+				<span className='text-xs text-muted-foreground'>Doc ID: {docId}</span>
+			</CardFooter>
+		</Card>
+	);
 }
-
