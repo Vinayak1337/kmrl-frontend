@@ -156,6 +156,9 @@ async function processDocumentWithAI(
         throw e;
       }
     }
+    if (!result) {
+      throw new Error('No response from generative model');
+    }
     const responseText = result.response.text();
     try {
       const parsed = JSON.parse(responseText) as ManagerAnalysisJSON;
