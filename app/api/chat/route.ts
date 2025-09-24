@@ -65,22 +65,40 @@ export async function POST(req: NextRequest) {
     const contextBlocks = top.map((c, i) => `[#${i + 1}] Doc: ${c.title} | Node: ${c.node.id} | Pages ${c.node.pageRange?.start}-${c.node.pageRange?.end}\nSummary: ${c.node.summary}\nKeyPoints: ${(c.node.keyPoints || []).join('; ')}\nActionable: ${(c.node.actionableItems || []).join('; ')}`).join('\n\n');
 
     let reply = '';
+  const isSummaryRequest = /\b(summariz|summary|summarise|summaries)\b/i.test(query);
     const geminiKey = process.env.GEMINI_API_KEY;
     if (geminiKey) {
       try {
         const genAI = new GoogleGenerativeAI(geminiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-001' });
         const system = `You are a manager-focused assistant for KMRL.\n- Answer in English.\n- Emphasize decisions, deadlines, compliance, parameters, and cross-department impacts.\n- If information is insufficient, state what is missing.\n- Cite sources as [#N] referencing the context blocks.`;
-        const prompt = `${system}\n\nContext:\n${contextBlocks}\n\nUser question:\n${query}`;
+        // If the user explicitly asked for a summary, bias the LLM prompt
+        const prompt = isSummaryRequest
+          ? `${system}\n\nYou have been asked to provide a concise executive summary of the relevant documents. Use plain English, be concise (3-6 short paragraphs), and cite sources as [#N] from the context blocks.\n\nContext:\n${contextBlocks}\n\nUser request:\n${query}`
+          : `${system}\n\nContext:\n${contextBlocks}\n\nUser question:\n${query}`;
         const result = await model.generateContent(prompt);
         reply = result?.response?.text?.() || '';
       } catch {}
     }
 
     if (!reply && top.length > 0) {
-      // Fallback heuristic reply in test mode
-      const focus = top[0];
-      reply = `From [#1]: ${focus.node.summary || 'No summary available.'}`;
+      // If the user asked for a summary, build a deterministic summary from node summaries
+      if (isSummaryRequest) {
+        const blocks = top.map((c, i) => {
+          const pages = c.node.pageRange ? `${c.node.pageRange.start}-${c.node.pageRange.end}` : 'unknown';
+          const summaryText = c.node.summary && c.node.summary.trim().length > 0
+            ? c.node.summary.trim()
+            : (c.node.content ? (c.node.content || '').slice(0, 800) : 'No summary available.');
+          return `[#${i + 1}] ${c.title} (pages ${pages}):\n${summaryText}`;
+        }).join('\n\n');
+
+        // Provide an overall combined header plus per-block summaries
+        reply = `Executive summary of top ${top.length} matches:\n\n${blocks}`;
+      } else {
+        // Fallback heuristic reply in test mode
+        const focus = top[0];
+        reply = `From [#1]: ${focus.node.summary || 'No summary available.'}`;
+      }
     }
 
     const citations = top.map((c, i) => ({ index: i + 1, docId: c.docId, nodeId: c.node.id, score: c.score }));

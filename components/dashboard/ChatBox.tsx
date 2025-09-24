@@ -95,6 +95,35 @@ export function ChatBox({ docId }: { docId?: string }) {
     }
   };
 
+  const sendSummary = async () => {
+    const q = input.trim();
+    if (!q || loading) return;
+    const summaryPrompt = `Please provide an executive summary: ${q}`;
+    const next = [...messages, { role: 'user', content: summaryPrompt } as Message];
+    setMessages(next);
+    setInput('');
+    setLoading(true);
+
+    cancel();
+    setIsListeningToMessage(null);
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messages: next, docId, topK: 5 })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Chat failed');
+      setMessages((m) => [...m, { role: 'assistant', content: data.reply || '' }]);
+    } catch {
+      setMessages((m) => [...m, { role: 'assistant', content: 'Sorry, I could not answer that.' }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Speech control functions
   const toggleListening = async () => {
     if (isListening) {
@@ -307,6 +336,17 @@ export function ChatBox({ docId }: { docId?: string }) {
             className="px-3"
           >
             <Send className="h-4 w-4" />
+          </Button>
+
+          {/* Summary Button */}
+          <Button
+            variant="outline"
+            onClick={sendSummary}
+            disabled={loading || !input.trim() || isListening}
+            title="Request a concise summary of relevant documents"
+            className="px-3 ml-2"
+          >
+            Summary
           </Button>
         </div>
         
