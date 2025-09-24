@@ -83,21 +83,6 @@ Protocol (JSON only; no commentary outside JSON):
 - To finish: {"action":"final","result": {"nodes":[...],"overallSummary":"...","overallMd":"## Executive Summary..."}}`;
 }
 
-function pageToParts(
-	page: AgentPage
-): Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> {
-	const parts: Array<{
-		text?: string;
-		inlineData?: { data: string; mimeType: string };
-	}> = [];
-	parts.push({ text: `Page ${page.index} text:\n${page.text}` });
-	for (const img of page.images) {
-		if (img.base64 && img.mimeType)
-			parts.push({ inlineData: { data: img.base64, mimeType: img.mimeType } });
-	}
-	return parts;
-}
-
 export async function analyzeDocumentWithGemini(options: {
 	pages: AgentPage[];
 	apiKey: string;
@@ -264,4 +249,3 @@ export async function analyzeDocumentWithGemini(options: {
 		overallSummary: 'Agent timeout.'
 	};
 }
-/* eslint-disable @typescript-eslint/no-explicit-any */

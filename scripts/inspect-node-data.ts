@@ -25,9 +25,10 @@ async function inspectNodeData() {
 			console.log(`Page Range: ${node.pageRange.start}-${node.pageRange.end}`);
 
 			// Check title
-			console.log(`\nTitle (length: ${node.title.length}):`);
-			console.log(`"${node.title}"`);
-			if (node.title.includes('…')) {
+			const title = node.title || '';
+			console.log(`\nTitle (length: ${title.length}):`);
+			console.log(`"${title}"`);
+			if (title.includes('…')) {
 				console.log('⚠️ Title contains ellipsis character!');
 			}
 
@@ -94,13 +95,12 @@ async function inspectNodeData() {
 
 		if (testNode) {
 			console.log('Found node with SMART INDIA HACKATHON title:');
-			console.log(`Title length: ${testNode.title.length}`);
-			console.log(`Full title: "${testNode.title}"`);
+			const title = testNode.title || '';
+			console.log(`Title length: ${title.length}`);
+			console.log(`Full title: "${title}"`);
 			console.log(`\nChecking character at position 70-71:`);
-			for (let i = 68; i < Math.min(testNode.title.length, 75); i++) {
-				const char = testNode.title[i];
-				const code = testNode.title.charCodeAt(i);
-				console.log(`  Position ${i}: '${char}' (char code: ${code})`);
+			for (let i = Math.max(0, 68); i < Math.min(title.length, 75); i++) {
+				console.log(`${i}: ${title.charCodeAt(i)} (${title[i]})`);
 			}
 		}
 	} catch (error) {
