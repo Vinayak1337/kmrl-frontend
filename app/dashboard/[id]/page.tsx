@@ -211,25 +211,44 @@ export default function DocumentDetailPage() {
 		if (!currentNode || !document || !translationLanguage) return;
 		const cacheKey = getTranslationKey(currentNode.id, translationLanguage);
 		if (translatedSummaries.has(cacheKey)) return;
+
 		setTranslationLoading(true);
 		try {
 			const payload = {
 				language: translationLanguage,
-				summary: currentNode.summary,
+				summary: currentNode.summary || '',
 				keyPoints: currentNode.keyPoints || [],
 				actionableItems: currentNode.actionableItems || []
 			};
+
+			console.log('Translating with payload:', payload);
+
 			const res = await fetch('/api/translate', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'include',
 				body: JSON.stringify(payload)
 			});
+
 			if (!res.ok) {
-				console.error('Translation failed');
+				const errorText = await res.text();
+				console.error('Translation failed:', res.status, errorText);
+				alert(`Translation failed: ${res.status} - ${errorText}`);
 				return;
 			}
+
 			const data = await res.json();
+			console.log('Translation response:', data);
+
+			if (data.error) {
+				console.error('Translation API error:', data.error);
+				const errorMessage = data.details
+					? `${data.error}: ${data.details}`
+					: data.error;
+				alert(`Translation error: ${errorMessage}`);
+				return;
+			}
+
 			setTranslatedSummaries(prev => {
 				const next = new Map(prev);
 				next.set(cacheKey, {
@@ -244,6 +263,11 @@ export default function DocumentDetailPage() {
 			});
 		} catch (err) {
 			console.error('Failed to translate node', err);
+			alert(
+				`Translation error: ${
+					err instanceof Error ? err.message : 'Unknown error'
+				}`
+			);
 		} finally {
 			setTranslationLoading(false);
 		}
@@ -292,15 +316,86 @@ export default function DocumentDetailPage() {
 		return Array.from(new Set(dates));
 	};
 
-	const navigateNode = (direction: 'prev' | 'next') => {
+	const navigateNode = async (direction: 'prev' | 'next') => {
 		if (direction === 'prev' && currentNodeIndex > 0) {
 			setCurrentNodeIndex(currentNodeIndex - 1);
+		} else if (direction === 'prev' && currentNodeIndex === 0 && page > 0) {
+			// Navigate to previous page
+			const prevPage = page - 1;
+			setPage(prevPage);
+			await loadNodesPage(prevPage, pageSize, true);
+			setCurrentNodeIndex(pageSize - 1); // Go to last node of previous page
 		} else if (direction === 'next') {
 			const absNext = page * pageSize + currentNodeIndex + 1;
 			const total =
 				totalNodes || document?.nodeCount || document?.nodes?.length || 0;
-			if (absNext < total && currentNodeIndex < nodes.length - 1) {
+
+			if (currentNodeIndex < nodes.length - 1) {
 				setCurrentNodeIndex(currentNodeIndex + 1);
+			} else if (absNext < total) {
+				// Navigate to next page
+				const nextPage = page + 1;
+				setPage(nextPage);
+				await loadNodesPage(nextPage, pageSize, true);
+				setCurrentNodeIndex(0); // Go to first node of next page
+			}
+		}
+	};
+
+	// Function to jump directly to a specific node by UID
+	const jumpToNode = async (uid: string) => {
+		try {
+			const response = await fetch(`/api/nodes/${encodeURIComponent(uid)}`, {
+				credentials: 'include'
+			});
+			if (!response.ok) return;
+
+			const data = await response.json();
+			const targetNode = data.node;
+			if (!targetNode) return;
+
+			const order = targetNode.order || 1;
+			const targetPage = Math.floor((order - 1) / pageSize);
+
+			if (targetPage !== page) {
+				setPage(targetPage);
+				await loadNodesPage(targetPage, pageSize, true);
+			}
+
+			const localIndex = (order - 1) % pageSize;
+			setCurrentNodeIndex(localIndex);
+		} catch (error) {
+			console.error('Failed to jump to node:', error);
+		}
+	};
+
+	// Enhanced navigation using linked nodes
+	const navigateToLinkedNode = async (
+		nodeId: string,
+		direction: 'prev' | 'next'
+	) => {
+		if (!currentNode) return;
+
+		const linkedNodeId =
+			direction === 'prev' ? currentNode.prevNodeId : currentNode.nextNodeId;
+		if (!linkedNodeId) {
+			// Fallback to regular navigation
+			await navigateNode(direction);
+			return;
+		}
+
+		// Find the linked node in current loaded nodes
+		const linkedNodeIndex = nodes.findIndex(n => n.id === linkedNodeId);
+		if (linkedNodeIndex >= 0) {
+			setCurrentNodeIndex(linkedNodeIndex);
+		} else {
+			// Node not in current page, need to fetch it
+			try {
+				const uid = `${documentId}#${linkedNodeId}`;
+				await jumpToNode(uid);
+			} catch {
+				// Fallback to regular navigation
+				await navigateNode(direction);
 			}
 		}
 	};
@@ -491,8 +586,10 @@ export default function DocumentDetailPage() {
 									<Button
 										variant='outline'
 										size='sm'
-										onClick={() => navigateNode('prev')}
-										disabled={currentNodeIndex === 0}
+										onClick={() =>
+											navigateToLinkedNode(currentNode?.id || '', 'prev')
+										}
+										disabled={currentNodeIndex === 0 && page === 0}
 										className='p-2 h-auto'>
 										<ChevronLeft className='h-5 w-5' />
 									</Button>
@@ -503,7 +600,9 @@ export default function DocumentDetailPage() {
 									<Button
 										variant='outline'
 										size='sm'
-										onClick={() => navigateNode('next')}
+										onClick={() =>
+											navigateToLinkedNode(currentNode?.id || '', 'next')
+										}
 										disabled={
 											page * pageSize + currentNodeIndex + 1 >=
 											(totalNodes ||
@@ -555,21 +654,32 @@ export default function DocumentDetailPage() {
 																		</Badge>
 																		<span>Translated summary</span>
 																	</div>
-																	<p className='text-gray-800 mt-2 whitespace-pre-wrap'>
-																		{translated.summary
-																			? renderMarkdown(translated.summary)
-																			: null}
-																	</p>
+																	<div className='text-gray-800 mt-2 whitespace-pre-wrap'>
+																		{translated.summary ? (
+																			typeof translated.summary === 'string' &&
+																			translated.summary.includes('#') ? (
+																				renderMarkdown(translated.summary)
+																			) : (
+																				<p className='whitespace-pre-wrap'>
+																					{translated.summary}
+																				</p>
+																			)
+																		) : null}
+																	</div>
 																	{translated.keyPoints.length > 0 && (
 																		<div className='mt-3'>
 																			<h5 className='text-sm font-semibold text-gray-900'>
 																				Key Points
 																			</h5>
-																			{translated.keyPoints.length > 0
-																				? renderMarkdown(
-																						translated.keyPoints.join('\n')
-																				  )
-																				: null}
+																			{translated.keyPoints.length > 0 ? (
+																				<ul className='list-disc list-inside space-y-1 text-gray-700 text-sm'>
+																					{translated.keyPoints.map(
+																						(point, idx) => (
+																							<li key={idx}>{point}</li>
+																						)
+																					)}
+																				</ul>
+																			) : null}
 																		</div>
 																	)}
 																	{translated.actionableItems.length > 0 && (
@@ -577,13 +687,15 @@ export default function DocumentDetailPage() {
 																			<h5 className='text-sm font-semibold text-gray-900'>
 																				Actionable Items
 																			</h5>
-																			{translated.actionableItems.length > 0
-																				? renderMarkdown(
-																						translated.actionableItems.join(
-																							'\n'
+																			{translated.actionableItems.length > 0 ? (
+																				<ul className='list-disc list-inside space-y-1 text-gray-700 text-sm'>
+																					{translated.actionableItems.map(
+																						(item, idx) => (
+																							<li key={idx}>{item}</li>
 																						)
-																				  )
-																				: null}
+																					)}
+																				</ul>
+																			) : null}
 																		</div>
 																	)}
 																</CardContent>

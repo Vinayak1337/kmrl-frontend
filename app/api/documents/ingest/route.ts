@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
 import {
 	getCollection,
+	getMongo,
 	ensureDocumentIndexes,
 	ensureNodeIndexes
 } from '@/lib/mongo';
@@ -23,6 +24,11 @@ import {
 	type ManagerAnalysisJSON,
 	type ManagerNodeJSON
 } from '@/lib/prompt';
+
+// Vector search imports
+import { OpenAIEmbeddings } from '@langchain/openai';
+import { MongoDBAtlasVectorSearch } from '@langchain/mongodb';
+import { Document as LangchainDocument } from '@langchain/core/documents';
 
 // Types for document processing (internal shape before persistence)
 type DocumentNode = {
@@ -182,6 +188,103 @@ function normalizeTitle(title?: string): string | undefined {
 	return title.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+// Vector search helper function
+async function createVectorEmbeddings(
+	processedDoc: DocumentRecord,
+	nodes: DocumentNodeRecord[]
+): Promise<void> {
+	const openaiKey = process.env.OPENAI_API_KEY;
+	if (!openaiKey) {
+		console.warn(
+			'OpenAI API key not found, skipping vector embedding creation'
+		);
+		return;
+	}
+
+	try {
+		const embeddings = new OpenAIEmbeddings({
+			apiKey: openaiKey,
+			model: 'text-embedding-3-small'
+		});
+
+		const { db } = await getMongo();
+		const collectionName = process.env.MONGODB_COLLECTION || 'documents';
+		const collection = db.collection(collectionName);
+
+		const vectorStore = new MongoDBAtlasVectorSearch(embeddings, {
+			collection,
+			indexName: process.env.MONGODB_VECTOR_INDEX || 'vector_index',
+			textKey: 'textContent',
+			embeddingKey: 'embedding'
+		});
+
+		// Create documents for vector search - combine document and node data
+		const vectorDocs: LangchainDocument[] = [];
+
+		// Add document-level summary
+		vectorDocs.push(
+			new LangchainDocument({
+				pageContent: `${processedDoc.title}\n\n${processedDoc.fullSummary}`,
+				metadata: {
+					docId: processedDoc.id,
+					nodeId: 'summary',
+					title: processedDoc.title,
+					summary: processedDoc.fullSummary,
+					department: processedDoc.metadata.department,
+					documentType: processedDoc.metadata.documentType,
+					keywords: processedDoc.keywords?.join(', ') || '',
+					type: 'document_summary'
+				}
+			})
+		);
+
+		// Add each node as a separate vector document
+		for (const node of nodes) {
+			const textContent = [
+				node.title || '',
+				node.summary || '',
+				...(node.keyPoints || []),
+				...(node.actionableItems || []),
+				...(node.keywords || [])
+			]
+				.filter(Boolean)
+				.join(' ');
+
+			if (textContent.trim().length > 10) {
+				// Only add if there's meaningful content
+				vectorDocs.push(
+					new LangchainDocument({
+						pageContent: textContent,
+						metadata: {
+							docId: node.docId,
+							nodeId: node.nodeId,
+							uid: node.uid,
+							title: node.title || `Section ${node.order}`,
+							summary: node.summary,
+							pageRange: `${node.pageRange.start}-${node.pageRange.end}`,
+							department: node.department,
+							documentType: node.documentType,
+							keywords: node.keywords?.join(', ') || '',
+							type: 'document_node'
+						}
+					})
+				);
+			}
+		}
+
+		// Add documents to vector store
+		if (vectorDocs.length > 0) {
+			await vectorStore.addDocuments(vectorDocs);
+			console.log(
+				`Created ${vectorDocs.length} vector embeddings for document ${processedDoc.id}`
+			);
+		}
+	} catch (error) {
+		console.error('Failed to create vector embeddings:', error);
+		// Don't fail the ingestion if vector creation fails
+	}
+}
+
 const STOPWORDS = new Set<string>([
 	'the',
 	'and',
@@ -241,10 +344,17 @@ function extractKeywords(
 		.filter(t => t.length >= 4 && !STOPWORDS.has(t));
 	const counts = new Map<string, number>();
 	for (const t of tokens) counts.set(t, (counts.get(t) || 0) + 1);
-	return Array.from(counts.entries())
+	const extractedKeywords = Array.from(counts.entries())
 		.sort((a, b) => b[1] - a[1])
 		.slice(0, 15)
 		.map(([t]) => t);
+
+	// Log keyword extraction for debugging
+	if (process.env.NODE_ENV !== 'production') {
+		console.log('Extracted keywords:', extractedKeywords);
+	}
+
+	return extractedKeywords;
 }
 
 function sliceByPageRange(
@@ -447,20 +557,35 @@ async function processDocumentWithAI(
 	departments?: string[];
 }> {
 	const genAI = new GoogleGenerativeAI(apiKey);
-	const modelCandidates = ['gemini-2.5-flash'];
+	const modelCandidates = [
+		'gemini-2.5-flash',
+		'gemini-2.5-flash-001',
+		'gemini-1.5-flash-001'
+	];
 	let modelIndex = 0;
 	let model = genAI.getGenerativeModel({ model: modelCandidates[modelIndex] });
 	const prompt = buildManagerMdPrompt(meta);
 	try {
+		console.log(
+			`Processing document with AI: ${text.length} chars, ${images.length} images`
+		);
+
 		const parts: Array<{
 			text?: string;
 			inlineData?: { data: string; mimeType: string };
 		}> = [];
 		parts.push({ text: prompt });
-		parts.push({ text: `\nPrimary text content:\n${text.slice(0, 60_000)}` });
+
+		// Ensure we get good page content by combining and structuring it better
+		const truncatedText = text.slice(0, 60_000);
+		parts.push({ text: `\nDocument content to analyze:\n${truncatedText}` });
+
+		// Add images with page context if available
 		for (const img of images) {
 			parts.push({ inlineData: { data: img.base64, mimeType: img.mimeType } });
 		}
+
+		console.log(`Built prompt with ${parts.length} parts for AI processing`);
 		const generationConfig = { responseMimeType: 'application/json' as const };
 		const sleep = (ms: number) =>
 			new Promise(resolve => setTimeout(resolve, ms));
@@ -473,6 +598,13 @@ async function processDocumentWithAI(
 				});
 				break;
 			} catch (error) {
+				console.error(
+					`AI attempt ${attempt + 1} failed with model ${
+						modelCandidates[modelIndex]
+					}:`,
+					error
+				);
+
 				if (
 					error &&
 					typeof error === 'object' &&
@@ -485,6 +617,9 @@ async function processDocumentWithAI(
 					});
 					const backoff =
 						600 * Math.pow(2, attempt) + Math.floor(Math.random() * 200);
+					console.log(
+						`Retrying with model ${modelCandidates[modelIndex]} after ${backoff}ms`
+					);
 					await sleep(backoff);
 					continue;
 				}
@@ -493,8 +628,19 @@ async function processDocumentWithAI(
 		}
 		if (!result) throw new Error('Model did not return a result');
 		const responseText = result.response.text?.() || '';
+
+		console.log(`AI response length: ${responseText.length} chars`);
+		if (process.env.NODE_ENV !== 'production') {
+			console.log('AI response preview:', responseText.substring(0, 500));
+		}
+
 		try {
 			const parsed = JSON.parse(responseText) as ManagerAnalysisJSON;
+			console.log(
+				`Successfully parsed AI response with ${
+					parsed.nodes?.length || 0
+				} nodes`
+			);
 			const nodes = (Array.isArray(parsed.nodes) ? parsed.nodes : []).map(
 				(node: ManagerNodeJSON, index: number): Partial<DocumentNode> => {
 					const pageRange = node.pageRange || {
@@ -561,18 +707,36 @@ async function processDocumentWithAI(
 				documentType: parsed.documentType,
 				departments: parsed.departments
 			};
-		} catch {
+		} catch (parseError) {
+			console.error('Failed to parse AI JSON response:', parseError);
+			console.log(
+				'Raw AI response that failed to parse:',
+				responseText.substring(0, 1000)
+			);
+
+			// Try to extract useful information from the raw response
+			let summary = responseText;
+			if (responseText.length > 1000) {
+				// Look for key sections in the response
+				const lines = responseText.split('\n').filter(line => line.trim());
+				summary = lines.slice(0, 5).join(' ').substring(0, 500);
+			}
+
+			// Use text-based fallback with better structure
+			const fallbackSummary =
+				summary.length > 20 ? summary : autoGenerateSummary(text);
+
 			return {
 				nodes: [
 					{
 						pageRange: { start: 1, end: 1 },
 						content: text,
-						summary: responseText,
-						keyPoints: [],
+						summary: fallbackSummary,
+						keyPoints: extractKeywords(fallbackSummary, [], []).slice(0, 5),
 						actionableItems: []
 					}
 				],
-				fullSummary: responseText.substring(0, 500)
+				fullSummary: fallbackSummary
 			};
 		}
 	} catch (error) {
@@ -873,19 +1037,34 @@ export async function POST(request: NextRequest) {
 						aiOverallMd = agentResult.overallMd;
 					}
 
-					// If agent failed to properly structure (single node) but we have multiple pages, fallback to per-page nodes
+					// If agent failed to properly structure (single node) but we have multiple pages, fallback to improved page combination
 					const agentBad =
 						/agent timeout/i.test(overallSummary || '') ||
 						linkedNodes.length <= 1;
 					if (agentBad && limited.length > 1) {
-						// Better fallback: run manager-focused summarizer over aggregate text to get Markdown fields
+						console.log(
+							`Agent processing was inadequate (${linkedNodes.length} nodes for ${limited.length} pages), using intelligent page combination fallback`
+						);
+
+						// Better fallback: combine pages intelligently and run manager-focused summarizer
 						try {
+							// Combine pages with better structure preservation
 							const aggregateText = limited
-								.map(p => `\n\n[Page ${p.index}] ${p.text}`)
-								.join(' ');
+								.map(p => `\n\n=== PAGE ${p.index} ===\n${p.text}`)
+								.join('\n');
+
+							console.log(
+								`Creating aggregate text from ${limited.length} pages: ${aggregateText.length} chars`
+							);
+
 							const aiResult = await processDocumentWithAI(
 								aggregateText,
-								[{ base64: doc.content, mimeType: 'application/pdf' }],
+								limited.flatMap(p =>
+									(p.images || []).map(img => ({
+										base64: img.base64,
+										mimeType: img.mimeType
+									}))
+								),
 								apiKey,
 								{ department: body.department, documentType: body.documentType }
 							);
@@ -1102,11 +1281,34 @@ export async function POST(request: NextRequest) {
 							?.slice(0, 80) ||
 						(n.summary || '').split(/[.!?]/)[0]?.slice(0, 80) ||
 						`Section ${order}`;
+					// Extract keywords more robustly
+					const keywordSources = [
+						n.summary || '',
+						n.content || '',
+						...(n.keyPoints || []),
+						...(n.actionableItems || []),
+						n.topicSummary || '',
+						title || ''
+					].filter(Boolean);
+
 					const keywords = extractKeywords(
-						n.summary || n.content || '',
+						keywordSources.join(' '),
 						n.keyPoints || [],
 						n.actionableItems || []
 					);
+
+					// Ensure we have meaningful keywords
+					if (keywords.length === 0 && keywordSources.length > 0) {
+						// Fallback: extract important words if no keywords found
+						const fallbackWords = keywordSources
+							.join(' ')
+							.toLowerCase()
+							.replace(/[^a-z0-9\s]/g, ' ')
+							.split(/\s+/)
+							.filter(w => w.length >= 5 && !STOPWORDS.has(w))
+							.slice(0, 10);
+						keywords.push(...fallbackWords);
+					}
 					const normalized = normalizeTitle(title);
 					const sourcePages = Array.from(
 						{
@@ -1160,6 +1362,16 @@ export async function POST(request: NextRequest) {
 			);
 			if (nodesForDoc.length > 0) {
 				await nodesCollection.insertMany(nodesForDoc);
+			}
+
+			// Create vector embeddings for search (best effort, don't fail ingestion if this fails)
+			try {
+				await createVectorEmbeddings(processedDoc, nodesForDoc);
+			} catch (error) {
+				console.warn(
+					'Vector embedding creation failed, continuing without it:',
+					error
+				);
 			}
 		}
 

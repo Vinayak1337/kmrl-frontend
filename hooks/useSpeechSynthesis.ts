@@ -131,7 +131,20 @@ export function useSpeechSynthesis(options: UseSpeechSynthesisOptions = {}) {
 				setIsPaused(false);
 				cancelCurrentUtterance();
 				onError?.(event);
-				console.error('Speech synthesis error:', event);
+
+				// Provide more detailed error logging
+				const errorDetails = {
+					type: event.type,
+					error: event.error || 'unknown',
+					message: event.error || 'Speech synthesis failed',
+					timestamp: new Date().toISOString()
+				};
+
+				if (process.env.NODE_ENV !== 'production') {
+					console.error('Speech synthesis error details:', errorDetails);
+				} else {
+					console.warn('Speech synthesis error:', errorDetails.error);
+				}
 			};
 
 			utterance.onpause = () => {

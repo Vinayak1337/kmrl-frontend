@@ -97,7 +97,12 @@ export function ChatBox({ docId, variant = 'standalone' }: ChatBoxProps) {
 		cancel
 	} = useSpeechSynthesis({
 		rate: 0.9,
-		onEnd: () => setIsListeningToMessage(null)
+		onEnd: () => setIsListeningToMessage(null),
+		onError: error => {
+			console.warn('Speech synthesis failed:', error);
+			setIsListeningToMessage(null);
+			// Don't show error to user unless it's critical
+		}
 	});
 
 	useEffect(() => {
@@ -154,7 +159,12 @@ export function ChatBox({ docId, variant = 'standalone' }: ChatBoxProps) {
 		setMessages(nextMessages);
 		setInput('');
 		setLoading(true);
-		cancel();
+		// Cancel any ongoing speech synthesis safely
+		try {
+			cancel();
+		} catch (error) {
+			console.warn('Failed to cancel speech synthesis:', error);
+		}
 		setIsListeningToMessage(null);
 
 		try {
@@ -181,11 +191,17 @@ export function ChatBox({ docId, variant = 'standalone' }: ChatBoxProps) {
 			]);
 			setCitations(data.citations || []);
 
-			if (speechSynthesisSupported && assistantContent.trim()) {
-				cancel();
-				const answerIndex = nextMessages.length;
-				setIsListeningToMessage(answerIndex);
-				speak(assistantContent);
+			if (
+				speechSynthesisSupported &&
+				assistantContent.trim() &&
+				assistantContent.length < 5000
+			) {
+				// Give a small delay to ensure cancel completes before speaking
+				setTimeout(() => {
+					const answerIndex = nextMessages.length;
+					setIsListeningToMessage(answerIndex);
+					speak(assistantContent);
+				}, 100);
 			}
 		} catch (err) {
 			const fallbackContent = 'Sorry, I could not answer that.';
@@ -198,10 +214,11 @@ export function ChatBox({ docId, variant = 'standalone' }: ChatBoxProps) {
 			]);
 
 			if (speechSynthesisSupported) {
-				cancel();
-				const fallbackIndex = nextMessages.length;
-				setIsListeningToMessage(fallbackIndex);
-				speak(fallbackContent);
+				setTimeout(() => {
+					const fallbackIndex = nextMessages.length;
+					setIsListeningToMessage(fallbackIndex);
+					speak(fallbackContent);
+				}, 100);
 			}
 		} finally {
 			setLoading(false);
@@ -229,14 +246,30 @@ export function ChatBox({ docId, variant = 'standalone' }: ChatBoxProps) {
 			if (isPaused) resume();
 			else pause();
 		} else {
-			cancel();
-			setIsListeningToMessage(messageIndex);
-			speak(content);
+			// Cancel safely and give time for cleanup before speaking
+			try {
+				cancel();
+			} catch (error) {
+				console.warn('Failed to cancel speech synthesis:', error);
+			}
+
+			// Check content length and sanitize
+			const cleanContent = content.trim();
+			if (cleanContent && cleanContent.length < 10000) {
+				setTimeout(() => {
+					setIsListeningToMessage(messageIndex);
+					speak(cleanContent);
+				}, 150);
+			}
 		}
 	};
 
 	const stopSpeaking = () => {
-		cancel();
+		try {
+			cancel();
+		} catch (error) {
+			console.warn('Failed to stop speech synthesis:', error);
+		}
 		setIsListeningToMessage(null);
 	};
 

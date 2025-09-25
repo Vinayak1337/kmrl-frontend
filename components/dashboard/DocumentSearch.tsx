@@ -77,8 +77,25 @@ export const DocumentSearch: React.FC<DocumentSearchProps> = ({
 		setLoading(true);
 		setSearched(true);
 		try {
-			const searchResults = await onSearch(query, filters);
-			setResults(searchResults);
+			// Use the enhanced search API directly
+			const params = new URLSearchParams();
+			params.set('query', query);
+			if (filters.department) params.set('department', filters.department);
+			if (filters.documentType)
+				params.set('documentType', filters.documentType);
+			if (filters.searchNodes) params.set('searchNodes', 'true');
+			params.set('limit', '20');
+
+			const response = await fetch(`/api/search?${params.toString()}`, {
+				credentials: 'include'
+			});
+
+			if (!response.ok) {
+				throw new Error('Search request failed');
+			}
+
+			const data = await response.json();
+			setResults(data.results || []);
 		} catch (error) {
 			console.error('Search failed:', error);
 			setResults([]);
