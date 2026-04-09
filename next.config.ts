@@ -8,7 +8,6 @@ const nextConfig: NextConfig = {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
       // Provide build-time shims to avoid network installs in restricted envs
-      bcryptjs: path.resolve(__dirname, "shims/bcryptjs.ts"),
       "@google/generative-ai": path.resolve(__dirname, "shims/google-generative-ai.ts"),
     };
     return config;
