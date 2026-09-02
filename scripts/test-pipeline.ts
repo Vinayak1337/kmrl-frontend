@@ -61,7 +61,7 @@ async function run() {
   try {
     const res = await fetch(`${API_URL}/api/search/vector`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }, // public endpoint, no auth needed
+      headers: headersBase,
       body: JSON.stringify({ query: 'fire safety training', limit: 5, searchNodes: true }),
     });
     const data = await res.json();

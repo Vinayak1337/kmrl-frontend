@@ -59,9 +59,13 @@ export async function POST(req: Request) {
     });
 
     // Audit log
+    const actorId = /^[0-9a-fA-F]{24}$/.test(session.sub)
+      ? session.sub
+      : (await prisma.user.findFirst({ select: { id: true } }))?.id || '000000000000000000000001';
+
     await prisma.userAudit.create({
       data: {
-        actorId: session.sub,
+        actorId,
         targetUserId: user.id,
         action: 'CREATE_USER',
         details: { role, department: user.department, grants: sanitizedGrants },

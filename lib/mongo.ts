@@ -77,6 +77,10 @@ class MemoryCursor<T extends Document> {
 		const sliced = out.slice(this._skip);
 		return sliced.slice(0, isFinite(this._limit) ? this._limit : sliced.length);
 	}
+	async next(): Promise<T | null> {
+		const arr = await this.toArray();
+		return arr[0] || null;
+	}
 }
 
 class MemoryCollection<T extends Document> {
@@ -204,18 +208,33 @@ function getMongoUri(): string {
 	return uri;
 }
 
+function getDatabaseNameFromUri(uri: string): string | null {
+	try {
+		const parsed = new URL(
+			uri.replace(/^mongodb\+srv:\/\//, 'http://').replace(/^mongodb:\/\//, 'http://')
+		);
+		const pathname = parsed.pathname.replace(/^\//, '');
+		if (pathname && !pathname.includes('/')) {
+			return pathname;
+		}
+	} catch {}
+	return null;
+}
+
 export async function getMongo(): Promise<{ client: MongoClient; db: Db }> {
 	if (MEM_ENABLED) {
 		// Dummy return; not used directly when mem is enabled
 		// We still conform to signature
 		return { client: {} as any, db: {} as any };
 	}
+	const uri = getMongoUri();
 	if (!client) {
-		client = new MongoClient(getMongoUri());
+		client = new MongoClient(uri);
 	}
 	// Connect (safe to call multiple times)
 	await client.connect();
-	const dbName = process.env.MONGODB_DB_NAME || 'kmrl';
+	const defaultDb = getDatabaseNameFromUri(uri) || 'kmrl';
+	const dbName = process.env.MONGODB_DB_NAME || defaultDb;
 	const db = client.db(dbName);
 	return { client, db };
 }

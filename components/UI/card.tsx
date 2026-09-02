@@ -21,7 +21,7 @@ export const CardHeader = ({
 	...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
 	<div
-		className={cn('px-6 py-4 border-b bg-gray-50/60 rounded-t-xl', className)}
+		className={cn('px-6 py-4 border-b bg-gray-50 rounded-t-xl', className)}
 		{...props}
 	/>
 );
@@ -55,7 +55,7 @@ export const CardFooter = ({
 	...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
 	<div
-		className={cn('px-6 py-4 border-t bg-gray-50/60 rounded-b-xl', className)}
+		className={cn('px-6 py-4 border-t bg-gray-50 rounded-b-xl', className)}
 		{...props}
 	/>
 );

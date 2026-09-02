@@ -35,6 +35,7 @@ export type DocumentRecord = {
 	fullSummary: string; // legacy plain summary
 	overallMd?: string; // executive MD summary (markdown)
 	keywords?: string[]; // aggregated from nodes
+	searchableText?: string;
 	metadata: DocumentMetadata;
 	raw?: {
 		type: string;
@@ -76,6 +77,7 @@ export type DocumentNodeRecord = {
 		deadlines?: string[];
 		risks?: string[];
 		stakeholders?: string[];
+		searchableText?: string;
 	};
 
 	// Links

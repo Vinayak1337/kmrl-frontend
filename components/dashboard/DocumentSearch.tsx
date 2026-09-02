@@ -47,7 +47,6 @@ interface SearchResult {
 interface DocumentSearchProps {
 	onSearch: (query: string, filters?: SearchFilters) => Promise<SearchResult[]>;
 	onDocumentClick?: (doc: SearchResult) => void;
-	variant?: 'standalone' | 'embedded';
 }
 
 interface SearchFilters {
@@ -59,8 +58,7 @@ interface SearchFilters {
 
 export const DocumentSearch: React.FC<DocumentSearchProps> = ({
 	onSearch,
-	onDocumentClick,
-	variant = 'standalone'
+	onDocumentClick
 }) => {
 	const [query, setQuery] = useState('');
 	const [titleQuery, setTitleQuery] = useState('');
@@ -94,7 +92,7 @@ export const DocumentSearch: React.FC<DocumentSearchProps> = ({
 		setSearched(false);
 	};
 
-	const renderStandalone = () => (
+	return (
 		<Card>
 			{/* Search Bar */}
 			<CardHeader className='border-b bg-muted/30'>
@@ -385,225 +383,4 @@ export const DocumentSearch: React.FC<DocumentSearchProps> = ({
 			</CardContent>
 		</Card>
 	);
-
-	if (variant === 'embedded') {
-		return (
-			<div className='rounded-xl bg-transparent'>
-				<div className='p-4'>
-					<form onSubmit={handleSearch} className='flex gap-2 items-center'>
-						<div className='flex-1 relative'>
-							<Search className='absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400' />
-							<Input
-								value={query}
-								onChange={e => setQuery(e.target.value)}
-								placeholder='Search documents by content, title, or keywords...'
-								className='pl-10'
-							/>
-						</div>
-						<Button
-							type='button'
-							variant='outline'
-							onClick={() => setShowFilters(!showFilters)}>
-							<Filter className='h-5 w-5' />
-						</Button>
-						<Button type='submit' disabled={loading}>
-							{loading ? 'Searching...' : 'Search'}
-						</Button>
-						{searched && (
-							<Button type='button' variant='ghost' onClick={clearSearch}>
-								<X className='h-5 w-5' />
-							</Button>
-						)}
-					</form>
-					{showFilters && (
-						<div className='mt-4 p-4 bg-gray-50 rounded-lg'>
-							<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-								<div className='space-y-2'>
-									<Label>Department</Label>
-									<Select
-										value={filters.department || ''}
-										onValueChange={v =>
-											setFilters({ ...filters, department: v || undefined })
-										}
-										placeholder='All Departments'>
-										<SelectTrigger />
-										<SelectContent>
-											<SelectItem value=''>All Departments</SelectItem>
-											<SelectItem value='Engineering'>Engineering</SelectItem>
-											<SelectItem value='Operations'>Operations</SelectItem>
-											<SelectItem value='Safety'>Safety</SelectItem>
-											<SelectItem value='HR'>HR</SelectItem>
-											<SelectItem value='Finance'>Finance</SelectItem>
-											<SelectItem value='Procurement'>Procurement</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-								<div className='space-y-2'>
-									<Label>Document Type</Label>
-									<Select
-										value={filters.documentType || ''}
-										onValueChange={v =>
-											setFilters({ ...filters, documentType: v || undefined })
-										}
-										placeholder='All Types'>
-										<SelectTrigger />
-										<SelectContent>
-											<SelectItem value=''>All Types</SelectItem>
-											<SelectItem value='safety_circular'>
-												Safety Circular
-											</SelectItem>
-											<SelectItem value='technical_specification'>
-												Technical Specification
-											</SelectItem>
-											<SelectItem value='procurement'>Procurement</SelectItem>
-											<SelectItem value='hr_policy'>HR Policy</SelectItem>
-											<SelectItem value='maintenance'>Maintenance</SelectItem>
-											<SelectItem value='regulatory'>Regulatory</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-								<div className='space-y-2'>
-									<Label>Search Mode</Label>
-									<div className='flex gap-4 items-center'>
-										<Radio
-											name='searchMode'
-											checked={!filters.searchNodes}
-											onChange={() =>
-												setFilters({ ...filters, searchNodes: false })
-											}
-											label='Documents'
-										/>
-										<Radio
-											name='searchMode'
-											checked={filters.searchNodes === true}
-											onChange={() =>
-												setFilters({ ...filters, searchNodes: true })
-											}
-											label='Sections'
-										/>
-									</div>
-								</div>
-							</div>
-						</div>
-					)}
-				</div>
-				<div className='pt-2'>
-					<CardContent className='p-4 space-y-4'>
-						{loading && (
-							<div className='space-y-4'>
-								{[1, 2, 3].map(i => (
-									<div key={i} className='animate-pulse'>
-										<div className='h-4 bg-gray-200 rounded w-1/4 mb-2' />
-										<div className='h-3 bg-gray-200 rounded w-3/4 mb-1' />
-										<div className='h-3 bg-gray-200 rounded w-1/2' />
-									</div>
-								))}
-							</div>
-						)}
-						{!loading && searched && results.length === 0 && (
-							<div className='text-center py-8 text-gray-500'>
-								<FileText className='h-12 w-12 mx-auto mb-3 text-gray-300' />
-								<p>No documents found matching your search.</p>
-								<p className='text-sm mt-1'>
-									Try different keywords or adjust filters.
-								</p>
-							</div>
-						)}
-						{!loading && results.length > 0 && (
-							<div className='space-y-4'>
-								<div className='text-sm text-muted-foreground'>
-									Found {results.length} result{results.length !== 1 ? 's' : ''}
-								</div>
-								<div className='grid gap-4'>
-									{results.map(result => (
-										<Card key={result.id} className='border shadow-sm'>
-											<CardHeader className='pb-2'>
-												<div className='flex items-start justify-between gap-2'>
-													<div>
-														<CardTitle className='text-base flex items-center gap-2'>
-															<FileText className='h-4 w-4' />
-															{result.title}
-														</CardTitle>
-														<CardDescription className='mt-1 line-clamp-2'>
-															{result.summary}
-														</CardDescription>
-													</div>
-													<Button
-														size='sm'
-														variant='outline'
-														onClick={() => onDocumentClick?.(result)}>
-														<ExternalLink className='h-3.5 w-3.5 mr-1' /> View
-													</Button>
-												</div>
-											</CardHeader>
-											<CardContent className='space-y-3 pt-0'>
-												<div className='flex flex-wrap gap-4 text-xs text-muted-foreground'>
-													{result.department && (
-														<span className='flex items-center gap-1'>
-															<Tag className='h-3 w-3' />
-															{result.department}
-														</span>
-													)}
-													{result.documentType && (
-														<span className='flex items-center gap-1'>
-															<FileText className='h-3 w-3' />
-															{result.documentType.replace(/_/g, ' ')}
-														</span>
-													)}
-													{result.nodeCount && (
-														<span>{result.nodeCount} sections</span>
-													)}
-													{result.createdAt && (
-														<span className='flex items-center gap-1'>
-															<Clock className='h-3 w-3' />
-															{new Date(result.createdAt).toLocaleString()}
-														</span>
-													)}
-												</div>
-												{result.tags && result.tags.length > 0 && (
-													<div className='flex flex-wrap gap-2'>
-														{result.tags.map(tag => (
-															<Badge key={tag} variant='outline'>
-																{tag}
-															</Badge>
-														))}
-													</div>
-												)}
-												{result.keywords && result.keywords.length > 0 && (
-													<div className='space-y-1'>
-														<Separator className='mt-2' />
-														<div className='text-xs uppercase text-muted-foreground tracking-wide'>
-															Keywords
-														</div>
-														<div className='flex flex-wrap gap-1'>
-															{result.keywords.slice(0, 6).map(keyword => (
-																<Badge key={keyword} variant='secondary'>
-																	{keyword}
-																</Badge>
-															))}
-														</div>
-													</div>
-												)}
-											</CardContent>
-										</Card>
-									))}
-								</div>
-							</div>
-						)}
-						{!loading && !searched && (
-							<div className='text-center py-8 text-muted-foreground'>
-								<Search className='h-12 w-12 mx-auto mb-3' />
-								<p>Enter keywords to search documents</p>
-								<p className='text-sm mt-1'>
-									Use filters for more precise results
-								</p>
-							</div>
-						)}
-					</CardContent>
-				</div>
-			</div>
-		);
-	}
-
-	return renderStandalone();
 };
