@@ -5,24 +5,16 @@ import Link from 'next/link';
 import {
 	Upload,
 	FileText,
-	Database,
-	ArrowUpRight,
-	Loader2,
-	Search,
-	MessageSquare,
-	TrendingUp,
-	Clock,
-	Users,
-	Settings,
 	BarChart3,
-	Zap,
-	Brain
+	Bell,
+	UserPlus
 } from 'lucide-react';
 import { Button } from '@/components/UI/button';
 
 import { DocumentUploadDialog } from '@/components/dashboard/DocumentUploadDialog';
 import { DocumentSearch } from '@/components/dashboard/DocumentSearch';
 import { ChatBox } from '@/components/dashboard/ChatBox';
+import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import {
 	Card,
 	CardHeader,

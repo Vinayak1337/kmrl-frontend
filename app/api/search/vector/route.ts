@@ -4,7 +4,6 @@ import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
 import { searchDocumentsAndChunks } from '@/lib/search/searchService';
 import { getCollection } from '@/lib/mongo';
-import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 export async function POST(request: NextRequest) {
 	const token = (await cookies()).get(AUTH_COOKIE)?.value;
