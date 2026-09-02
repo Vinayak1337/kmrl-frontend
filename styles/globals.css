@@ -1,35 +1,45 @@
 @import 'tailwindcss';
 
 :root {
-	--background: #ffffff;
-	--foreground: #171717;
+	--background: #F6F7F4;
+	--foreground: #172033;
+	--docsetu-ink: #172033;
+	--docsetu-indigo: #4656D9;
+	--bridge-teal: #179C8C;
+	--canvas: #F6F7F4;
+	--surface: #FFFFFF;
+	--surface-muted: #F1F3F1;
+	--border-color: #E1E4DF;
+	--text-primary: #172033;
+	--text-secondary: #677080;
+	--text-tertiary: #9098A5;
 }
 
 @theme inline {
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
-	--font-sans: var(--font-geist-sans);
-	--font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-	:root {
-		--background: #0a0a0a;
-		--foreground: #ededed;
-	}
+	--color-docsetu-ink: var(--docsetu-ink);
+	--color-docsetu-indigo: var(--docsetu-indigo);
+	--color-bridge-teal: var(--bridge-teal);
+	--color-canvas: var(--canvas);
+	--color-surface: var(--surface);
+	--color-surface-muted: var(--surface-muted);
+	--font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	--font-mono: var(--font-geist-mono), monospace;
 }
 
 body {
 	background: var(--background);
 	color: var(--foreground);
-	font-family: Arial, Helvetica, sans-serif;
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
 }
 
-/* Force a light theme within a scope regardless of OS preference */
+/* Force light paper workspace regardless of OS preference */
 .light-scope,
 .force-light {
-	--background: #ffffff !important;
-	--foreground: #111827 !important; /* gray-900 */
+	--background: #F6F7F4 !important;
+	--foreground: #172033 !important;
 }
 
 /* Readable, light-theme-friendly typography for document previews */

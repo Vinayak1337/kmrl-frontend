@@ -1,52 +1,36 @@
 export const runtime = 'nodejs';
-import { NextResponse } from 'next/server';
-import { OpenAIEmbeddings } from '@langchain/openai';
-import { MongoDBAtlasVectorSearch } from '@langchain/mongodb';
-import { getMongo } from '@/lib/mongo';
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { AUTH_COOKIE, verifySession } from '@/lib/auth';
+import { searchDocumentsAndChunks } from '@/lib/search/searchService';
 
-export async function GET(req: Request) {
-  try {
-    const url = new URL(req.url);
-    const query = url.searchParams.get('query') || url.searchParams.get('q') || '';
-    if (!query.trim()) {
-      return NextResponse.json({ results: [] }, { status: 200 });
-    }
+export async function GET(req: NextRequest) {
+	const token = (await cookies()).get(AUTH_COOKIE)?.value;
+	const session = token ? verifySession(token) : null;
+	if (!session) {
+		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+	}
 
-    const openaiKey = process.env.OPENAI_API_KEY;
-    if (!openaiKey) {
-      return NextResponse.json({ error: 'Embeddings not configured' }, { status: 500 });
-    }
+	try {
+		const url = new URL(req.url);
+		const query = url.searchParams.get('query') || url.searchParams.get('q') || '';
+		const searchNodes = url.searchParams.get('searchNodes') === 'true';
+		const limit = Number(url.searchParams.get('limit') || '5');
 
-    const { db } = await getMongo();
-    const collectionName = process.env.MONGODB_COLLECTION || 'documents';
-    const collection = db.collection(collectionName);
+		if (!query.trim()) {
+			return NextResponse.json({ results: [] }, { status: 200 });
+		}
 
-    const indexName = process.env.MONGODB_VECTOR_INDEX || 'vector_index';
-    const embeddings = new OpenAIEmbeddings({ apiKey: openaiKey, model: 'text-embedding-3-small' });
+		const result = await searchDocumentsAndChunks({
+			query,
+			session,
+			searchNodes,
+			limit
+		});
 
-    const store = new MongoDBAtlasVectorSearch(embeddings, {
-      collection,
-      indexName,
-      textKey: 'textContent',
-      embeddingKey: 'embedding',
-    });
-
-    const docs = await store.similaritySearch(query, 5);
-
-    type DocMeta = { summary?: string; title?: string };
-    const results = docs.map((d): { id: string | null; textContent: string; summary: string | null; title: string | null } => {
-      const meta: DocMeta = (d.metadata || {}) as DocMeta;
-      return {
-        id: null as string | null,
-        textContent: d.pageContent || '',
-        summary: meta.summary || null,
-        title: meta.title || null,
-      };
-    });
-
-    return NextResponse.json({ results }, { status: 200 });
-  } catch (e) {
-    console.error('Search error', e);
-    return NextResponse.json({ error: 'Search failed' }, { status: 500 });
-  }
+		return NextResponse.json(result, { status: 200 });
+	} catch (e) {
+		console.error('Search error', e);
+		return NextResponse.json({ error: 'Search failed' }, { status: 500 });
+	}
 }

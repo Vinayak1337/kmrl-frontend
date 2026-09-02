@@ -203,14 +203,6 @@ export async function extractPdfPagesWithImagesFromBase64(
 					// ignore render errors per page; continue
 				}
 			}
-			// Fallback: if no canvas, embed a small text placeholder as base64 so downstream always sees an image-like part
-			if (!nodeCanvas && text.length > 0) {
-				const placeholder = Buffer.from(
-					`Page ${i}: ${text.slice(0, 300)}`,
-					'utf-8'
-				).toString('base64');
-				images.push({ base64: placeholder, mimeType: 'text/plain' as any });
-			}
 
 			pages.push({ index: i, text, images: images.slice(0, perPage) });
 		}

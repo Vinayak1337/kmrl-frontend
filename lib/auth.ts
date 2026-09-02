@@ -47,3 +47,63 @@ export function verifySession(token: string): JwtUser | null {
     return null;
   }
 }
+
+export function buildDocumentAccessFilter(
+  session: JwtUser,
+  target: 'documents' | 'nodes' = 'documents'
+): Record<string, unknown> {
+  if (session.role === 'ADMIN') {
+    return {};
+  }
+  const grants = Array.isArray(session.grants) ? session.grants : [];
+  const readGrants = grants.filter(
+    (g) => g.dept && g.type && Array.isArray(g.actions) && g.actions.includes('read')
+  );
+  if (readGrants.length === 0) {
+    return { _id: '__NO_ACCESS__' };
+  }
+
+  const toTitle = (s: string) =>
+    s.toLowerCase().replace(/(^|[_\s-])(\w)/g, (_, p1, c) => (p1 ? ' ' : '') + c.toUpperCase());
+
+  const or: Array<Record<string, string>> = [];
+  const deptField = target === 'documents' ? 'metadata.department' : 'department';
+  const typeField = target === 'documents' ? 'metadata.documentType' : 'documentType';
+
+  for (const g of readGrants) {
+    const deptVariants = Array.from(new Set([g.dept, g.dept.toLowerCase(), toTitle(g.dept), g.dept.toUpperCase()]));
+    const typeVariants = Array.from(new Set([g.type, g.type.toLowerCase(), g.type.toUpperCase()]));
+    for (const dv of deptVariants) {
+      for (const tv of typeVariants) {
+        or.push({
+          [deptField]: dv,
+          [typeField]: tv,
+        });
+      }
+    }
+  }
+  return or.length > 0 ? { $or: or } : { _id: '__NO_ACCESS__' };
+}
+
+export function isDocumentAccessible(
+  session: JwtUser,
+  doc: { metadata?: { department?: string; documentType?: string }; department?: string; documentType?: string }
+): boolean {
+  if (session.role === 'ADMIN') return true;
+  const dept = (doc.metadata?.department || doc.department || '').toLowerCase().trim();
+  const dtype = (doc.metadata?.documentType || doc.documentType || '').toLowerCase().trim();
+  if (!dept && !dtype) return false;
+
+  const grants = Array.isArray(session.grants) ? session.grants : [];
+  return grants.some((g) => {
+    if (!g.dept || !g.type || !Array.isArray(g.actions) || !g.actions.includes('read')) {
+      return false;
+    }
+    const gDept = g.dept.toLowerCase().trim();
+    const gType = g.type.toLowerCase().trim();
+    const deptMatch = !dept || gDept === dept || dept.includes(gDept) || gDept.includes(dept);
+    const typeMatch = !dtype || gType === dtype || dtype.includes(gType) || gType.includes(dtype);
+    return deptMatch && typeMatch;
+  });
+}
+

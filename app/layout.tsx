@@ -1,32 +1,22 @@
-import type { Metadata } from "next";
-import "@/styles/globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-
+import type { Metadata } from 'next';
+import '@/styles/globals.css';
 
 export const metadata: Metadata = {
-  title: "KMRL App - Multilingual Content Platform",
-  description: "A modern multilingual content delivery platform with AI-powered translation services",
+	title: 'DocSetu — Organizational Intelligence Workspace',
+	description:
+		'An organizational intelligence workspace built around documents. Collect, understand, and connect information across documents, languages, and teams.'
 };
 
 export default function RootLayout({
-  children,
+	children
 }: Readonly<{
-  children: React.ReactNode;
+	children: React.ReactNode;
 }>) {
-  return (
-    <html lang="en" className="force-light">
-      <body
-        className={`antialiased`}
-      >
-        <div className="min-h-screen flex flex-col">
-          <Navbar />
-          <main className="flex-grow">
-            {children}
-          </main>
-          <Footer />
-        </div>
-      </body>
-    </html>
-  );
+	return (
+		<html lang='en' className='force-light'>
+			<body className='antialiased bg-[#F6F7F4] text-[#172033] min-h-screen'>
+				{children}
+			</body>
+		</html>
+	);
 }

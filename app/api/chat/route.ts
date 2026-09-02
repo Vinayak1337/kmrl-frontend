@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
-import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
+import { searchDocumentsAndChunks, ChunkSearchResult } from '@/lib/search/searchService';
 import { ObjectId } from 'mongodb';
 
 type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string };
@@ -19,268 +19,146 @@ type ChatHistoryRecord = {
 		docId: string;
 		nodeId: string;
 		title?: string;
+		sectionTitle?: string;
 		pageRange?: { start?: number; end?: number };
 		score?: number;
+		uid?: string;
 	}>;
 	createdAt: Date;
 	updatedAt: Date;
 };
 
-function scoreTextMatch(query: string, text: string): number {
-	const terms = new Set(query.toLowerCase().split(/\W+/).filter(Boolean));
-	const body = (text || '').toLowerCase();
-	const matches = Array.from(terms).filter(t => body.includes(t)).length;
-	return matches / Math.max(1, terms.size);
-}
-
 export async function POST(req: NextRequest) {
-	// Require auth for chat (dashboard feature)
 	const token = (await cookies()).get(AUTH_COOKIE)?.value;
 	const session = token ? verifySession(token) : null;
-	if (!session)
+	if (!session) {
 		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+	}
 
 	try {
 		const body = await req.json();
 		const sessionId: string = body.sessionId || `${session.sub}-${Date.now()}`;
-		const clientMessages: ChatMessage[] = Array.isArray(body.messages)
-			? body.messages
-			: [];
+		const clientMessages: ChatMessage[] = Array.isArray(body.messages) ? body.messages : [];
 		const docId: string | undefined = body.docId || undefined;
 		const topK: number = Math.max(1, Math.min(10, Number(body.topK) || 5));
 
 		const historyCollection = await getCollection<ChatHistoryRecord>(
 			process.env.MONGODB_CHAT_COLLECTION || 'chat_sessions'
 		);
-		const historyFilter: Record<string, unknown> = {
+
+		const historyFilter: Record<string, any> = {
 			userId: session.sub,
-			docId: docId || null
+			sessionId
 		};
-		if (sessionId) historyFilter.sessionId = sessionId;
-		const existingHistory = await historyCollection
-			.find(historyFilter)
-			.sort({ updatedAt: -1 })
-			.limit(1)
-			.next();
-		const historyMessages = existingHistory?.messages || [];
-		const mergedMessages = [...historyMessages, ...clientMessages];
-		const lastUser = [...mergedMessages].reverse().find(m => m.role === 'user');
-		const query = lastUser?.content?.trim() || '';
-		if (!query)
-			return NextResponse.json(
-				{ error: 'No user query provided' },
-				{ status: 400 }
-			);
+		if (docId) historyFilter.docId = docId;
 
-		const collection = await getCollection<DocumentRecord>();
+		const existingHistory = await historyCollection.findOne(historyFilter);
+		const historyMessages: ChatMessage[] = existingHistory?.messages || [];
 
-		// Fetch candidate nodes via keyword retrieval
-		type NodeForChat = {
-			id: string;
-			pageRange?: { start: number; end: number };
-			summary?: string;
-			content?: string;
-			keyPoints?: string[];
-			actionableItems?: string[];
-			uid?: string;
-		};
-		type Candidate = {
-			docId: string;
-			title: string;
-			node: NodeForChat;
-			score: number;
-		};
-		const candidates: Candidate[] = [];
-
-		if (docId) {
-			// Fetch nodes from node collection (preferred)
-			const doc = await collection.findOne({ id: docId });
-			const nodesCollection = await getCollection<DocumentNodeRecord>(
-				process.env.MONGODB_NODES_COLLECTION || 'document_nodes'
-			);
-			const nodes = await nodesCollection
-				.find({ docId })
-				.sort({ order: 1 })
-				.limit(500)
-				.toArray();
-			for (const node of nodes) {
-				const text = [
-					node.summary,
-					node.content,
-					...(node.keyPoints || []),
-					...(node.actionableItems || []),
-					...(node.keywords || [])
-				].join(' ');
-				const score = scoreTextMatch(query, text);
-				candidates.push({
-					docId,
-					title: doc?.title || 'Untitled',
-					node: {
-						id: node.nodeId,
-						uid: node.uid,
-						pageRange: node.pageRange,
-						summary: node.summary,
-						content: node.content,
-						keyPoints: node.keyPoints,
-						actionableItems: node.actionableItems
-					},
-					score
-				});
-			}
-			// Fallback to embedded nodes if present
-			if (candidates.length === 0 && doc?.nodes) {
-				for (const node of doc.nodes as any[]) {
-					const text = [
-						node.summary,
-						node.content,
-						...((node.keyPoints || []) as string[]),
-						...((node.actionableItems || []) as string[]),
-						...((node.keywords || []) as string[])
-					].join(' ');
-					const score = scoreTextMatch(query, text);
-					const mapped: NodeForChat = {
-						id: node.id || node.nodeId || 'node',
-						uid: node.uid || `${doc.id}#${node.nodeId || node.id || 'node'}`,
-						pageRange: node.pageRange,
-						summary: node.summary,
-						content: node.content,
-						keyPoints: node.keyPoints,
-						actionableItems: node.actionableItems
-					};
-					candidates.push({
-						docId: doc.id,
-						title: doc.title,
-						node: mapped,
-						score
-					});
-				}
-			}
-		} else {
-			// Search recent nodes across documents
-			const nodesCollection = await getCollection<DocumentNodeRecord>(
-				process.env.MONGODB_NODES_COLLECTION || 'document_nodes'
-			);
-			const nodes = await nodesCollection
-				.find({})
-				.sort({ createdAt: -1 })
-				.limit(500)
-				.toArray();
-			// Small doc title cache
-			const docTitles = new Map<string, string>();
-			for (const node of nodes) {
-				if (!docTitles.has(node.docId)) {
-					const d = await collection.findOne(
-						{ id: node.docId },
-						{ projection: { title: 1 } as any }
-					);
-					if (d) docTitles.set(node.docId, d.title);
-				}
-				const title = docTitles.get(node.docId) || 'Untitled';
-				const text = [
-					node.summary,
-					node.content,
-					...(node.keyPoints || []),
-					...(node.actionableItems || []),
-					...(node.keywords || [])
-				].join(' ');
-				const score = scoreTextMatch(query, text);
-				candidates.push({
-					docId: node.docId,
-					title,
-					node: {
-						id: node.nodeId,
-						uid: node.uid,
-						pageRange: node.pageRange,
-						summary: node.summary,
-						content: node.content,
-						keyPoints: node.keyPoints,
-						actionableItems: node.actionableItems
-					},
-					score
-				});
-			}
-			// Fallback to embedded nodes if node collection is empty
-			if (candidates.length === 0) {
-				const docs = await collection.find({}).limit(100).toArray();
-				for (const d of docs) {
-					for (const node of (d.nodes || []) as any[]) {
-						const text = [
-							node.summary,
-							node.content,
-							...((node.keyPoints || []) as string[])
-						].join(' ');
-						const score = scoreTextMatch(query, text);
-						const mapped: NodeForChat = {
-							id: node.id || node.nodeId || 'node',
-							uid: node.uid || `${d.id}#${node.nodeId || node.id || 'node'}`,
-							pageRange: node.pageRange,
-							summary: node.summary,
-							content: node.content,
-							keyPoints: node.keyPoints,
-							actionableItems: node.actionableItems
-						};
-						candidates.push({
-							docId: d.id,
-							title: d.title,
-							node: mapped,
-							score
-						});
-					}
-				}
+		// Deduplicate client messages against history to prevent compounding duplication
+		let newMessages: ChatMessage[] = [];
+		if (clientMessages.length > historyMessages.length) {
+			newMessages = clientMessages.slice(historyMessages.length);
+		} else if (clientMessages.length > 0 && historyMessages.length === 0) {
+			newMessages = clientMessages;
+		} else if (clientMessages.length > 0) {
+			const last = clientMessages[clientMessages.length - 1];
+			if (last.role === 'user' && historyMessages[historyMessages.length - 1]?.content !== last.content) {
+				newMessages = [last];
 			}
 		}
 
-		candidates.sort((a, b) => b.score - a.score);
-		const top = candidates.slice(0, topK);
+		const mergedMessages = [...historyMessages, ...newMessages];
+		const lastUser = [...mergedMessages].reverse().find(m => m.role === 'user');
+		const query = lastUser?.content?.trim() || '';
 
-		const contextBlocks = top
+		if (!query) {
+			return NextResponse.json({ error: 'No user query provided' }, { status: 400 });
+		}
+
+		// Retrieve candidate chunks using canonical search service
+		const searchResult = await searchDocumentsAndChunks({
+			query,
+			session,
+			documentId: docId,
+			searchNodes: true,
+			limit: topK
+		});
+
+		const topChunks = (searchResult.results as ChunkSearchResult[]) || [];
+
+		// Build evidence-rich context blocks with raw chunk text
+		const contextBlocks = topChunks
 			.map(
 				(c, i) =>
-					`[#${i + 1}] Doc: ${c.title} | Node: ${c.node.id} | Pages ${
-						c.node.pageRange?.start
-					}-${c.node.pageRange?.end}\nSummary: ${c.node.summary}\nKeyPoints: ${(
-						c.node.keyPoints || []
-					).join('; ')}\nActionable: ${(c.node.actionableItems || []).join(
-						'; '
-					)}`
+					`[#${i + 1}] Document: "${c.documentTitle}" | Section: "${c.title}" (Pages ${c.pageRange.start}-${c.pageRange.end})
+Content:
+${c.content}
+Key Points: ${(c.keyPoints || []).join('; ')}`
 			)
-			.join('\n\n');
+			.join('\n\n---\n\n');
 
 		let reply = '';
 		const geminiKey = process.env.GEMINI_API_KEY;
+
 		if (geminiKey) {
 			try {
 				const genAI = new GoogleGenerativeAI(geminiKey);
 				const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-				const system = `You are a manager-focused assistant for KMRL.\n- Answer in English.\n- Emphasize decisions, deadlines, compliance, parameters, and cross-department impacts.\n- If information is insufficient, state what is missing.\n- Cite sources as [#N] referencing the context blocks.`;
-				const prompt = `${system}\n\nContext:\n${contextBlocks}\n\nUser question:\n${query}`;
+				const systemInstruction = `You are a manager-focused document intelligence assistant for DocSetu / KMRL.
+- Answer in English clearly and factually based on the provided context blocks.
+- Highlight concrete decisions, deadlines, compliance guidelines, and responsible owners.
+- GROUND your response in the provided context blocks.
+- Explicitly cite your sources using [#N] corresponding to the context blocks.
+- If the context blocks do not contain sufficient evidence to answer the question, clearly state what information is missing.`;
+
+				const prompt = `${systemInstruction}
+
+Context Blocks:
+${contextBlocks || '(No matching context blocks found)'}
+
+Conversation History:
+${mergedMessages.slice(-6, -1).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}
+
+User Question:
+${query}
+
+Assistant Answer:`;
+
 				const result = await model.generateContent(prompt);
 				reply = result?.response?.text?.() || '';
-			} catch {}
+			} catch (llmErr) {
+				console.warn('[chat] Gemini synthesis failed, falling back to summary', llmErr);
+			}
 		}
 
-		if (!reply && top.length > 0) {
-			// Fallback heuristic reply in test mode
-			const focus = top[0];
-			reply = `From [#1]: ${focus.node.summary || 'No summary available.'}`;
+		if (!reply) {
+			if (topChunks.length > 0) {
+				const focus = topChunks[0];
+				reply = `Based on [#1] (${focus.documentTitle} - ${focus.title}):\n\n${focus.nodeSummary || focus.content.slice(0, 300)}`;
+			} else {
+				reply = 'No relevant information could be found in the authorized document corpus to answer this question.';
+			}
 		}
 
-		const citations = top.map((c, i) => ({
+		const citations = topChunks.map((c, i) => ({
 			index: i + 1,
-			docId: c.docId,
-			nodeId: c.node.id,
+			docId: c.documentId,
+			nodeId: c.nodeId,
 			score: c.score,
-			title: c.title,
-			pageRange: c.node.pageRange,
-			uid: c.node.uid
+			title: c.documentTitle,
+			sectionTitle: c.title,
+			pageRange: c.pageRange,
+			uid: c.uid
 		}));
 
 		const finalMessages: ChatMessage[] = [
 			...mergedMessages,
 			{ role: 'assistant', content: reply }
 		];
+
 		await historyCollection.updateOne(
-			{ sessionId, userId: session.sub, docId: docId ?? undefined },
+			{ sessionId, userId: session.sub },
 			{
 				$set: {
 					sessionId,
@@ -297,7 +175,7 @@ export async function POST(req: NextRequest) {
 
 		return NextResponse.json({ reply, citations, sessionId });
 	} catch (e) {
-		console.error('Chat error', e);
+		console.error('Chat error:', e);
 		return NextResponse.json({ error: 'Chat failed' }, { status: 500 });
 	}
 }
@@ -305,68 +183,62 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
 	const token = (await cookies()).get(AUTH_COOKIE)?.value;
 	const session = token ? verifySession(token) : null;
-	if (!session)
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+	if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
 	try {
 		const { searchParams } = new URL(req.url);
 		const sessionId = searchParams.get('sessionId');
 		const docId = searchParams.get('docId');
+
 		const historyCollection = await getCollection<ChatHistoryRecord>(
 			process.env.MONGODB_CHAT_COLLECTION || 'chat_sessions'
 		);
-		const filter: Record<string, unknown> = { userId: session.sub };
+
+		const filter: Record<string, any> = { userId: session.sub };
 		if (sessionId) filter.sessionId = sessionId;
-		if (docId !== null) filter.docId = docId || null;
-		const record = await historyCollection
-			.find(filter)
-			.sort({ updatedAt: -1 })
-			.limit(1)
-			.next();
-		if (!record)
+		if (docId) filter.docId = docId;
+
+		const record = await historyCollection.findOne(filter);
+
+		if (!record) {
 			return NextResponse.json({ messages: [], sessionId: sessionId || null });
-		const response: Record<string, unknown> = {
+		}
+
+		return NextResponse.json({
 			sessionId: record.sessionId,
 			docId: record.docId || null,
-			messages: record.messages,
+			messages: record.messages || [],
+			citations: record.citations || [],
 			updatedAt: record.updatedAt
-		};
-		if ((record as any).citations) {
-			response.citations = (record as any).citations;
-		}
-		return NextResponse.json(response);
+		});
 	} catch (err) {
-		console.error('Chat history error', err);
-		return NextResponse.json(
-			{ error: 'Failed to load history' },
-			{ status: 500 }
-		);
+		console.error('Chat history error:', err);
+		return NextResponse.json({ error: 'Failed to load history' }, { status: 500 });
 	}
 }
 
 export async function DELETE(req: NextRequest) {
 	const token = (await cookies()).get(AUTH_COOKIE)?.value;
 	const session = token ? verifySession(token) : null;
-	if (!session)
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+	if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
 	try {
 		const { searchParams } = new URL(req.url);
 		const sessionId = searchParams.get('sessionId');
 		const docId = searchParams.get('docId');
+
 		const historyCollection = await getCollection<ChatHistoryRecord>(
 			process.env.MONGODB_CHAT_COLLECTION || 'chat_sessions'
 		);
-		const filter: Record<string, unknown> = { userId: session.sub };
+
+		const filter: Record<string, any> = { userId: session.sub };
 		if (sessionId) filter.sessionId = sessionId;
-		if (docId !== null) filter.docId = docId || null;
+		if (docId) filter.docId = docId;
+
 		await historyCollection.deleteMany(filter);
 		return NextResponse.json({ success: true });
 	} catch (err) {
-		console.error('Chat history delete error', err);
-		return NextResponse.json(
-			{ error: 'Failed to delete history' },
-			{ status: 500 }
-		);
+		console.error('Chat history delete error:', err);
+		return NextResponse.json({ error: 'Failed to delete history' }, { status: 500 });
 	}
 }
