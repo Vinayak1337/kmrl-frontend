@@ -33,6 +33,7 @@ body {
 	color: var(--foreground);
 	font-family: var(--font-sans);
 	-webkit-font-smoothing: antialiased;
+	scroll-behavior: smooth;
 }
 
 /* Force light paper workspace regardless of OS preference */
@@ -40,6 +41,22 @@ body {
 .force-light {
 	--background: #F6F7F4 !important;
 	--foreground: #172033 !important;
+}
+
+/* Clean, slim scrollbar for dense intelligence reading */
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background: #D5D9D2;
+	border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+	background: #B6BCB1;
 }
 
 /* Readable, light-theme-friendly typography for document previews */

@@ -16,7 +16,8 @@ import {
 	Building2,
 	User,
 	Menu,
-	X
+	X,
+	Search
 } from 'lucide-react';
 import { DocSetuLogo } from '@/components/brand/DocSetuBrand';
 import { Omnibox } from './Omnibox';
@@ -45,6 +46,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 	const [aiPanelQuestion, setAiPanelQuestion] = useState<string | undefined>();
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 	const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+	const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
 	// Load session details
 	useEffect(() => {
@@ -134,8 +136,16 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 					/>
 				</div>
 
-				{/* Right: + Add Document button, AI Assistant trigger, Profile */}
-				<div className='flex items-center gap-3 flex-shrink-0'>
+				{/* Right: Search (mobile), + Add Document button, AI Assistant trigger, Profile */}
+				<div className='flex items-center gap-2 sm:gap-3 flex-shrink-0'>
+					{/* Mobile Search Button */}
+					<button
+						onClick={() => setIsMobileSearchOpen(true)}
+						className='md:hidden p-2 text-[#677080] hover:text-[#172033] hover:bg-[#F6F7F4] rounded-lg transition-colors'
+						aria-label='Search workspace'>
+						<Search className='h-4 w-4' />
+					</button>
+
 					{/* Ask DocSetu Assistant Button */}
 					<button
 						onClick={() => {
@@ -171,10 +181,10 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 									<p className='text-xs font-semibold text-[#172033] truncate'>
 										{session?.name || 'Workspace Member'}
 									</p>
-									<p className='text-[11px] text-[#677080] truncate'>
+									<p className='text-xs text-[#677080] truncate'>
 										{session?.email || 'user@docsetu.internal'}
 									</p>
-									<span className='inline-block mt-1 px-1.5 py-0.5 rounded bg-[#F1F3F1] text-[10px] font-medium text-[#4656D9] uppercase'>
+									<span className='inline-block mt-1.5 px-2 py-0.5 rounded bg-[#F1F3F1] text-xs font-semibold text-[#4656D9] uppercase'>
 										{session?.role || 'MEMBER'}
 									</span>
 								</div>
@@ -342,6 +352,32 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 				onClose={() => setIsAiPanelOpen(false)}
 				initialQuestion={aiPanelQuestion}
 			/>
+
+			{/* Mobile Search Overlay */}
+			{isMobileSearchOpen && (
+				<div className='fixed inset-0 z-50 bg-black/40 backdrop-blur-xs p-4 flex flex-col items-center pt-12 md:hidden animate-in fade-in-50 duration-150'>
+					<div className='w-full max-w-lg bg-white rounded-2xl p-4 shadow-2xl border border-[#E1E4DF] space-y-3'>
+						<div className='flex items-center justify-between pb-2 border-b border-[#E1E4DF]'>
+							<span className='text-xs font-semibold text-[#172033] flex items-center gap-2'>
+								<Search className='h-3.5 w-3.5 text-[#4656D9]' />
+								<span>Search Workspace</span>
+							</span>
+							<button
+								onClick={() => setIsMobileSearchOpen(false)}
+								className='p-1 rounded-md text-[#677080] hover:text-[#172033] hover:bg-[#F6F7F4]'>
+								<X className='h-4 w-4' />
+							</button>
+						</div>
+						<Omnibox
+							onAskDocSetu={q => {
+								setIsMobileSearchOpen(false);
+								setAiPanelQuestion(q);
+								setIsAiPanelOpen(true);
+							}}
+						/>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

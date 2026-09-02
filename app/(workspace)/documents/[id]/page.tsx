@@ -16,7 +16,8 @@ import {
 	Check,
 	Loader2,
 	AlertCircle,
-	X
+	X,
+	Columns
 } from 'lucide-react';
 import { DocSetuDocument, DocumentSection } from '@/types/docsetu';
 import { getDocument, getDocumentSections, deleteDocument } from '@/services/documents';
@@ -40,6 +41,7 @@ export default function DocumentDetailPage({
 	const [sections, setSections] = useState<DocumentSection[]>([]);
 	const [activeTab, setActiveTab] = useState<Tab>('overview');
 	const [selectedSectionIndex, setSelectedSectionIndex] = useState(0);
+	const [viewMode, setViewMode] = useState<'tabs' | 'split'>('tabs');
 	const [loading, setLoading] = useState(true);
 	const [isAiOpen, setIsAiOpen] = useState(false);
 	const [copied, setCopied] = useState(false);
@@ -145,15 +147,20 @@ export default function DocumentDetailPage({
 
 	return (
 		<div className='p-6 md:p-8 max-w-7xl mx-auto space-y-6'>
-			{/* Back link */}
-			<div>
-				<Link
-					href='/documents'
-					className='inline-flex items-center gap-1.5 text-xs font-medium text-[#677080] hover:text-[#172033] transition-colors'>
-					<ArrowLeft className='h-3.5 w-3.5' />
-					<span>Documents</span>
+			{/* Breadcrumb Trail */}
+			<nav className='flex items-center gap-2 text-xs text-[#677080] font-medium'>
+				<Link href='/home' className='hover:text-[#172033] transition-colors'>
+					Workspace
 				</Link>
-			</div>
+				<span>/</span>
+				<Link href='/documents' className='hover:text-[#172033] transition-colors'>
+					Documents
+				</Link>
+				<span>/</span>
+				<span className='text-[#172033] font-semibold truncate max-w-sm'>
+					{document.title}
+				</span>
+			</nav>
 
 			{/* HEADER BLOCK */}
 			<div className='bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-4'>
@@ -165,20 +172,20 @@ export default function DocumentDetailPage({
 
 						{/* Structured Chips */}
 						<div className='flex flex-wrap items-center gap-2 text-xs'>
-							<span className='px-2.5 py-0.5 rounded-md bg-[#4656D9]/10 text-[#4656D9] font-medium'>
+							<span className='px-2.5 py-0.5 rounded-md bg-[#4656D9]/10 text-[#4656D9] font-semibold'>
 								{document.type}
 							</span>
-							<span className='px-2.5 py-0.5 rounded-md bg-[#179C8C]/10 text-[#179C8C] font-medium'>
+							<span className='px-2.5 py-0.5 rounded-md bg-[#179C8C]/10 text-[#179C8C] font-semibold'>
 								{document.team}
 							</span>
-							<span className='px-2.5 py-0.5 rounded-md bg-[#F1F3F1] text-[#677080] font-medium'>
+							<span className='px-2.5 py-0.5 rounded-md bg-[#F1F3F1] text-[#677080] font-semibold'>
 								{document.language}
 							</span>
-							<span className='text-[#9098A5]'>
+							<span className='text-[#677080]'>
 								{document.pageCount} {document.pageCount === 1 ? 'page' : 'pages'}
 							</span>
 							<span className='text-[#9098A5]'>•</span>
-							<span className='text-[#9098A5]'>
+							<span className='text-[#677080]'>
 								Updated {new Date(document.uploadedAt).toLocaleDateString()}
 							</span>
 						</div>
@@ -186,6 +193,19 @@ export default function DocumentDetailPage({
 
 					{/* Header Actions */}
 					<div className='flex flex-wrap items-center gap-2 flex-shrink-0'>
+						{/* View Mode Toggle */}
+						<button
+							onClick={() => setViewMode(viewMode === 'tabs' ? 'split' : 'tabs')}
+							className={`hidden md:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-colors ${
+								viewMode === 'split'
+									? 'bg-[#4656D9]/10 border-[#4656D9]/30 text-[#4656D9]'
+									: 'bg-white border-[#E1E4DF] text-[#677080] hover:text-[#172033]'
+							}`}
+							title='Toggle side-by-side verification view'>
+							<Columns className='h-3.5 w-3.5' />
+							<span>{viewMode === 'split' ? 'Tabbed View' : 'Split View'}</span>
+						</button>
+
 						<button
 							onClick={() => setIsAiOpen(true)}
 							className='inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#4656D9] text-white hover:bg-[#3B4BBF] text-xs font-medium transition-colors shadow-2xs'>
@@ -209,40 +229,223 @@ export default function DocumentDetailPage({
 					</div>
 				</div>
 
-				{/* TAB NAVIGATION */}
-				<div className='flex border-b border-[#E1E4DF] gap-6 pt-2 text-xs font-medium overflow-x-auto'>
-					{(['overview', 'sections', 'actions', 'source', 'activity'] as const).map(tab => (
-						<button
-							key={tab}
-							onClick={() => setActiveTab(tab)}
-							className={`pb-3 capitalize transition-colors whitespace-nowrap flex items-center gap-1.5 ${
-								activeTab === tab
-									? 'border-b-2 border-[#4656D9] text-[#4656D9] font-semibold'
-									: 'text-[#677080] hover:text-[#172033]'
-							}`}>
-							<span>{tab}</span>
-							{tab === 'sections' && (
-								<span className='px-1.5 py-0.2 rounded-full bg-[#F1F3F1] text-[10px] text-[#677080]'>
-									{sections.length}
-								</span>
-							)}
-							{tab === 'actions' && document.actions.length > 0 && (
-								<span className='px-1.5 py-0.2 rounded-full bg-[#C77B1B]/15 text-[10px] text-[#C77B1B] font-semibold'>
-									{document.actions.length}
-								</span>
-							)}
-						</button>
-					))}
-				</div>
+				{/* TAB NAVIGATION / SPLIT VIEW INDICATOR */}
+				{viewMode === 'tabs' ? (
+					<div className='flex border-b border-[#E1E4DF] gap-6 pt-2 text-xs font-semibold overflow-x-auto'>
+						{(['overview', 'sections', 'actions', 'source', 'activity'] as const).map(tab => (
+							<button
+								key={tab}
+								onClick={() => setActiveTab(tab)}
+								className={`pb-3 capitalize transition-colors whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+									activeTab === tab
+										? 'border-b-2 border-[#4656D9] text-[#4656D9] font-bold'
+										: 'text-[#677080] hover:text-[#172033]'
+								}`}>
+								<span>{tab}</span>
+								{tab === 'sections' && (
+									<span className='px-1.5 py-0.5 rounded-full bg-[#F1F3F1] text-xs text-[#677080]'>
+										{sections.length}
+									</span>
+								)}
+								{tab === 'actions' && document.actions.length > 0 && (
+									<span className='px-1.5 py-0.5 rounded-full bg-[#C77B1B]/15 text-xs text-[#C77B1B] font-semibold'>
+										{document.actions.length}
+									</span>
+								)}
+							</button>
+						))}
+					</div>
+				) : (
+					<div className='pt-3 flex items-center justify-between text-xs text-[#677080] border-t border-[#E1E4DF]'>
+						<span className='font-semibold text-[#172033] flex items-center gap-1.5'>
+							<Columns className='h-3.5 w-3.5 text-[#4656D9]' />
+							<span>Side-by-Side Verification Mode</span>
+						</span>
+						<span className='hidden sm:inline'>Cross-referencing section text against extracted actions & intelligence</span>
+					</div>
+				)}
 			</div>
 
-			{/* TAB 1: OVERVIEW */}
-			{activeTab === 'overview' && (
-				<div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
-					{/* Left 2 Cols: Document Brief & Key Points */}
-					<div className='lg:col-span-2 space-y-6'>
-						{/* Document Brief */}
+			{/* SPLIT VIEW (Synchronized Document Reader + Intelligence) */}
+			{viewMode === 'split' ? (
+				<div className='grid grid-cols-1 lg:grid-cols-12 gap-6'>
+					{/* LEFT PANE: Synchronized Document Reader (7 cols) */}
+					<div className='lg:col-span-7 bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-5'>
+						{/* Reader Top Controls */}
+						<div className='flex items-center justify-between pb-3 border-b border-[#E1E4DF]'>
+							<div className='flex items-center gap-2'>
+								<span className='px-2.5 py-0.5 rounded bg-[#4656D9]/10 text-[#4656D9] text-xs font-semibold'>
+									Section {selectedSectionIndex + 1} of {sections.length || 1}
+								</span>
+								<span className='text-xs text-[#677080] font-medium'>
+									Page {activeSection?.pageRange?.start || 1}
+								</span>
+							</div>
+
+							<div className='flex items-center gap-1.5'>
+								<button
+									disabled={selectedSectionIndex <= 0}
+									onClick={() => setSelectedSectionIndex(prev => Math.max(0, prev - 1))}
+									className='px-3 py-1 text-xs font-semibold rounded border border-[#E1E4DF] text-[#172033] hover:bg-[#F6F7F4] disabled:opacity-40 transition-colors cursor-pointer'>
+									Previous
+								</button>
+								<button
+									disabled={selectedSectionIndex >= sections.length - 1}
+									onClick={() => setSelectedSectionIndex(prev => Math.min(sections.length - 1, prev + 1))}
+									className='px-3 py-1 text-xs font-semibold rounded border border-[#E1E4DF] text-[#172033] hover:bg-[#F6F7F4] disabled:opacity-40 transition-colors cursor-pointer'>
+									Next
+								</button>
+							</div>
+						</div>
+
+						{/* Section Chips */}
+						{sections.length > 1 && (
+							<div className='flex items-center gap-1.5 overflow-x-auto pb-1'>
+								{sections.map((sec, idx) => (
+									<button
+										key={sec.id || idx}
+										onClick={() => setSelectedSectionIndex(idx)}
+										className={`px-3 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+											selectedSectionIndex === idx
+												? 'bg-[#4656D9] text-white'
+												: 'bg-[#F6F7F4] text-[#677080] hover:text-[#172033] hover:bg-[#E1E4DF]'
+										}`}>
+										Sec {idx + 1}
+									</button>
+								))}
+							</div>
+						)}
+
+						{/* Active Section Content */}
+						<div className='space-y-4'>
+							<h2 className='text-lg font-bold text-[#172033]'>
+								{activeSection?.title || `Section ${selectedSectionIndex + 1}`}
+							</h2>
+
+							{activeSection?.summary && (
+								<div className='p-4 bg-[#F6F7F4] rounded-lg border border-[#E1E4DF] space-y-1.5'>
+									<span className='text-xs font-semibold text-[#4656D9] uppercase tracking-wider'>
+										Section Summary
+									</span>
+									<p className='text-sm text-[#172033] leading-relaxed'>
+										{activeSection.summary}
+									</p>
+								</div>
+							)}
+
+							{activeSection?.keyPoints && activeSection.keyPoints.length > 0 && (
+								<div className='space-y-2'>
+									<span className='text-xs font-semibold text-[#172033] uppercase tracking-wider'>
+										Key Requirements & Rules
+									</span>
+									<ul className='space-y-2 list-disc list-inside text-sm text-[#677080]'>
+										{activeSection.keyPoints.map((pt, i) => (
+											<li key={i} className='leading-relaxed'>
+												{pt}
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
+
+							{activeSection?.sourceContent && (
+								<div className='space-y-2 pt-3 border-t border-[#E1E4DF]'>
+									<span className='text-xs font-semibold text-[#9098A5] uppercase tracking-wider'>
+										Source Content
+									</span>
+									<div className='p-4 bg-white rounded-lg border border-[#E1E4DF] text-sm text-[#172033] leading-relaxed doc-content max-h-[480px] overflow-y-auto font-mono text-xs'>
+										<ReactMarkdown remarkPlugins={[remarkGfm]}>
+											{activeSection.sourceContent}
+										</ReactMarkdown>
+									</div>
+								</div>
+							)}
+						</div>
+					</div>
+
+					{/* RIGHT PANE: Extracted Obligations & Intelligence (5 cols) */}
+					<div className='lg:col-span-5 space-y-6'>
+						{/* Executive Brief */}
+						<div className='bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-3'>
+							<div className='flex items-center justify-between'>
+								<h3 className='text-sm font-semibold text-[#172033] flex items-center gap-2'>
+									<Sparkles className='h-4 w-4 text-[#4656D9]' />
+									<span>Executive Brief</span>
+								</h3>
+								<button
+									onClick={handleCopyBrief}
+									className='text-xs text-[#677080] hover:text-[#172033] flex items-center gap-1 font-medium'>
+									{copied ? <Check className='h-3.5 w-3.5 text-green-600' /> : <Copy className='h-3.5 w-3.5' />}
+									<span>{copied ? 'Copied' : 'Copy'}</span>
+								</button>
+							</div>
+							<p className='text-sm text-[#172033] leading-relaxed'>
+								{document.summary}
+							</p>
+						</div>
+
+						{/* Extracted Obligations with Section Jump */}
 						<div className='bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-4'>
+							<div className='flex items-center justify-between'>
+								<h3 className='text-sm font-semibold text-[#172033] flex items-center gap-2'>
+									<CheckCircle2 className='h-4 w-4 text-[#179C8C]' />
+									<span>Extracted Obligations ({document.actions?.length || 0})</span>
+								</h3>
+							</div>
+
+							<div className='space-y-3'>
+								{document.actions && document.actions.length > 0 ? (
+									document.actions.map(act => (
+										<div
+											key={act.id}
+											className='p-3.5 bg-[#F6F7F4]/70 rounded-lg border border-[#E1E4DF] hover:border-[#4656D9] transition-colors space-y-2'>
+											<div className='flex items-start justify-between gap-2'>
+												<p className='text-sm font-semibold text-[#172033] leading-snug'>
+													{act.action}
+												</p>
+												{act.dueDate && (
+													<span className='px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-800 whitespace-nowrap'>
+														{act.dueDate}
+													</span>
+												)}
+											</div>
+											<div className='flex items-center justify-between text-xs text-[#677080] pt-1'>
+												<span className='font-semibold text-[#172033]'>{act.team}</span>
+												{act.sectionId && (
+													(() => {
+														const secIdx = sections.findIndex(s => s.id === act.sectionId);
+														if (secIdx === -1) return null;
+														return (
+															<button
+																onClick={() => setSelectedSectionIndex(secIdx)}
+																className='text-xs font-semibold text-[#4656D9] hover:underline flex items-center gap-1 cursor-pointer'>
+																<span>Jump to Sec {secIdx + 1}</span>
+																<ArrowLeft className='h-3 w-3 rotate-180' />
+															</button>
+														);
+													})()
+												)}
+											</div>
+										</div>
+									))
+								) : (
+									<p className='text-xs text-[#9098A5] italic py-2'>
+										No active obligations surfaced for this document.
+									</p>
+								)}
+							</div>
+						</div>
+					</div>
+				</div>
+			) : (
+				<>
+					{/* TAB 1: OVERVIEW */}
+					{activeTab === 'overview' && (
+						<div className='grid grid-cols-1 lg:grid-cols-3 gap-6'>
+							{/* Left 2 Cols: Document Brief & Key Points */}
+							<div className='lg:col-span-2 space-y-6'>
+								{/* Document Brief */}
+								<div className='bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-4'>
 							<div className='flex items-center justify-between'>
 								<h2 className='text-sm font-semibold text-[#172033] flex items-center gap-2'>
 									<Sparkles className='h-4 w-4 text-[#4656D9]' />
@@ -609,7 +812,7 @@ export default function DocumentDetailPage({
 							<p className='text-xs font-semibold text-[#172033]'>
 								Document analyzed and indexed into workspace
 							</p>
-							<p className='text-[11px] text-[#9098A5]'>
+							<p className='text-xs text-[#9098A5]'>
 								{new Date(document.uploadedAt).toLocaleString()}
 							</p>
 						</div>
@@ -621,12 +824,14 @@ export default function DocumentDetailPage({
 							<p className='text-xs font-semibold text-[#172033]'>
 								Initial upload completed by team member
 							</p>
-							<p className='text-[11px] text-[#9098A5]'>
+							<p className='text-xs text-[#9098A5]'>
 								{new Date(document.uploadedAt).toLocaleDateString()}
 							</p>
 						</div>
 					</div>
 				</div>
+			)}
+				</>
 			)}
 
 			{/* TRANSLATE MODAL */}
