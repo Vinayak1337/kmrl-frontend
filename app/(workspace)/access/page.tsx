@@ -21,7 +21,7 @@ export default function AccessPage() {
 			{/* Header */}
 			<div>
 				<h1 className='text-2xl font-bold text-[#172033] tracking-tight flex items-center gap-2.5'>
-					<Shield className='h-6 w-6 text-[#4656D9]' />
+					<Shield className='h-6 w-6 text-text-secondary' />
 					<span>Access Policies</span>
 				</h1>
 				<p className='text-xs text-[#677080] mt-0.5'>
@@ -31,7 +31,7 @@ export default function AccessPage() {
 
 			{/* Info Banner */}
 			<div className='p-4 bg-white rounded-xl border border-[#E1E4DF] flex items-start gap-3 shadow-2xs'>
-				<Info className='h-4 w-4 text-[#4656D9] mt-0.5 flex-shrink-0' />
+				<Info className='h-4 w-4 text-text-secondary mt-0.5 flex-shrink-0' />
 				<div className='text-xs text-[#677080] leading-relaxed'>
 					<span className='font-semibold text-[#172033]'>
 						Source-level boundary enforcement:{' '}
@@ -48,7 +48,7 @@ export default function AccessPage() {
 						className='bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-4 flex flex-col justify-between'>
 						<div className='space-y-2'>
 							<div className='flex items-center justify-between'>
-								<span className='px-2.5 py-0.5 rounded-md bg-[#4656D9]/10 text-[#4656D9] text-xs font-semibold'>
+								<span className='px-2.5 py-0.5 rounded-md bg-surface-muted border border-border-default text-text-secondary text-xs font-semibold'>
 									{pol.documentType}
 								</span>
 								{pol.adminOnly && (

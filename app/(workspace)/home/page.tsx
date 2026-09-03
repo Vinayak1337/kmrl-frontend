@@ -51,7 +51,7 @@ export default function HomePage() {
 	];
 
 	return (
-		<div className='p-6 md:p-8 max-w-7xl mx-auto space-y-8'>
+		<div className='p-5 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-7'>
 			{/* Header */}
 			<div className='space-y-1'>
 				<h1 className='text-2xl md:text-3xl font-bold text-[#172033] tracking-tight'>
@@ -64,10 +64,10 @@ export default function HomePage() {
 
 			{/* Telemetry Metric Cards */}
 			<div className='grid grid-cols-2 lg:grid-cols-4 gap-4'>
-				<div className='bg-white p-4 rounded-xl border border-[#E1E4DF] shadow-2xs space-y-1'>
+				<div className='bg-white p-4 rounded-xl border border-border-default space-y-1'>
 					<div className='flex items-center justify-between text-xs text-[#677080] font-medium'>
 						<span>Total Documents</span>
-						<FileText className='h-4 w-4 text-[#4656D9]' />
+						<FileText className='h-4 w-4 text-text-tertiary' />
 					</div>
 					<div className='text-2xl font-bold text-[#172033]'>
 						{loading ? '—' : recentDocs.length}
@@ -75,7 +75,7 @@ export default function HomePage() {
 					<p className='text-xs text-[#9098A5]'>Indexed across repository</p>
 				</div>
 
-				<div className='bg-white p-4 rounded-xl border border-[#E1E4DF] shadow-2xs space-y-1'>
+				<div className='bg-white p-4 rounded-xl border border-border-default space-y-1'>
 					<div className='flex items-center justify-between text-xs text-[#677080] font-medium'>
 						<span>Needs Attention</span>
 						<AlertTriangle className='h-4 w-4 text-[#C77B1B]' />
@@ -86,10 +86,10 @@ export default function HomePage() {
 					<p className='text-xs text-[#9098A5]'>Deadlines & high-priority</p>
 				</div>
 
-				<div className='bg-white p-4 rounded-xl border border-[#E1E4DF] shadow-2xs space-y-1'>
+				<div className='bg-white p-4 rounded-xl border border-border-default space-y-1'>
 					<div className='flex items-center justify-between text-xs text-[#677080] font-medium'>
 						<span>Departments</span>
-						<Building2 className='h-4 w-4 text-[#179C8C]' />
+						<Building2 className='h-4 w-4 text-text-tertiary' />
 					</div>
 					<div className='text-2xl font-bold text-[#172033]'>
 						{loading ? '—' : Math.max(distinctTeams.length, 1)}
@@ -97,7 +97,7 @@ export default function HomePage() {
 					<p className='text-xs text-[#9098A5]'>Cross-functional scope</p>
 				</div>
 
-				<div className='bg-white p-4 rounded-xl border border-[#E1E4DF] shadow-2xs space-y-1'>
+				<div className='bg-white p-4 rounded-xl border border-border-default space-y-1'>
 					<div className='flex items-center justify-between text-xs text-[#677080] font-medium'>
 						<span>Corpus Status</span>
 						<CheckCircle2 className='h-4 w-4 text-[#39825E]' />
@@ -108,7 +108,7 @@ export default function HomePage() {
 			</div>
 
 			{/* Direct Knowledge Search */}
-			<div className='bg-white rounded-2xl border border-[#E1E4DF] p-6 shadow-xs space-y-3'>
+			<div className='bg-white rounded-xl border border-border-default p-5 space-y-3'>
 				<div className='flex items-center justify-between'>
 					<label className='block text-xs font-semibold text-[#172033] uppercase tracking-wider'>
 						Direct Knowledge Access
@@ -131,7 +131,7 @@ export default function HomePage() {
 			{/* Attention & Recent Knowledge Split Grid */}
 			<div className='grid grid-cols-1 md:grid-cols-2 gap-6'>
 				{/* Column 1: Needs Attention */}
-				<div className='bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-4 flex flex-col justify-between'>
+				<div className='bg-white rounded-xl border border-border-default p-5 space-y-4 flex flex-col justify-between'>
 					<div className='space-y-3'>
 						<div className='flex items-center justify-between'>
 							<h2 className='text-xs font-semibold text-[#172033] uppercase tracking-wider flex items-center gap-2'>
@@ -185,7 +185,7 @@ export default function HomePage() {
 				</div>
 
 				{/* Column 2: Recent Knowledge */}
-				<div className='bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-4 flex flex-col justify-between'>
+				<div className='bg-white rounded-xl border border-border-default p-5 space-y-4 flex flex-col justify-between'>
 					<div className='space-y-3'>
 						<div className='flex items-center justify-between'>
 							<h2 className='text-xs font-semibold text-[#172033] uppercase tracking-wider flex items-center gap-2'>
@@ -210,7 +210,7 @@ export default function HomePage() {
 										<h3 className='text-sm font-semibold text-[#172033] truncate'>
 											{doc.title}
 										</h3>
-										<span className='px-2 py-0.5 rounded bg-[#4656D9]/10 text-xs font-semibold text-[#4656D9] whitespace-nowrap'>
+										<span className='px-2 py-0.5 rounded bg-surface-muted border border-border-default text-xs font-semibold text-text-secondary whitespace-nowrap'>
 											{doc.type}
 										</span>
 									</div>
@@ -224,13 +224,13 @@ export default function HomePage() {
 
 					<div className='pt-3 border-t border-[#E1E4DF] flex items-center justify-between text-xs text-[#677080]'>
 						<span>{recentDocs.length} documents indexed</span>
-						<span className='text-[#4656D9] font-medium'>Structured & Searchable</span>
+						<span className='text-text-secondary font-medium'>Structured & Searchable</span>
 					</div>
 				</div>
 			</div>
 
 			{/* RECENT DOCUMENTS TABLE */}
-			<div className='bg-white rounded-xl border border-[#E1E4DF] shadow-2xs overflow-hidden space-y-0'>
+			<div className='bg-white rounded-xl border border-border-default overflow-hidden space-y-0'>
 				<div className='p-5 border-b border-[#E1E4DF] flex items-center justify-between'>
 					<div>
 						<h2 className='text-base font-semibold text-[#172033]'>
@@ -271,7 +271,7 @@ export default function HomePage() {
 										</Link>
 									</td>
 									<td className='py-3.5 px-5'>
-										<span className='px-2 py-0.5 rounded bg-[#4656D9]/10 text-[#4656D9] font-semibold text-xs'>
+										<span className='px-2 py-0.5 rounded bg-surface-muted border border-border-default text-text-secondary font-semibold text-xs'>
 											{doc.type}
 										</span>
 									</td>
@@ -302,7 +302,7 @@ export default function HomePage() {
 			</div>
 
 			{/* DISCOVER PROMPT SECTION */}
-			<div className='bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-4'>
+			<div className='bg-white rounded-xl border border-border-default p-5 space-y-4'>
 				<h2 className='text-xs font-semibold text-[#172033] uppercase tracking-wider flex items-center gap-2'>
 					<Sparkles className='h-4 w-4 text-[#4656D9]' />
 					<span>Suggested Queries</span>

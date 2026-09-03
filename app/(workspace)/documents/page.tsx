@@ -86,14 +86,14 @@ export default function DocumentsPage() {
 	});
 
 	return (
-		<div className='p-6 md:p-8 max-w-7xl mx-auto space-y-6'>
+		<div className='p-5 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6'>
 			{/* Header */}
 			<div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
 				<div>
 					<h1 className='text-2xl font-bold text-[#172033] tracking-tight'>
 						Documents
 					</h1>
-					<p className='text-xs text-[#677080] mt-0.5'>
+					<p className='text-sm text-[#677080] mt-0.5'>
 						Everything DocSetu knows starts here.
 					</p>
 				</div>
@@ -107,7 +107,7 @@ export default function DocumentsPage() {
 			</div>
 
 			{/* Filter & Search Bar */}
-			<div className='bg-white rounded-xl border border-[#E1E4DF] p-4 shadow-2xs space-y-3'>
+			<div className='bg-white rounded-xl border border-border-default p-4 space-y-3'>
 				<div className='flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between'>
 					{/* Search input */}
 					<div className='relative flex-1 max-w-md'>
@@ -227,18 +227,18 @@ export default function DocumentsPage() {
 						<div
 							key={doc.id}
 							onClick={() => router.push(`/documents/${doc.id}`)}
-							className='group bg-white rounded-xl border border-[#E1E4DF] hover:border-[#4656D9] p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer'>
+							className='group bg-white rounded-xl border border-border-default hover:border-border-strong p-5 transition-colors cursor-pointer'>
 							<div className='flex flex-col sm:flex-row sm:items-start justify-between gap-4'>
 								{/* Left Content */}
 								<div className='space-y-2.5 flex-1 min-w-0'>
 									<div className='flex flex-wrap items-center gap-2'>
-										<h2 className='text-base font-semibold text-[#172033] group-hover:text-[#4656D9] transition-colors truncate'>
+										<h2 className='text-base font-semibold text-[#172033] group-hover:underline underline-offset-4 truncate'>
 											{doc.title}
 										</h2>
-										<span className='px-2.5 py-0.5 bg-[#4656D9]/10 text-[#4656D9] rounded-md text-xs font-semibold'>
+										<span className='px-2.5 py-0.5 bg-surface-muted border border-border-default text-text-secondary rounded-md text-xs font-semibold'>
 											{doc.type}
 										</span>
-										<span className='px-2.5 py-0.5 bg-[#179C8C]/10 text-[#179C8C] rounded-md text-xs font-semibold'>
+										<span className='px-2.5 py-0.5 bg-surface-muted border border-border-default text-text-secondary rounded-md text-xs font-semibold'>
 											{doc.team}
 										</span>
 										<span className='text-xs text-[#9098A5] font-medium'>
@@ -278,7 +278,7 @@ export default function DocumentsPage() {
 								<div className='flex items-center gap-2 sm:self-center flex-shrink-0' onClick={e => e.stopPropagation()}>
 									<button
 										onClick={e => openAiForDoc(doc, e)}
-										className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#4656D9]/30 text-[#4656D9] bg-[#4656D9]/5 hover:bg-[#4656D9]/10 text-xs font-medium transition-colors'>
+										className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-strong text-text-primary bg-white hover:bg-surface-muted text-xs font-medium transition-colors'>
 										<Sparkles className='h-3.5 w-3.5' />
 										<span>Ask</span>
 									</button>
@@ -311,10 +311,10 @@ export default function DocumentsPage() {
 						<div
 							key={doc.id}
 							onClick={() => router.push(`/documents/${doc.id}`)}
-							className='group bg-white rounded-xl border border-[#E1E4DF] hover:border-[#4656D9] p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between space-y-4'>
+							className='group bg-white rounded-xl border border-border-default hover:border-border-strong p-5 transition-colors cursor-pointer flex flex-col justify-between space-y-4'>
 							<div className='space-y-3'>
 								<div className='flex items-center justify-between gap-2'>
-									<span className='px-2.5 py-0.5 bg-[#4656D9]/10 text-[#4656D9] rounded-md text-xs font-semibold'>
+									<span className='px-2.5 py-0.5 bg-surface-muted border border-border-default text-text-secondary rounded-md text-xs font-semibold'>
 										{doc.type}
 									</span>
 									<span className='text-xs text-[#9098A5] font-medium'>
@@ -322,7 +322,7 @@ export default function DocumentsPage() {
 									</span>
 								</div>
 
-								<h2 className='text-base font-semibold text-[#172033] group-hover:text-[#4656D9] transition-colors line-clamp-2'>
+								<h2 className='text-base font-semibold text-[#172033] group-hover:underline underline-offset-4 line-clamp-2'>
 									{doc.title}
 								</h2>
 

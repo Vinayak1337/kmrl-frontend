@@ -172,10 +172,10 @@ export default function DocumentDetailPage({
 
 						{/* Structured Chips */}
 						<div className='flex flex-wrap items-center gap-2 text-xs'>
-							<span className='px-2.5 py-0.5 rounded-md bg-[#4656D9]/10 text-[#4656D9] font-semibold'>
+							<span className='px-2.5 py-0.5 rounded-md bg-surface-muted border border-border-default text-text-secondary font-semibold'>
 								{document.type}
 							</span>
-							<span className='px-2.5 py-0.5 rounded-md bg-[#179C8C]/10 text-[#179C8C] font-semibold'>
+							<span className='px-2.5 py-0.5 rounded-md bg-surface-muted border border-border-default text-text-secondary font-semibold'>
 								{document.team}
 							</span>
 							<span className='px-2.5 py-0.5 rounded-md bg-[#F1F3F1] text-[#677080] font-semibold'>
@@ -274,7 +274,7 @@ export default function DocumentDetailPage({
 						{/* Reader Top Controls */}
 						<div className='flex items-center justify-between pb-3 border-b border-[#E1E4DF]'>
 							<div className='flex items-center gap-2'>
-								<span className='px-2.5 py-0.5 rounded bg-[#4656D9]/10 text-[#4656D9] text-xs font-semibold'>
+								<span className='px-2.5 py-0.5 rounded bg-surface-muted border border-border-default text-text-secondary text-xs font-semibold'>
 									Section {selectedSectionIndex + 1} of {sections.length || 1}
 								</span>
 								<span className='text-xs text-[#677080] font-medium'>

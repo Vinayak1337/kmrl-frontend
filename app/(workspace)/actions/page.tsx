@@ -91,12 +91,12 @@ export default function ActionsPage() {
 	const countCompleted = actions.filter(a => statusMap[a.id] === 'completed').length;
 
 	return (
-		<div className='p-6 md:p-8 max-w-7xl mx-auto space-y-6'>
+		<div className='p-5 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6'>
 			{/* Header */}
 			<div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
 				<div>
 					<h1 className='text-2xl font-bold text-[#172033] tracking-tight flex items-center gap-2.5'>
-						<CheckSquare className='h-6 w-6 text-[#4656D9]' />
+						<CheckSquare className='h-6 w-6 text-text-secondary' />
 						<span>Actions & Obligations</span>
 					</h1>
 					<p className='text-sm text-[#677080] mt-0.5'>
@@ -170,7 +170,7 @@ export default function ActionsPage() {
 
 			{/* Actions Feed */}
 			{!loading && filteredActions.length > 0 && (
-				<div className='bg-white rounded-xl border border-[#E1E4DF] overflow-hidden shadow-2xs'>
+				<div className='bg-white rounded-xl border border-border-default overflow-hidden'>
 					<div className='divide-y divide-[#E1E4DF]'>
 						{filteredActions.map(act => {
 							const currentStatus = statusMap[act.id] || 'pending';

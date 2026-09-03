@@ -45,7 +45,7 @@ export default function AuditPage() {
 			{/* Header */}
 			<div>
 				<h1 className='text-2xl font-bold text-[#172033] tracking-tight flex items-center gap-2.5'>
-					<Clock className='h-6 w-6 text-[#4656D9]' />
+					<Clock className='h-6 w-6 text-text-secondary' />
 					<span>Audit & Traceability</span>
 				</h1>
 				<p className='text-xs text-[#677080] mt-0.5'>
@@ -116,7 +116,7 @@ export default function AuditPage() {
 
 									<td className='py-4 px-6'>
 										<div className='flex items-center gap-2'>
-											<div className='w-6 h-6 rounded-full bg-[#F1F3F1] text-[#4656D9] flex items-center justify-center font-semibold text-[10px]'>
+											<div className='w-6 h-6 rounded-full bg-surface-muted text-text-secondary flex items-center justify-center font-semibold text-xs'>
 												{entry.actorName.charAt(0).toUpperCase()}
 											</div>
 											<div>
