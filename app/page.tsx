@@ -111,7 +111,7 @@ export default function LandingPage() {
 	];
 
 	return (
-		<div className='min-h-screen bg-[#F6F7F4] text-[#172033] flex flex-col'>
+		<div className='min-h-screen bg-canvas text-text-primary flex flex-col'>
 			{/* PUBLIC NAVIGATION */}
 			<nav className='h-18 bg-white/90 backdrop-blur-md border-b border-[#E1E4DF] sticky top-0 z-50 px-6 sm:px-12 flex items-center justify-between'>
 				<DocSetuLogo size='md' />
@@ -131,13 +131,13 @@ export default function LandingPage() {
 			</nav>
 
 			{/* MAIN LANDING BODY */}
-			<main className='flex-1 space-y-24 py-16 px-6 sm:px-12 max-w-7xl mx-auto w-full'>
+			<main className='flex-1 space-y-20 py-14 sm:py-16 px-6 sm:px-12 max-w-7xl mx-auto w-full'>
 				{/* SECTION I: HERO */}
 				<section className='space-y-12'>
 					<div className='grid grid-cols-1 lg:grid-cols-12 gap-12 items-center'>
 						{/* Left: Problem + Product */}
 						<div className='lg:col-span-6 space-y-6'>
-							<div className='inline-flex items-center gap-2 px-3 py-1 rounded-md bg-[#4656D9]/10 border border-[#4656D9]/20 text-[11px] font-semibold text-[#4656D9] uppercase tracking-wider'>
+							<div className='inline-flex items-center gap-2 px-3 py-1 rounded-md bg-white border border-border-default text-xs font-semibold text-text-secondary uppercase tracking-[0.12em]'>
 								<DocSetuSymbol size='sm' />
 								<span>DOCUMENT SEARCH AND COMPLIANCE</span>
 							</div>
@@ -168,16 +168,16 @@ export default function LandingPage() {
 
 						{/* Right: Product Visualization */}
 						<div className='lg:col-span-6'>
-							<div className='bg-white rounded-2xl border border-[#E1E4DF] shadow-xl overflow-hidden'>
+							<div className='bg-white rounded-2xl border border-border-default shadow-sm overflow-hidden'>
 								{/* Card Top: Ask DocSetu Omnibox */}
 								<div className='p-5 bg-[#F6F7F4] border-b border-[#E1E4DF] space-y-2'>
-									<div className='flex items-center gap-2 text-xs font-semibold text-[#4656D9] uppercase tracking-wider'>
+									<div className='flex items-center gap-2 text-xs font-semibold text-text-secondary uppercase tracking-wider'>
 										<Sparkles className='h-3.5 w-3.5' />
 										<span>Ask DocSetu</span>
 									</div>
 									<div className='p-3 bg-white rounded-lg border border-[#E1E4DF] text-xs font-medium text-[#172033] flex items-center justify-between'>
 										<span>Which vendor agreements require action this month?</span>
-										<div className='w-6 h-6 rounded-md bg-[#4656D9] text-white flex items-center justify-center'>
+										<div className='w-6 h-6 rounded-md bg-[#172033] text-white flex items-center justify-center'>
 											<ArrowUp className='h-3.5 w-3.5' />
 										</div>
 									</div>
@@ -185,13 +185,13 @@ export default function LandingPage() {
 
 								{/* Card Bottom: Surfaced Actions & Grounded Answers */}
 								<div className='p-5 space-y-4 text-xs'>
-									<div className='text-xs font-semibold text-[#39825E] flex items-center gap-1.5'>
+									<div className='text-xs font-semibold text-amber-800 flex items-center gap-1.5'>
 										<CheckCircle2 className='h-4 w-4' />
 										<span>3 items require attention</span>
 									</div>
 
 									{/* Item 1 */}
-									<div className='p-3.5 rounded-xl border border-[#E1E4DF] bg-[#F6F7F4]/50 space-y-1.5 hover:border-[#4656D9] transition-colors'>
+									<div className='p-3.5 rounded-xl border border-border-default bg-surface-muted/50 space-y-1.5 hover:border-border-strong transition-colors'>
 										<div className='flex items-center justify-between'>
 											<span className='font-bold text-[#172033]'>
 												Facility Management Agreement
@@ -213,12 +213,12 @@ export default function LandingPage() {
 									</div>
 
 									{/* Item 2 */}
-									<div className='p-3.5 rounded-xl border border-[#E1E4DF] bg-[#F6F7F4]/50 space-y-1.5 hover:border-[#4656D9] transition-colors'>
+									<div className='p-3.5 rounded-xl border border-border-default bg-surface-muted/50 space-y-1.5 hover:border-border-strong transition-colors'>
 										<div className='flex items-center justify-between'>
 											<span className='font-bold text-[#172033]'>
 												Hardware Annual Maintenance Contract
 											</span>
-											<span className='px-2 py-0.5 rounded bg-[#4656D9]/10 border border-[#4656D9]/20 text-[#4656D9] text-[10px] font-semibold'>
+											<span className='px-2 py-0.5 rounded bg-white border border-border-default text-text-secondary text-xs font-semibold'>
 												Approval Pending
 											</span>
 										</div>
@@ -242,7 +242,7 @@ export default function LandingPage() {
 				{/* SECTION II: HOW DOCUMENTS ARE PROCESSED */}
 				<section id='pipeline' className='space-y-8 pt-4'>
 					<div className='text-center space-y-2 max-w-2xl mx-auto'>
-						<h2 className='text-xs font-semibold text-[#4656D9] uppercase tracking-wider'>
+						<h2 className='text-xs font-semibold text-text-secondary uppercase tracking-[0.12em]'>
 							Processing Pipeline
 						</h2>
 						<p className='text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight'>
@@ -256,7 +256,7 @@ export default function LandingPage() {
 								key={step.number}
 								className='bg-white rounded-xl border border-[#E1E4DF] p-5 shadow-2xs space-y-3 flex flex-col justify-between'>
 								<div className='space-y-2'>
-									<div className='text-xs font-mono font-bold text-[#4656D9]'>
+									<div className='text-xs font-mono font-bold text-text-tertiary'>
 										{step.number}
 									</div>
 									<h3 className='text-sm font-bold text-[#172033]'>
@@ -267,7 +267,7 @@ export default function LandingPage() {
 									</p>
 								</div>
 								<div className='w-full h-1 bg-[#F1F3F1] rounded-full overflow-hidden'>
-									<div className='w-1/2 h-full bg-[#4656D9]' />
+									<div className='w-1/2 h-full bg-border-strong' />
 								</div>
 							</div>
 						))}
@@ -277,7 +277,7 @@ export default function LandingPage() {
 				{/* SECTION III: PRODUCT INTERFACE PREVIEW */}
 				<section className='space-y-6'>
 					<div className='text-center space-y-2 max-w-2xl mx-auto'>
-						<h2 className='text-xs font-semibold text-[#4656D9] uppercase tracking-wider'>
+						<h2 className='text-xs font-semibold text-text-secondary uppercase tracking-[0.12em]'>
 							Inspection View
 						</h2>
 						<p className='text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight'>
@@ -293,10 +293,10 @@ export default function LandingPage() {
 								<span className='text-sm font-bold text-[#172033]'>
 									Procurement Policy & Approval Framework FY26
 								</span>
-								<span className='px-2 py-0.5 rounded bg-[#4656D9]/10 text-[#4656D9] text-[11px] font-medium'>
+								<span className='px-2 py-0.5 rounded bg-surface-muted border border-border-default text-text-secondary text-xs font-medium'>
 									Policy
 								</span>
-								<span className='px-2 py-0.5 rounded bg-[#179C8C]/10 text-[#179C8C] text-[11px] font-medium'>
+								<span className='px-2 py-0.5 rounded bg-surface-muted border border-border-default text-text-secondary text-xs font-medium'>
 									Procurement
 								</span>
 							</div>
@@ -309,7 +309,7 @@ export default function LandingPage() {
 						{/* Simulated Flagship Tabs without dots */}
 						<div className='grid grid-cols-1 md:grid-cols-3 gap-6 text-xs'>
 							<div className='p-4 bg-[#F6F7F4] rounded-xl border border-[#E1E4DF] space-y-2'>
-								<span className='font-bold uppercase text-[10px] tracking-wider text-[#4656D9]'>
+								<span className='font-bold uppercase text-xs tracking-wider text-text-secondary'>
 									Document Brief
 								</span>
 								<p className='text-xs text-[#172033] leading-relaxed'>
@@ -318,7 +318,7 @@ export default function LandingPage() {
 							</div>
 
 							<div className='p-4 bg-[#F6F7F4] rounded-xl border border-[#E1E4DF] space-y-2'>
-								<span className='font-bold uppercase text-[10px] tracking-wider text-[#179C8C]'>
+								<span className='font-bold uppercase text-xs tracking-wider text-text-secondary'>
 									Extracted Actions
 								</span>
 								<div className='space-y-1 text-xs text-[#172033]'>
@@ -349,7 +349,7 @@ export default function LandingPage() {
 				{/* SECTION IV: DEPARTMENT WORKFLOWS */}
 				<section className='space-y-8'>
 					<div className='text-center space-y-2 max-w-2xl mx-auto'>
-						<h2 className='text-xs font-semibold text-[#4656D9] uppercase tracking-wider'>
+						<h2 className='text-xs font-semibold text-text-secondary uppercase tracking-[0.12em]'>
 							Department Workflows
 						</h2>
 						<p className='text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight'>
@@ -385,7 +385,7 @@ export default function LandingPage() {
 					{/* Active Tab Output Display */}
 					<div className='bg-white rounded-2xl border border-[#E1E4DF] p-6 md:p-8 shadow-xs space-y-6 max-w-3xl mx-auto'>
 						<div className='space-y-1.5'>
-							<span className='text-[10px] font-bold uppercase tracking-wider text-[#4656D9]'>
+							<span className='text-xs font-bold uppercase tracking-wider text-text-secondary'>
 								Question
 							</span>
 							<h3 className='text-base font-bold text-[#172033]'>
@@ -394,7 +394,7 @@ export default function LandingPage() {
 						</div>
 
 						<div className='space-y-2 p-4 bg-[#F6F7F4] rounded-xl border border-[#E1E4DF]'>
-							<span className='text-[10px] font-bold uppercase tracking-wider text-[#179C8C]'>
+							<span className='text-xs font-bold uppercase tracking-wider text-text-secondary'>
 								Answer
 							</span>
 							<p className='text-xs text-[#172033] leading-relaxed'>
@@ -424,7 +424,7 @@ export default function LandingPage() {
 				{/* SECTION V: ACCESS CONTROL & AUDITING */}
 				<section className='space-y-8'>
 					<div className='text-center space-y-2 max-w-2xl mx-auto'>
-						<h2 className='text-xs font-semibold text-[#4656D9] uppercase tracking-wider'>
+						<h2 className='text-xs font-semibold text-text-secondary uppercase tracking-[0.12em]'>
 							Access Control & Auditing
 						</h2>
 						<p className='text-2xl sm:text-3xl font-bold text-[#172033] tracking-tight'>
@@ -434,7 +434,7 @@ export default function LandingPage() {
 
 					<div className='grid grid-cols-1 md:grid-cols-3 gap-6'>
 						<div className='bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-3'>
-							<div className='w-10 h-10 rounded-lg bg-[#4656D9]/10 text-[#4656D9] flex items-center justify-center'>
+							<div className='w-10 h-10 rounded-lg bg-surface-muted text-text-primary flex items-center justify-center'>
 								<Lock className='h-5 w-5' />
 							</div>
 							<h3 className='text-sm font-bold text-[#172033]'>
@@ -446,7 +446,7 @@ export default function LandingPage() {
 						</div>
 
 						<div className='bg-white rounded-xl border border-[#E1E4DF] p-6 shadow-2xs space-y-3'>
-							<div className='w-10 h-10 rounded-lg bg-[#179C8C]/10 text-[#179C8C] flex items-center justify-center'>
+							<div className='w-10 h-10 rounded-lg bg-surface-muted text-text-primary flex items-center justify-center'>
 								<BookOpen className='h-5 w-5' />
 							</div>
 							<h3 className='text-sm font-bold text-[#172033]'>

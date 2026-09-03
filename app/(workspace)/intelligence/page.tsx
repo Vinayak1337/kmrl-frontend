@@ -262,7 +262,7 @@ function IntelligenceContent() {
 														key={cIdx}
 														href={`/documents/${cit.docId}`}
 														className='inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white border border-[#E1E4DF] text-xs font-medium text-[#4656D9] hover:border-[#4656D9] hover:bg-[#F6F7F4] transition-colors'>
-														<BookOpen className='h-3.5 w-3.5 text-[#179C8C]' />
+												<BookOpen className='h-3.5 w-3.5 text-text-secondary' />
 														<span>{cit.title || `Section ${cit.index}`}</span>
 														{cit.pageRange?.start && (
 															<span className='text-[#9098A5]'>

@@ -16,7 +16,8 @@ import {
 	Building2,
 	User,
 	Menu,
-	X
+	X,
+	Search
 } from 'lucide-react';
 import { DocSetuLogo } from '@/components/brand/DocSetuBrand';
 import { Omnibox } from './Omnibox';
@@ -45,6 +46,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 	const [aiPanelQuestion, setAiPanelQuestion] = useState<string | undefined>();
 	const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 	const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+	const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
 	// Load session details
 	useEffect(() => {
@@ -102,9 +104,9 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 	};
 
 	return (
-		<div className='min-h-screen bg-[#F6F7F4] flex flex-col text-[#172033] font-sans antialiased'>
+		<div className='min-h-screen bg-canvas flex flex-col text-text-primary font-sans antialiased'>
 			{/* TOPBAR */}
-			<header className='h-16 bg-white border-b border-[#E1E4DF] sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between gap-4'>
+			<header className='h-16 bg-white border-b border-border-default sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between gap-4'>
 				{/* Brand Logo & Mobile Trigger */}
 				<div className='flex items-center gap-3 flex-shrink-0'>
 					<button
@@ -118,8 +120,8 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 					</Link>
 
 					{/* Organization pill */}
-					<div className='hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#F6F7F4] border border-[#E1E4DF] text-xs font-medium text-[#677080] ml-2'>
-						<Building2 className='h-3.5 w-3.5 text-[#4656D9]' />
+					<div className='hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-muted border border-border-default text-xs font-medium text-text-secondary ml-2'>
+						<Building2 className='h-3.5 w-3.5 text-text-secondary' />
 						<span>DocSetu Workspace</span>
 					</div>
 				</div>
@@ -134,15 +136,23 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 					/>
 				</div>
 
-				{/* Right: + Add Document button, AI Assistant trigger, Profile */}
-				<div className='flex items-center gap-3 flex-shrink-0'>
+				{/* Right: Search (mobile), + Add Document button, AI Assistant trigger, Profile */}
+				<div className='flex items-center gap-2 sm:gap-3 flex-shrink-0'>
+					{/* Mobile Search Button */}
+					<button
+						onClick={() => setIsMobileSearchOpen(true)}
+						className='md:hidden p-2 text-[#677080] hover:text-[#172033] hover:bg-[#F6F7F4] rounded-lg transition-colors'
+						aria-label='Search workspace'>
+						<Search className='h-4 w-4' />
+					</button>
+
 					{/* Ask DocSetu Assistant Button */}
 					<button
 						onClick={() => {
 							setAiPanelQuestion(undefined);
 							setIsAiPanelOpen(true);
 						}}
-						className='hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#4656D9]/30 bg-[#4656D9]/5 text-[#4656D9] hover:bg-[#4656D9]/10 text-xs font-medium transition-colors'>
+						className='hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-strong bg-white text-text-primary hover:bg-surface-muted text-xs font-medium transition-colors'>
 						<Sparkles className='h-3.5 w-3.5' />
 						<span>Ask DocSetu</span>
 					</button>
@@ -171,10 +181,10 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 									<p className='text-xs font-semibold text-[#172033] truncate'>
 										{session?.name || 'Workspace Member'}
 									</p>
-									<p className='text-[11px] text-[#677080] truncate'>
+									<p className='text-xs text-[#677080] truncate'>
 										{session?.email || 'user@docsetu.internal'}
 									</p>
-									<span className='inline-block mt-1 px-1.5 py-0.5 rounded bg-[#F1F3F1] text-[10px] font-medium text-[#4656D9] uppercase'>
+									<span className='inline-block mt-1.5 px-2 py-0.5 rounded bg-surface-muted text-xs font-semibold text-text-secondary uppercase'>
 										{session?.role || 'MEMBER'}
 									</span>
 								</div>
@@ -203,11 +213,11 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 			{/* BODY LAYOUT: SIDEBAR + CONTENT */}
 			<div className='flex flex-1 overflow-hidden'>
 				{/* LEFT SIDEBAR (Desktop) */}
-				<aside className='w-60 bg-white border-r border-[#E1E4DF] hidden md:flex flex-col justify-between py-5 px-3 flex-shrink-0'>
+				<aside className='w-60 bg-white border-r border-border-default hidden md:flex flex-col justify-between py-5 px-3 flex-shrink-0'>
 					<div className='space-y-6'>
 						{/* Primary Navigation */}
 						<div className='space-y-1'>
-							<div className='px-3 pb-1 text-[11px] font-semibold text-[#9098A5] uppercase tracking-wider'>
+							<div className='px-3 pb-1 text-xs font-semibold text-text-tertiary uppercase tracking-[0.12em]'>
 								Workspace
 							</div>
 							{primaryNav.map(item => {
@@ -217,7 +227,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 									<Link
 										key={item.href}
 										href={item.href}
-										className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+										className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
 											active
 												? 'bg-[#4656D9]/10 text-[#4656D9] font-semibold'
 												: 'text-[#677080] hover:bg-[#F6F7F4] hover:text-[#172033]'
@@ -235,7 +245,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 
 						{/* Administration Navigation */}
 						<div className='space-y-1'>
-							<div className='px-3 pb-1 text-[11px] font-semibold text-[#9098A5] uppercase tracking-wider'>
+							<div className='px-3 pb-1 text-xs font-semibold text-text-tertiary uppercase tracking-[0.12em]'>
 								Governance
 							</div>
 							{adminNav.map(item => {
@@ -245,7 +255,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 									<Link
 										key={item.href}
 										href={item.href}
-										className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+										className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
 											active
 												? 'bg-[#4656D9]/10 text-[#4656D9] font-semibold'
 												: 'text-[#677080] hover:bg-[#F6F7F4] hover:text-[#172033]'
@@ -263,14 +273,14 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 					</div>
 
 					{/* Sidebar Footer: Active Workspace info */}
-					<div className='p-3 bg-[#F6F7F4] rounded-xl border border-[#E1E4DF]'>
+					<div className='p-3 bg-surface-muted rounded-xl border border-border-default'>
 						<div className='flex items-center justify-between text-xs'>
 							<span className='font-semibold text-[#172033]'>DocSetu</span>
-							<span className='px-1.5 py-0.5 rounded bg-[#39825E]/10 border border-[#39825E]/20 text-[10px] font-semibold text-[#39825E]'>
+							<span className='px-1.5 py-0.5 rounded bg-white border border-border-default text-xs font-semibold text-text-secondary'>
 								Active
 							</span>
 						</div>
-						<p className='text-[11px] text-[#677080] mt-0.5 leading-tight'>
+						<p className='text-xs text-text-secondary mt-0.5 leading-tight'>
 							Document Intelligence Workspace
 						</p>
 					</div>
@@ -342,6 +352,32 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 				onClose={() => setIsAiPanelOpen(false)}
 				initialQuestion={aiPanelQuestion}
 			/>
+
+			{/* Mobile Search Overlay */}
+			{isMobileSearchOpen && (
+				<div className='fixed inset-0 z-50 bg-black/40 backdrop-blur-xs p-4 flex flex-col items-center pt-12 md:hidden animate-in fade-in-50 duration-150'>
+					<div className='w-full max-w-lg bg-white rounded-2xl p-4 shadow-2xl border border-[#E1E4DF] space-y-3'>
+						<div className='flex items-center justify-between pb-2 border-b border-[#E1E4DF]'>
+							<span className='text-xs font-semibold text-[#172033] flex items-center gap-2'>
+								<Search className='h-3.5 w-3.5 text-[#4656D9]' />
+								<span>Search Workspace</span>
+							</span>
+							<button
+								onClick={() => setIsMobileSearchOpen(false)}
+								className='p-1 rounded-md text-[#677080] hover:text-[#172033] hover:bg-[#F6F7F4]'>
+								<X className='h-4 w-4' />
+							</button>
+						</div>
+						<Omnibox
+							onAskDocSetu={q => {
+								setIsMobileSearchOpen(false);
+								setAiPanelQuestion(q);
+								setIsAiPanelOpen(true);
+							}}
+						/>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

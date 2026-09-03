@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
 	Search,
 	Plus,
@@ -18,6 +19,7 @@ import { DocumentIngestModal } from '@/components/documents/DocumentIngestModal'
 import { DocSetuEmptyState } from '@/components/brand/DocSetuBrand';
 
 export default function DocumentsPage() {
+	const router = useRouter();
 	const [documents, setDocuments] = useState<DocSetuDocument[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [searchQuery, setSearchQuery] = useState('');
@@ -84,14 +86,14 @@ export default function DocumentsPage() {
 	});
 
 	return (
-		<div className='p-6 md:p-8 max-w-7xl mx-auto space-y-6'>
+		<div className='p-5 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6'>
 			{/* Header */}
 			<div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
 				<div>
 					<h1 className='text-2xl font-bold text-[#172033] tracking-tight'>
 						Documents
 					</h1>
-					<p className='text-xs text-[#677080] mt-0.5'>
+					<p className='text-sm text-[#677080] mt-0.5'>
 						Everything DocSetu knows starts here.
 					</p>
 				</div>
@@ -105,7 +107,7 @@ export default function DocumentsPage() {
 			</div>
 
 			{/* Filter & Search Bar */}
-			<div className='bg-white rounded-xl border border-[#E1E4DF] p-4 shadow-2xs space-y-3'>
+			<div className='bg-white rounded-xl border border-border-default p-4 space-y-3'>
 				<div className='flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between'>
 					{/* Search input */}
 					<div className='relative flex-1 max-w-md'>
@@ -224,47 +226,47 @@ export default function DocumentsPage() {
 					{filteredDocs.map(doc => (
 						<div
 							key={doc.id}
-							onClick={() => (window.location.href = `/documents/${doc.id}`)}
-							className='group bg-white rounded-xl border border-[#E1E4DF] hover:border-[#4656D9] p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer'>
-							<div className='flex flex-col sm:flex-row sm:items-start justify-between gap-3'>
+							onClick={() => router.push(`/documents/${doc.id}`)}
+							className='group bg-white rounded-xl border border-border-default hover:border-border-strong p-5 transition-colors cursor-pointer'>
+							<div className='flex flex-col sm:flex-row sm:items-start justify-between gap-4'>
 								{/* Left Content */}
-								<div className='space-y-2 flex-1 min-w-0'>
+								<div className='space-y-2.5 flex-1 min-w-0'>
 									<div className='flex flex-wrap items-center gap-2'>
-										<h2 className='text-sm font-semibold text-[#172033] group-hover:text-[#4656D9] transition-colors truncate'>
+										<h2 className='text-base font-semibold text-[#172033] group-hover:underline underline-offset-4 truncate'>
 											{doc.title}
 										</h2>
-										<span className='px-2 py-0.5 bg-[#4656D9]/10 text-[#4656D9] rounded-md text-[11px] font-medium'>
+										<span className='px-2.5 py-0.5 bg-surface-muted border border-border-default text-text-secondary rounded-md text-xs font-semibold'>
 											{doc.type}
 										</span>
-										<span className='px-2 py-0.5 bg-[#179C8C]/10 text-[#179C8C] rounded-md text-[11px] font-medium'>
+										<span className='px-2.5 py-0.5 bg-surface-muted border border-border-default text-text-secondary rounded-md text-xs font-semibold'>
 											{doc.team}
 										</span>
-										<span className='text-[11px] text-[#9098A5]'>
+										<span className='text-xs text-[#9098A5] font-medium'>
 											{doc.language}
 										</span>
 									</div>
 
-									<p className='text-xs text-[#677080] line-clamp-2 leading-relaxed'>
+									<p className='text-sm text-[#677080] line-clamp-2 leading-relaxed'>
 										{doc.summary || 'Document ingested and available for cross-corpus intelligence.'}
 									</p>
 
 									{/* Bottom details row */}
-									<div className='flex flex-wrap items-center gap-2.5 text-[11px] text-[#9098A5] pt-1'>
+									<div className='flex flex-wrap items-center gap-3 text-xs text-[#677080] pt-1'>
 										<span>{doc.pageCount} {doc.pageCount === 1 ? 'page' : 'pages'}</span>
-										<span>/</span>
+										<span>•</span>
 										<span>{doc.sectionsCount} sections</span>
-										<span>/</span>
-										<span className='px-1.5 py-0.2 rounded bg-[#39825E]/10 border border-[#39825E]/20 text-[#39825E] font-medium'>
+										<span>•</span>
+										<span className='px-2 py-0.5 rounded bg-[#39825E]/10 border border-[#39825E]/20 text-[#39825E] font-semibold text-xs'>
 											Indexed
 										</span>
-										<span>/</span>
+										<span>•</span>
 										<span>
 											{doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Recent'}
 										</span>
 										{doc.actions && doc.actions.length > 0 && (
 											<>
-												<span>/</span>
-												<span className='text-[#C77B1B] font-medium'>
+												<span>•</span>
+												<span className='text-[#C77B1B] font-semibold'>
 													{doc.actions.length} {doc.actions.length === 1 ? 'action' : 'actions'}
 												</span>
 											</>
@@ -273,10 +275,10 @@ export default function DocumentsPage() {
 								</div>
 
 								{/* Action Buttons */}
-								<div className='flex items-center gap-2 sm:self-center flex-shrink-0'>
+								<div className='flex items-center gap-2 sm:self-center flex-shrink-0' onClick={e => e.stopPropagation()}>
 									<button
 										onClick={e => openAiForDoc(doc, e)}
-										className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[#4656D9]/30 text-[#4656D9] bg-[#4656D9]/5 hover:bg-[#4656D9]/10 text-xs font-medium transition-colors'>
+										className='inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-strong text-text-primary bg-white hover:bg-surface-muted text-xs font-medium transition-colors'>
 										<Sparkles className='h-3.5 w-3.5' />
 										<span>Ask</span>
 									</button>
@@ -308,29 +310,29 @@ export default function DocumentsPage() {
 					{filteredDocs.map(doc => (
 						<div
 							key={doc.id}
-							onClick={() => (window.location.href = `/documents/${doc.id}`)}
-							className='group bg-white rounded-xl border border-[#E1E4DF] hover:border-[#4656D9] p-5 shadow-2xs hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between space-y-4'>
-							<div className='space-y-2.5'>
+							onClick={() => router.push(`/documents/${doc.id}`)}
+							className='group bg-white rounded-xl border border-border-default hover:border-border-strong p-5 transition-colors cursor-pointer flex flex-col justify-between space-y-4'>
+							<div className='space-y-3'>
 								<div className='flex items-center justify-between gap-2'>
-									<span className='px-2 py-0.5 bg-[#4656D9]/10 text-[#4656D9] rounded-md text-[11px] font-medium'>
+									<span className='px-2.5 py-0.5 bg-surface-muted border border-border-default text-text-secondary rounded-md text-xs font-semibold'>
 										{doc.type}
 									</span>
-									<span className='text-[11px] text-[#9098A5]'>
+									<span className='text-xs text-[#9098A5] font-medium'>
 										{doc.team}
 									</span>
 								</div>
 
-								<h2 className='text-sm font-semibold text-[#172033] group-hover:text-[#4656D9] transition-colors line-clamp-2'>
+								<h2 className='text-base font-semibold text-[#172033] group-hover:underline underline-offset-4 line-clamp-2'>
 									{doc.title}
 								</h2>
 
-								<p className='text-xs text-[#677080] line-clamp-3 leading-relaxed'>
+								<p className='text-sm text-[#677080] line-clamp-3 leading-relaxed'>
 									{doc.summary}
 								</p>
 							</div>
 
-							<div className='pt-3 border-t border-[#E1E4DF] flex items-center justify-between text-[11px] text-[#9098A5]'>
-								<span>{doc.pageCount} pages / {doc.sectionsCount} sections</span>
+							<div className='pt-3 border-t border-[#E1E4DF] flex items-center justify-between text-xs text-[#677080]' onClick={e => e.stopPropagation()}>
+								<span>{doc.pageCount} pages • {doc.sectionsCount} sections</span>
 								<div className='flex items-center gap-1.5'>
 									<button
 										onClick={e => openAiForDoc(doc, e)}

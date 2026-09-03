@@ -1,12 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify } from 'jose';
 
 const AUTH_COOKIE = 'kmrl_session';
 
-function getSecretKey(): Uint8Array {
-	const secret =
-		process.env.AUTH_SECRET || process.env.NEXT_AUTH_SECRET || 'dev-secret-change-me';
-	return new TextEncoder().encode(secret);
+/**
+ * Edge-runtime safe JWT HS256 verifier using W3C Web Cryptography API.
+ * Avoids Node.js stream / decompression dependencies in Edge runtime.
+ */
+async function verifyJwtEdge(token: string): Promise<Record<string, unknown> | null> {
+	try {
+		const parts = token.split('.');
+		if (parts.length !== 3) return null;
+		const [headerB64, payloadB64, sigB64] = parts;
+
+		const secret =
+			process.env.AUTH_SECRET || process.env.NEXT_AUTH_SECRET || 'dev-secret-change-me';
+
+		const key = await crypto.subtle.importKey(
+			'raw',
+			new TextEncoder().encode(secret),
+			{ name: 'HMAC', hash: 'SHA-256' },
+			false,
+			['verify']
+		);
+
+		const b64 = sigB64.replace(/-/g, '+').replace(/_/g, '/');
+		const pad = b64.length % 4;
+		const padded = pad ? b64 + '='.repeat(4 - pad) : b64;
+		const sigStr = atob(padded);
+		const sigBuf = new Uint8Array(sigStr.length);
+		for (let i = 0; i < sigStr.length; i++) sigBuf[i] = sigStr.charCodeAt(i);
+
+		const data = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
+		const valid = await crypto.subtle.verify('HMAC', key, sigBuf, data);
+		if (!valid) return null;
+
+		const payloadPad = payloadB64.length % 4;
+		const paddedPayload = payloadPad ? payloadB64 + '='.repeat(4 - payloadPad) : payloadB64;
+		const payloadJson = atob(paddedPayload.replace(/-/g, '+').replace(/_/g, '/'));
+		const payload = JSON.parse(payloadJson) as Record<string, unknown>;
+
+		if (typeof payload.exp === 'number' && Date.now() >= payload.exp * 1000) {
+			return null;
+		}
+
+		return payload;
+	} catch {
+		return null;
+	}
 }
 
 export default async function middleware(req: NextRequest) {
@@ -57,11 +97,9 @@ export default async function middleware(req: NextRequest) {
 	// 4. Authenticated users hitting login or request-deployment get redirected to /home
 	if (pathname === '/login' || pathname === '/request-deployment') {
 		if (token) {
-			try {
-				await jwtVerify(token, getSecretKey(), { algorithms: ['HS256'] });
+			const payload = await verifyJwtEdge(token);
+			if (payload) {
 				return NextResponse.redirect(new URL('/home', req.url));
-			} catch {
-				// Invalid token -> allow login
 			}
 		}
 		return NextResponse.next();
@@ -71,12 +109,11 @@ export default async function middleware(req: NextRequest) {
 	if (pathname.startsWith('/api/')) {
 		if (PUBLIC_API.has(pathname)) return NextResponse.next();
 		if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-		try {
-			await jwtVerify(token, getSecretKey(), { algorithms: ['HS256'] });
-			return NextResponse.next();
-		} catch {
+		const payload = await verifyJwtEdge(token);
+		if (!payload) {
 			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 		}
+		return NextResponse.next();
 	}
 
 	// 6. For all workspace routes, require authenticated session
@@ -86,23 +123,21 @@ export default async function middleware(req: NextRequest) {
 		return NextResponse.redirect(loginUrl);
 	}
 
-	try {
-		const { payload } = await jwtVerify(token, getSecretKey(), {
-			algorithms: ['HS256']
-		});
-		const role = payload.role as string | undefined;
-
-		// Admin-only sections: /people and /audit
-		if ((pathname.startsWith('/people') || pathname.startsWith('/audit')) && role !== 'ADMIN') {
-			return NextResponse.redirect(new URL('/home', req.url));
-		}
-
-		return NextResponse.next();
-	} catch {
+	const payload = await verifyJwtEdge(token);
+	if (!payload) {
 		const loginUrl = new URL('/login', req.url);
 		loginUrl.searchParams.set('from', pathname);
 		return NextResponse.redirect(loginUrl);
 	}
+
+	const role = payload.role as string | undefined;
+
+	// Admin-only sections: /people and /audit
+	if ((pathname.startsWith('/people') || pathname.startsWith('/audit')) && role !== 'ADMIN') {
+		return NextResponse.redirect(new URL('/home', req.url));
+	}
+
+	return NextResponse.next();
 }
 
 export const config = {

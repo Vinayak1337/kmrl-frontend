@@ -88,7 +88,7 @@ export default function PeoplePage() {
 			<div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
 				<div>
 					<h1 className='text-2xl font-bold text-[#172033] tracking-tight flex items-center gap-2.5'>
-						<Users className='h-6 w-6 text-[#4656D9]' />
+						<Users className='h-6 w-6 text-text-secondary' />
 						<span>People</span>
 					</h1>
 					<p className='text-xs text-[#677080] mt-0.5'>
