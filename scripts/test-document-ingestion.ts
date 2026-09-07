@@ -4,38 +4,9 @@
  * Run with: npx tsx scripts/test-document-ingestion.ts
  */
 
-import fs from 'fs';
-import path from 'path';
+import { testAuthCookie } from './testAuth';
 
 const API_URL = process.env.API_URL || 'http://localhost:3000';
-
-// Helper to get auth token (you'll need to login first)
-async function getAuthToken(): Promise<string | null> {
-  // In a real scenario, you'd either:
-  // 1. Perform a login request to get a token
-  // 2. Read from a saved session file
-  // For testing, you might want to hardcode after logging in via UI
-  
-  console.log('⚠️  Please ensure you are logged in via the UI first');
-  console.log('   The auth cookie will be used from your browser session');
-  
-  // For automated testing, you could login programmatically:
-  /*
-  const loginRes = await fetch(`${API_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: 'admin@kmrl.com',
-      password: 'your-password'
-    })
-  });
-  
-  const cookies = loginRes.headers.get('set-cookie');
-  // Extract token from cookies...
-  */
-  
-  return null; // Will use browser session for now
-}
 
 // Test cases for different document types
 const testCases = [
@@ -259,6 +230,8 @@ async function testDocumentIngestion() {
   console.log('🚀 Starting Document Ingestion Tests\n');
   
   const results = [];
+  const cookie = await testAuthCookie(API_URL);
+  const createdIds: string[] = [];
   
   for (const testCase of testCases) {
     console.log(`\n📄 Testing: ${testCase.name}`);
@@ -269,8 +242,7 @@ async function testDocumentIngestion() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Note: In real scenario, add auth header
-          // 'Authorization': `Bearer ${token}`
+          Cookie: cookie
         },
         credentials: 'include', // Include cookies
         body: JSON.stringify(testCase.payload)
@@ -285,6 +257,8 @@ async function testDocumentIngestion() {
       }
       
       const result = await response.json();
+      if (result.documentId) createdIds.push(result.documentId);
+      for (const document of result.summaries || []) { if (document.documentId) createdIds.push(document.documentId); }
       console.log(`✅ Success!`);
       
       if (result.documentId) {
@@ -294,7 +268,7 @@ async function testDocumentIngestion() {
         console.log(`   Summary: ${result.summary?.substring(0, 100)}...`);
       } else if (result.documentsProcessed) {
         console.log(`   Documents processed: ${result.documentsProcessed}`);
-        console.log(`   Document IDs: ${result.documentIds.join(', ')}`);
+        console.log(`   Document IDs: ${(result.summaries || []).map((document: { documentId: string }) => document.documentId).join(', ')}`);
         result.summaries?.forEach((doc: any, i: number) => {
           console.log(`   [${i + 1}] ${doc.title}: ${doc.nodeCount} nodes`);
         });
@@ -332,12 +306,13 @@ async function testDocumentIngestion() {
   try {
     const response = await fetch(`${API_URL}/api/documents/ingest?limit=5`, {
       method: 'GET',
+      headers: { Cookie: cookie },
       credentials: 'include'
     });
     
     if (response.ok) {
       const data = await response.json();
-      console.log(`\n✅ Retrieved ${data.total} documents:`);
+      console.log(`\n✅ Retrieved ${data.totalCount} documents:`);
       data.documents?.forEach((doc: any) => {
         console.log(`   - ${doc.title} (${doc.nodeCount} nodes)`);
         console.log(`     Type: ${doc.documentType || 'Unknown'} | Dept: ${doc.department || 'None'}`);
@@ -348,6 +323,11 @@ async function testDocumentIngestion() {
   } catch (error) {
     console.error(`❌ Retrieval error: ${error}`);
   }
+  for (const id of createdIds) {
+    const response = await fetch(`${API_URL}/api/documents/${id}`, { method: 'DELETE', headers: { Cookie: cookie } });
+    if (!response.ok) throw new Error(`Could not clean up test document ${id}`);
+  }
+  if (failed) throw new Error(`${failed} ingestion checks failed`);
 }
 
 // Run the tests

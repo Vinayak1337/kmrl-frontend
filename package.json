@@ -15,7 +15,9 @@
     "test:md": "tsx scripts/check-ingestion-md.ts",
     "migrate:nodes": "tsx scripts/migrate-nodes.ts",
     "prebuild": "prisma generate || echo \"prisma not available, skipping\"",
-    "upload:pdf": "node scripts/upload-pdf-to-cloudinary.js"
+    "upload:pdf": "node scripts/upload-pdf-to-cloudinary.js",
+    "typecheck": "tsc --noEmit",
+    "test:ui": "playwright test"
   },
   "dependencies": {
     "@ckeditor/ckeditor5-react": "^11.0.0",
@@ -46,6 +48,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.7",

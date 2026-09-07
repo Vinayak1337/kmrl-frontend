@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
  * End-to-end sanity test for the 5-layer pipeline.
- * - Auth cookie synthesized via JWT
+ * - Auth cookie obtained through the existing demo login
  * - Ingestion -> indexing
  * - Vector search
  * - Chat (RAG)
@@ -13,7 +13,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { signSession, AUTH_COOKIE } from '../lib/auth';
+import { testAuthCookie } from './testAuth';
 
 const API_URL = process.env.API_URL || 'http://localhost:3000';
 
@@ -23,15 +23,8 @@ async function run() {
   const results: StepResult[] = [];
   const timestamp = new Date().toISOString();
 
-  // Create auth cookie for an admin user
-  const token = signSession({
-    sub: 'admin-automation',
-    email: 'admin@kmrl.local',
-    name: 'Automation Admin',
-    role: 'ADMIN',
-    grants: [{ dept: 'ALL', type: 'ALL', actions: ['read', 'write'] }],
-  });
-  const headersBase: Record<string, string> = { 'Content-Type': 'application/json', Cookie: `${AUTH_COOKIE}=${token}` };
+  const cookie = await testAuthCookie(API_URL);
+  const headersBase: Record<string, string> = { 'Content-Type': 'application/json', Cookie: cookie };
 
   // 1) Ingestion (HTML) -> persist
   let documentId: string | null = null;
@@ -125,6 +118,11 @@ async function run() {
   const skipped = results.filter(r => r.status === 'skipped').length;
   console.log(`\nSummary: ok=${ok}, skipped=${skipped}, error=${errors}`);
   for (const r of results) console.log(` - ${r.name}: ${r.status}${r.details ? ` — ${r.details}` : ''}`);
+
+  if (documentId) {
+    const cleanup = await fetch(`${API_URL}/api/documents/${documentId}`, { method: 'DELETE', headers: headersBase });
+    if (!cleanup.ok) throw new Error(`Could not clean up test document ${documentId}`);
+  }
 
   // Exit non-zero if critical phases failed
   if (results.find(r => ['ingestion'].includes(r.name) && r.status !== 'ok')) process.exit(1);

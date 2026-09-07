@@ -43,3 +43,6 @@ yarn-error.log*
 next-env.d.ts
 
 GEMINI_API_KEY=AIzaSyCbNlpt53gwqN_fJ-7t5hppKqgntNnYC44
+# Browser verification artifacts
+/playwright-report/
+/test-results/
