@@ -85,12 +85,7 @@ export async function POST(request: NextRequest) {
 			actionableItems?: string[];
 		}>({
 			instructions,
-			input: `Target Language: ${targetLanguage}\nPayload to translate:\n${JSON.stringify(payload)}`,
-			fallback: {
-				summary: `[Translated to ${targetLanguage}]: ${summary}`,
-				keyPoints,
-				actionableItems
-			}
+			input: `Target Language: ${targetLanguage}\nPayload to translate:\n${JSON.stringify(payload)}`
 		});
 
 		// Return translation as projection; never mutates stored database record

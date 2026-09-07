@@ -23,6 +23,7 @@ export interface DocumentListResponse {
 }
 
 export interface IngestDocumentPayload {
+	language?: string;
 	title: string;
 	team: string;
 	type: string;
@@ -219,6 +220,7 @@ export async function uploadDocument(payload: IngestDocumentPayload): Promise<{ 
 
 	const body = {
 		title: payload.title,
+	language: payload.language,
 		department: mapTeamToDepartment(payload.team),
 		documentType: payload.type.toLowerCase(),
 		tags: payload.tags || [],
@@ -244,7 +246,9 @@ export async function uploadDocument(payload: IngestDocumentPayload): Promise<{ 
 	}
 
 	const data = await res.json();
-	return { id: data.documentId || data.id || 'doc-new' };
+	const id = data.documentId || data.id;
+	if (!id) throw new Error('The server did not return a document reference.');
+	return { id };
 }
 
 /**

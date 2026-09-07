@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { DocSetuLogo } from '@/components/brand/DocSetuBrand';
 
 export default function LoginPage() {
@@ -89,142 +89,19 @@ export default function LoginPage() {
 		}
 	};
 
-	return (
-		<div className='min-h-screen bg-[#F8FAFC] flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-[#0F172A]'>
-			<div className='sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3'>
-				<div className='flex justify-center'>
-					<DocSetuLogo size='lg' />
-				</div>
-				<h2 className='text-2xl font-extrabold text-[#0F172A] tracking-tight'>
-					Sign in to your organization workspace
-				</h2>
-				<p className='text-xs text-slate-600'>
-					Document intelligence, cross-team discovery, and action tracking.
-				</p>
-			</div>
-
-			<div className='mt-6 sm:mx-auto sm:w-full sm:max-w-md px-4'>
-				<div className='card-bezel'>
-					<div className='card-bezel-inner p-6 sm:p-8 space-y-5 bg-white'>
-						{errors.general && (
-							<div className='rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-800'>
-								{errors.general}
-							</div>
-						)}
-
-						<form className='space-y-4 text-xs' onSubmit={handleSubmit}>
-							<div>
-								<label
-									htmlFor='email'
-									className='block font-semibold text-[#0F172A] mb-1'>
-									Work Email
-								</label>
-								<div className='relative'>
-									<div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400'>
-										<Mail className='h-4 w-4' />
-									</div>
-									<input
-										id='email'
-										name='email'
-										type='email'
-										autoComplete='email'
-										required
-										value={formData.email}
-										onChange={handleChange}
-										placeholder='name@organization.com'
-										className={`w-full pl-9 pr-3 py-2.5 bg-slate-50 border ${
-											errors.email ? 'border-red-400' : 'border-[#E2E8F0]'
-										} rounded-xl text-xs text-[#0F172A] placeholder-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all`}
-									/>
-								</div>
-								{errors.email && (
-									<p className='mt-1 text-[11px] text-red-600'>{errors.email}</p>
-								)}
-							</div>
-
-							<div>
-								<label
-									htmlFor='password'
-									className='block font-semibold text-[#0F172A] mb-1'>
-									Password
-								</label>
-								<div className='relative'>
-									<div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400'>
-										<Lock className='h-4 w-4' />
-									</div>
-									<input
-										id='password'
-										name='password'
-										type={showPassword ? 'text' : 'password'}
-										autoComplete='current-password'
-										required
-										value={formData.password}
-										onChange={handleChange}
-										placeholder='••••••••'
-										className={`w-full pl-9 pr-10 py-2.5 bg-slate-50 border ${
-											errors.password ? 'border-red-400' : 'border-[#E2E8F0]'
-										} rounded-xl text-xs text-[#0F172A] placeholder-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all`}
-									/>
-									<button
-										type='button'
-										className='absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700'
-										onClick={() => setShowPassword(!showPassword)}>
-										{showPassword ? (
-											<EyeOff className='h-4 w-4' />
-										) : (
-											<Eye className='h-4 w-4' />
-										)}
-									</button>
-								</div>
-								{errors.password && (
-									<p className='mt-1 text-[11px] text-red-600'>{errors.password}</p>
-								)}
-							</div>
-
-							{/* Quick Demo Credentials */}
-							<div className='pt-1'>
-								<div className='text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2'>
-									Quick Demo Credentials
-								</div>
-								<div className='flex gap-2'>
-									<button
-										type='button'
-										onClick={() => setFormData({ email: 'admin@example.com', password: 'admin123' })}
-										className='flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-[11px] font-medium text-slate-700 transition-colors text-center'>
-										Admin Account
-									</button>
-									<button
-										type='button'
-										onClick={() => setFormData({ email: 'vin@gmail.com', password: 'admin123' })}
-										className='flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-[11px] font-medium text-slate-700 transition-colors text-center'>
-										Manager Account
-									</button>
-								</div>
-							</div>
-
-							<div className='pt-2'>
-								<button
-									type='submit'
-									disabled={isLoading}
-									className='w-full py-2.5 px-4 rounded-xl bg-[#0F172A] text-white text-xs font-semibold hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2563EB] disabled:opacity-50 transition-all shadow-xs flex items-center justify-center gap-2'>
-									{isLoading ? (
-										<Loader2 className='h-4 w-4 animate-spin' />
-									) : null}
-									<span>{isLoading ? 'Signing in...' : 'Sign in to DocSetu'}</span>
-								</button>
-							</div>
-						</form>
-
-						<div className='pt-3 border-t border-[#E2E8F0] text-center'>
-							<Link
-								href='/'
-								className='text-xs text-slate-500 hover:text-[#0F172A] transition-colors'>
-								&larr; Back to DocSetu overview
-							</Link>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	);
+  return <main id="main-content" className="auth-page">
+    <section className="auth-intro"><Link href="/"><DocSetuLogo size="lg" /></Link><div><p className="eyebrow">The document workspace</p><h1>Back to<br />the work at hand.</h1><p>Find your documents, review the details, and keep the next step in sight.</p></div><Link href="/" className="text-link">← Back to DocSetu</Link></section>
+    <section className="auth-form"><div><p className="eyebrow">Workspace access</p><h2>Sign in</h2><p>Use your organization account to continue.</p></div>
+      <form onSubmit={handleSubmit} className="form-stack">
+        {errors.general && <p className="notice error" role="alert">{errors.general}</p>}
+        <label htmlFor="email">Work email<input id="email" name="email" type="email" autoComplete="email" spellCheck={false} required value={formData.email} onChange={handleChange} placeholder="name@organization.com" aria-invalid={!!errors.email} aria-describedby={errors.email ? 'email-error' : undefined} /></label>
+        {errors.email && <p id="email-error" className="field-error">{errors.email}</p>}
+        <label htmlFor="password">Password<span className="password-field"><input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required value={formData.password} onChange={handleChange} aria-invalid={!!errors.password} aria-describedby={errors.password ? 'password-error' : undefined} /><button type="button" className="icon-button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
+        {errors.password && <p id="password-error" className="field-error">{errors.password}</p>}
+        <button type="submit" disabled={isLoading} className="button button-primary">{isLoading && <Loader2 size={16} className="animate-spin" />}{isLoading ? 'Signing in…' : 'Sign in to workspace'}</button>
+      </form>
+      <div className="demo-access"><h3>Take a look around</h3><p>Choose a demo account to fill the sign-in details.</p><div><button className="button" onClick={() => setFormData({ email: 'admin@example.com', password: 'admin123' })}>Demo administrator</button><button className="button" onClick={() => setFormData({ email: 'vin@gmail.com', password: 'admin123' })}>Demo manager</button></div></div>
+      <Link href="/request-deployment" className="text-link">Need workspace access? →</Link>
+    </section>
+  </main>;
 }

@@ -194,7 +194,8 @@ export async function GET(req: NextRequest) {
 		if (sessionId) filter.sessionId = sessionId;
 		if (docId) filter.docId = docId;
 
-		const record = await historyCollection.findOne(filter);
+		if (!docId && !sessionId) filter.docId = null;
+		const record = await historyCollection.findOne(filter, { sort: { updatedAt: -1 } });
 
 		if (!record) {
 			return NextResponse.json({ messages: [], sessionId: sessionId || null });

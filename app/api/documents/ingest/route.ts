@@ -13,6 +13,7 @@ import { buildManagerMdPrompt, ManagerAnalysisJSON } from '@/lib/prompt';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 interface IngestPayload {
+	language?: string;
 	documents?: RawDocumentInput[];
 	html?: string;
 	title?: string;
@@ -231,6 +232,10 @@ export async function POST(request: NextRequest) {
 				uploadedBy: session.sub,
 				chunks: persistedChunks
 			});
+
+			if (body.language && ['English', 'Hindi', 'Malayalam', 'Tamil'].includes(body.language)) {
+				persistedDoc.language = body.language;
+			}
 
 			// 7. PERSISTENCE WITH COMPENSATING CLEANUP
 			console.log(`[ingest] PERSIST_STARTED | docId=${docId}`);
