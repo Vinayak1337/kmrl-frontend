@@ -90,7 +90,7 @@ export default function LoginPage() {
 	};
 
   return <main id="main-content" className="auth-page">
-    <section className="auth-intro"><Link href="/"><DocSetuLogo size="lg" /></Link><div><p className="eyebrow">The document workspace</p><h1>Back to<br />the work at hand.</h1><p>Find your documents, review the details, and keep the next step in sight.</p></div><Link href="/" className="text-link">← Back to DocSetu</Link></section>
+    <section className="auth-intro"><Link href="/"><DocSetuLogo size="lg" /></Link><div><p className="eyebrow">The document workspace</p><h1>Back to <br />the work at hand.</h1><p>Find your documents, review the details, and keep the next step in sight.</p></div><Link href="/" className="text-link">← Back to DocSetu</Link></section>
     <section className="auth-form"><div><p className="eyebrow">Workspace access</p><h2>Sign in</h2><p>Use your organization account to continue.</p></div>
       <form onSubmit={handleSubmit} className="form-stack">
         {errors.general && <p className="notice error" role="alert">{errors.general}</p>}
