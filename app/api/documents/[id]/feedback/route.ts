@@ -8,40 +8,25 @@ import { chunkDocument } from '@/lib/ingest/chunker';
 import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, ChunkEnrichmentData } from '@/lib/ingest/builder';
 import { buildManagerMdPrompt, ManagerAnalysisJSON } from '@/lib/prompt';
-import { callGeminiWithRetry } from '@/lib/ai/gemini';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateJsonWithMuseSpark } from '@/lib/ai/opencodeZen';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
-async function runGeminiEnrichment(
+async function runMuseSparkEnrichment(
 	text: string,
-	apiKey: string,
 	meta?: { department?: string; documentType?: string }
 ): Promise<ManagerAnalysisJSON | null> {
 	try {
-		const genAI = new GoogleGenerativeAI(apiKey);
-		const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 		const prompt = buildManagerMdPrompt(meta);
+		const input = `Document Content:\n${text.slice(0, 40000)}`;
 
-		const result = await callGeminiWithRetry(
-			() =>
-				model.generateContent({
-					contents: [
-						{
-							role: 'user',
-							parts: [{ text: prompt }, { text: `Document Content:\n${text.slice(0, 35000)}` }]
-						}
-					],
-					generationConfig: {
-						responseMimeType: 'application/json' as unknown as never
-					}
-				} as any),
-			{ operationName: 'Feedback Reprocess Enrichment' }
-		);
+		const result = await generateJsonWithMuseSpark<ManagerAnalysisJSON>({
+			instructions: prompt,
+			input
+		});
 
-		const respText = result.response.text();
-		return JSON.parse(respText) as ManagerAnalysisJSON;
+		return result;
 	} catch (err) {
-		console.warn('[feedback] Gemini reprocessing enrichment failed, using heuristic fallback', err);
+		console.warn('[feedback] OpenCode Zen Muse Spark reprocessing failed, using heuristic fallback', err);
 		return null;
 	}
 }
@@ -79,7 +64,7 @@ export async function POST(
 		// Reprocess document using recovered raw source content
 		if (reprocess && doc.raw && doc.raw.content && doc.raw.type) {
 			try {
-				const apiKey = process.env.GEMINI_API_KEY;
+
 				console.log(`[feedback] REPROCESS_STARTED | docId=${id} | rawType=${doc.raw.type}`);
 
 				// 1. Re-normalize from raw content
@@ -110,8 +95,8 @@ export async function POST(
 
 				// 3. AI Enrichment
 				let aiAnalysis: ManagerAnalysisJSON | null = null;
-				if (apiKey && normalized.fullText.trim().length > 0) {
-					aiAnalysis = await runGeminiEnrichment(normalized.fullText, apiKey, {
+				if (normalized.fullText.trim().length > 0) {
+					aiAnalysis = await runMuseSparkEnrichment(normalized.fullText, {
 						department: doc.metadata?.department,
 						documentType: doc.metadata?.documentType
 					});

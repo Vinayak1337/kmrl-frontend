@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { X, Send, Sparkles, Loader2, BookOpen, RefreshCw, Cpu } from 'lucide-react';
+import { X, Send, Sparkles, Loader2, BookOpen, RefreshCw } from 'lucide-react';
 import { DocSetuSymbol } from '@/components/brand/DocSetuBrand';
 import { askDocSetu, getChatHistory } from '@/services/intelligence';
 import { ChatMessage, Citation } from '@/types/docsetu';
@@ -141,9 +141,9 @@ export function AiSidePanel({
 								<span>{docTitle ? 'Document Intelligence' : 'DocSetu AI Assistant'}</span>
 							</h2>
 							<div className='flex items-center gap-1.5 text-[11px] text-[#6B7280]'>
-								<span className='inline-flex items-center gap-1 text-[#0F766E] font-medium'>
-									<Cpu className='h-3 w-3' />
-									<span>Muse Spark 1.3</span>
+								<span className='inline-flex items-center gap-1 text-emerald-700 font-medium'>
+									<span className='h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse' />
+									<span>Verified Grounding</span>
 								</span>
 								<span>·</span>
 								<span className='truncate max-w-[200px]'>
@@ -256,7 +256,7 @@ export function AiSidePanel({
 														<span className='text-[#9CA3AF]'>
 															(p. {c.pageRange.start}
 															{c.pageRange.end && c.pageRange.end !== c.pageRange.start
-																? `–${c.pageRange.end}`
+																? `-${c.pageRange.end}`
 																: ''}
 															)
 														</span>

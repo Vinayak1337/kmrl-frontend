@@ -104,7 +104,6 @@ export async function POST(request: NextRequest) {
 			process.env.MONGODB_NODES_COLLECTION || 'document_nodes'
 		);
 
-		const apiKey = process.env.GEMINI_API_KEY;
 		const results = [];
 
 		for (let i = 0; i < rawDocs.length; i++) {

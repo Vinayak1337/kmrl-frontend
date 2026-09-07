@@ -29,9 +29,9 @@ export function DocSetuSymbol({
 		xl: { width: 48, height: 48 }
 	}[size];
 
-	const primaryColor = light ? '#FFFFFF' : '#4656D9'; // DocSetu Indigo
-	const tealColor = light ? '#6FE3D4' : '#179C8C'; // Bridge Teal
-	const inkColor = light ? '#CBD5E1' : '#172033'; // DocSetu Ink
+	const primaryColor = light ? '#FFFFFF' : '#2563EB'; // DocSetu Royal Indigo
+	const tealColor = light ? '#5EEAD4' : '#0D9488'; // Bridge Teal
+	const inkColor = light ? '#CBD5E1' : '#0F172A'; // DocSetu Slate Ink
 
 	return (
 		<svg

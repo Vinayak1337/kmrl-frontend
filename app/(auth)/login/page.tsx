@@ -90,115 +90,138 @@ export default function LoginPage() {
 	};
 
 	return (
-		<div className='min-h-screen bg-[#F6F7F4] flex flex-col justify-center py-12 sm:px-6 lg:px-8'>
+		<div className='min-h-screen bg-[#F8FAFC] flex flex-col justify-center py-12 sm:px-6 lg:px-8 text-[#0F172A]'>
 			<div className='sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3'>
 				<div className='flex justify-center'>
 					<DocSetuLogo size='lg' />
 				</div>
-				<h2 className='text-xl font-bold text-[#172033] tracking-tight'>
+				<h2 className='text-2xl font-extrabold text-[#0F172A] tracking-tight'>
 					Sign in to your organization workspace
 				</h2>
-				<p className='text-xs text-[#677080]'>
+				<p className='text-xs text-slate-600'>
 					Document intelligence, cross-team discovery, and action tracking.
 				</p>
 			</div>
 
 			<div className='mt-6 sm:mx-auto sm:w-full sm:max-w-md px-4'>
-				<div className='bg-white py-8 px-6 shadow-xl rounded-2xl border border-[#E1E4DF] sm:px-8 space-y-6'>
-					{errors.general && (
-						<div className='rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-800'>
-							{errors.general}
-						</div>
-					)}
-
-					<form className='space-y-4 text-xs' onSubmit={handleSubmit}>
-						<div>
-							<label
-								htmlFor='email'
-								className='block font-semibold text-[#172033] mb-1'>
-								Work Email
-							</label>
-							<div className='relative'>
-								<div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#9098A5]'>
-									<Mail className='h-4 w-4' />
-								</div>
-								<input
-									id='email'
-									name='email'
-									type='email'
-									autoComplete='email'
-									required
-									value={formData.email}
-									onChange={handleChange}
-									placeholder='name@organization.com'
-									className={`w-full pl-9 pr-3 py-2.5 bg-[#F6F7F4] border ${
-										errors.email ? 'border-red-400' : 'border-[#E1E4DF]'
-									} rounded-lg text-sm text-[#172033] placeholder-[#9098A5] focus:outline-none focus:border-[#4656D9] focus:bg-white transition-all`}
-								/>
+				<div className='card-bezel'>
+					<div className='card-bezel-inner p-6 sm:p-8 space-y-5 bg-white'>
+						{errors.general && (
+							<div className='rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-800'>
+								{errors.general}
 							</div>
-							{errors.email && (
-								<p className='mt-1 text-[11px] text-red-600'>{errors.email}</p>
-							)}
-						</div>
+						)}
 
-						<div>
-							<label
-								htmlFor='password'
-								className='block font-semibold text-[#172033] mb-1'>
-								Password
-							</label>
-							<div className='relative'>
-								<div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#9098A5]'>
-									<Lock className='h-4 w-4' />
+						<form className='space-y-4 text-xs' onSubmit={handleSubmit}>
+							<div>
+								<label
+									htmlFor='email'
+									className='block font-semibold text-[#0F172A] mb-1'>
+									Work Email
+								</label>
+								<div className='relative'>
+									<div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400'>
+										<Mail className='h-4 w-4' />
+									</div>
+									<input
+										id='email'
+										name='email'
+										type='email'
+										autoComplete='email'
+										required
+										value={formData.email}
+										onChange={handleChange}
+										placeholder='name@organization.com'
+										className={`w-full pl-9 pr-3 py-2.5 bg-slate-50 border ${
+											errors.email ? 'border-red-400' : 'border-[#E2E8F0]'
+										} rounded-xl text-xs text-[#0F172A] placeholder-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all`}
+									/>
 								</div>
-								<input
-									id='password'
-									name='password'
-									type={showPassword ? 'text' : 'password'}
-									autoComplete='current-password'
-									required
-									value={formData.password}
-									onChange={handleChange}
-									placeholder='••••••••'
-									className={`w-full pl-9 pr-10 py-2.5 bg-[#F6F7F4] border ${
-										errors.password ? 'border-red-400' : 'border-[#E1E4DF]'
-									} rounded-lg text-sm text-[#172033] placeholder-[#9098A5] focus:outline-none focus:border-[#4656D9] focus:bg-white transition-all`}
-								/>
+								{errors.email && (
+									<p className='mt-1 text-[11px] text-red-600'>{errors.email}</p>
+								)}
+							</div>
+
+							<div>
+								<label
+									htmlFor='password'
+									className='block font-semibold text-[#0F172A] mb-1'>
+									Password
+								</label>
+								<div className='relative'>
+									<div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400'>
+										<Lock className='h-4 w-4' />
+									</div>
+									<input
+										id='password'
+										name='password'
+										type={showPassword ? 'text' : 'password'}
+										autoComplete='current-password'
+										required
+										value={formData.password}
+										onChange={handleChange}
+										placeholder='••••••••'
+										className={`w-full pl-9 pr-10 py-2.5 bg-slate-50 border ${
+											errors.password ? 'border-red-400' : 'border-[#E2E8F0]'
+										} rounded-xl text-xs text-[#0F172A] placeholder-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white transition-all`}
+									/>
+									<button
+										type='button'
+										className='absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700'
+										onClick={() => setShowPassword(!showPassword)}>
+										{showPassword ? (
+											<EyeOff className='h-4 w-4' />
+										) : (
+											<Eye className='h-4 w-4' />
+										)}
+									</button>
+								</div>
+								{errors.password && (
+									<p className='mt-1 text-[11px] text-red-600'>{errors.password}</p>
+								)}
+							</div>
+
+							{/* Quick Demo Credentials */}
+							<div className='pt-1'>
+								<div className='text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2'>
+									Quick Demo Credentials
+								</div>
+								<div className='flex gap-2'>
+									<button
+										type='button'
+										onClick={() => setFormData({ email: 'admin@example.com', password: 'admin123' })}
+										className='flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-[11px] font-medium text-slate-700 transition-colors text-center'>
+										Admin Account
+									</button>
+									<button
+										type='button'
+										onClick={() => setFormData({ email: 'vin@gmail.com', password: 'admin123' })}
+										className='flex-1 py-1.5 px-2.5 rounded-lg bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-[11px] font-medium text-slate-700 transition-colors text-center'>
+										Manager Account
+									</button>
+								</div>
+							</div>
+
+							<div className='pt-2'>
 								<button
-									type='button'
-									className='absolute inset-y-0 right-0 pr-3 flex items-center text-[#9098A5] hover:text-[#172033]'
-									onClick={() => setShowPassword(!showPassword)}>
-									{showPassword ? (
-										<EyeOff className='h-4 w-4' />
-									) : (
-										<Eye className='h-4 w-4' />
-									)}
+									type='submit'
+									disabled={isLoading}
+									className='w-full py-2.5 px-4 rounded-xl bg-[#0F172A] text-white text-xs font-semibold hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2563EB] disabled:opacity-50 transition-all shadow-xs flex items-center justify-center gap-2'>
+									{isLoading ? (
+										<Loader2 className='h-4 w-4 animate-spin' />
+									) : null}
+									<span>{isLoading ? 'Signing in...' : 'Sign in to DocSetu'}</span>
 								</button>
 							</div>
-							{errors.password && (
-								<p className='mt-1 text-[11px] text-red-600'>{errors.password}</p>
-							)}
-						</div>
+						</form>
 
-						<div className='pt-2'>
-							<button
-								type='submit'
-								disabled={isLoading}
-								className='w-full py-2.5 px-4 rounded-lg bg-[#4656D9] text-white text-xs font-semibold hover:bg-[#3B4BBF] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4656D9] disabled:opacity-50 transition-all shadow-xs flex items-center justify-center gap-2'>
-								{isLoading ? (
-									<Loader2 className='h-4 w-4 animate-spin' />
-								) : null}
-								<span>{isLoading ? 'Signing in…' : 'Sign in to DocSetu'}</span>
-							</button>
+						<div className='pt-3 border-t border-[#E2E8F0] text-center'>
+							<Link
+								href='/'
+								className='text-xs text-slate-500 hover:text-[#0F172A] transition-colors'>
+								&larr; Back to DocSetu overview
+							</Link>
 						</div>
-					</form>
-
-					<div className='pt-2 border-t border-[#E1E4DF] text-center'>
-						<Link
-							href='/'
-							className='text-xs text-[#677080] hover:text-[#172033] transition-colors'>
-							&larr; Back to DocSetu overview
-						</Link>
 					</div>
 				</div>
 			</div>

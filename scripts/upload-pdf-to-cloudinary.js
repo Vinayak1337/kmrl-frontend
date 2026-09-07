@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Quick diagnostic script to verify Cloudinary PDF uploads and page image delivery.
 // Usage: node scripts/upload-pdf-to-cloudinary.js <path-to-pdf> [maxPages]
 

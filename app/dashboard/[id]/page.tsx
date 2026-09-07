@@ -256,7 +256,7 @@ export default function DocumentDetailPage() {
 	const copySummary = async () => {
 		if (!document || !currentNode) return;
 		const absoluteIndex = page * pageSize + currentNodeIndex + 1;
-		const header = `${document.title} — Section ${absoluteIndex} (Pages ${currentNode.pageRange.start}-${currentNode.pageRange.end})`;
+		const header = `${document.title} - Section ${absoluteIndex} (Pages ${currentNode.pageRange.start}-${currentNode.pageRange.end})`;
 		const points = (currentNode.keyPoints || [])
 			.slice(0, 8)
 			.map(p => `- ${p}`)

@@ -17,8 +17,7 @@ import {
 	User,
 	Menu,
 	X,
-	Search,
-	Cpu
+	Search
 } from 'lucide-react';
 import { DocSetuLogo } from '@/components/brand/DocSetuBrand';
 import { Omnibox } from './Omnibox';
@@ -105,14 +104,14 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 	};
 
 	return (
-		<div className='min-h-screen bg-[#F8F9FA] flex flex-col text-[#111827] font-sans antialiased'>
+		<div className='min-h-screen bg-[#F8FAFC] flex flex-col text-[#0F172A] font-sans antialiased'>
 			{/* TOPBAR */}
-			<header className='h-16 bg-white/95 backdrop-blur-md border-b border-[#E5E7EB] sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between gap-4'>
+			<header className='h-16 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0] sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between gap-4'>
 				{/* Brand Logo & Mobile Trigger */}
 				<div className='flex items-center gap-3 flex-shrink-0'>
 					<button
 						onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-						className='md:hidden p-1.5 text-[#4B5563] hover:text-[#111827] rounded-md transition-colors'
+						className='md:hidden p-1.5 text-slate-600 hover:text-slate-900 rounded-md transition-colors'
 						aria-label='Toggle navigation'>
 						{isMobileMenuOpen ? <X className='h-5 w-5' /> : <Menu className='h-5 w-5' />}
 					</button>
@@ -122,15 +121,15 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 					</Link>
 
 					{/* Organization pill */}
-					<div className='hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#F3F4F6] border border-[#E5E7EB] text-xs font-medium text-[#4B5563] ml-2'>
-						<Building2 className='h-3.5 w-3.5 text-[#6B7280]' />
+					<div className='hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-medium text-slate-700 ml-2'>
+						<Building2 className='h-3.5 w-3.5 text-slate-500' />
 						<span>KMRL Workspace</span>
 					</div>
 
-					{/* AI Model Badge */}
-					<div className='hidden xl:flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#E6F4F1] border border-[#BCE3DA] text-[11px] font-medium text-[#0F766E]'>
-						<Cpu className='h-3 w-3 text-[#0F766E]' />
-						<span>Muse Spark 1.3</span>
+					{/* Engine Status Badge */}
+					<div className='hidden xl:flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-[11px] font-medium text-emerald-800'>
+						<span className='h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse' />
+						<span>Reasoning Engine Online</span>
 					</div>
 				</div>
 
@@ -221,11 +220,11 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 			{/* BODY LAYOUT: SIDEBAR + CONTENT */}
 			<div className='flex flex-1 overflow-hidden'>
 				{/* LEFT SIDEBAR (Desktop) */}
-				<aside className='w-60 bg-white border-r border-[#E5E7EB] hidden md:flex flex-col justify-between py-5 px-3 flex-shrink-0'>
+				<aside className='w-60 bg-white border-r border-[#E2E8F0] hidden md:flex flex-col justify-between py-5 px-3 flex-shrink-0'>
 					<div className='space-y-6'>
 						{/* Primary Navigation */}
 						<div className='space-y-1'>
-							<div className='px-3 pb-1.5 text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-[0.1em]'>
+							<div className='px-3 pb-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-[0.1em]'>
 								Workspace
 							</div>
 							{primaryNav.map(item => {
@@ -237,12 +236,12 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 										href={item.href}
 										className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
 											active
-												? 'bg-[#EEF2FF] text-[#3B49DF] font-semibold shadow-xs'
-												: 'text-[#4B5563] hover:bg-[#F8F9FA] hover:text-[#111827]'
+												? 'bg-blue-50 text-blue-700 font-semibold shadow-xs'
+												: 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
 										}`}>
 										<Icon
 											className={`h-4 w-4 ${
-												active ? 'text-[#3B49DF]' : 'text-[#6B7280]'
+												active ? 'text-blue-600' : 'text-slate-400'
 											}`}
 										/>
 										<span>{item.label}</span>
@@ -253,7 +252,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 
 						{/* Administration Navigation */}
 						<div className='space-y-1'>
-							<div className='px-3 pb-1.5 text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-[0.1em]'>
+							<div className='px-3 pb-1.5 text-[11px] font-semibold text-slate-400 uppercase tracking-[0.1em]'>
 								Governance
 							</div>
 							{adminNav.map(item => {
@@ -265,12 +264,12 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 										href={item.href}
 										className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
 											active
-												? 'bg-[#EEF2FF] text-[#3B49DF] font-semibold shadow-xs'
-												: 'text-[#4B5563] hover:bg-[#F8F9FA] hover:text-[#111827]'
+												? 'bg-blue-50 text-blue-700 font-semibold shadow-xs'
+												: 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
 										}`}>
 										<Icon
 											className={`h-4 w-4 ${
-												active ? 'text-[#3B49DF]' : 'text-[#6B7280]'
+												active ? 'text-blue-600' : 'text-slate-400'
 											}`}
 										/>
 										<span>{item.label}</span>
@@ -281,16 +280,16 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 					</div>
 
 					{/* Sidebar Footer: Active Intelligence Info */}
-					<div className='p-3 bg-[#F8F9FA] rounded-2xl border border-[#E5E7EB] space-y-1.5'>
+					<div className='p-3 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-1.5'>
 						<div className='flex items-center justify-between text-xs'>
-							<span className='font-semibold text-[#111827]'>DocSetu Engine</span>
-							<span className='inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-[#E6F4F1] text-[10px] font-medium text-[#0F766E]'>
-								<span className='w-1.5 h-1.5 rounded-full bg-[#059669] animate-pulse'></span>
-								Online
+							<span className='font-semibold text-slate-900'>Document Engine</span>
+							<span className='inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-[10px] font-medium text-emerald-700'>
+								<span className='w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse'></span>
+								Active
 							</span>
 						</div>
-						<p className='text-[11px] text-[#6B7280] leading-tight'>
-							OpenCode Zen · Muse Spark 1.3
+						<p className='text-[11px] text-slate-500 leading-tight'>
+							Verified Grounding &amp; Compliance
 						</p>
 					</div>
 				</aside>
@@ -298,13 +297,13 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 				{/* MOBILE NAVIGATION DRAWER */}
 				{isMobileMenuOpen && (
 					<div className='fixed inset-0 z-50 bg-black/30 md:hidden flex animate-in fade-in-50 duration-150'>
-						<div className='w-64 bg-white h-full p-5 flex flex-col justify-between border-r border-[#E5E7EB]'>
+						<div className='w-64 bg-white h-full p-5 flex flex-col justify-between border-r border-[#E2E8F0]'>
 							<div className='space-y-6'>
-								<div className='flex items-center justify-between pb-4 border-b border-[#E5E7EB]'>
+								<div className='flex items-center justify-between pb-4 border-b border-[#E2E8F0]'>
 									<DocSetuLogo size='sm' />
 									<button
 										onClick={() => setIsMobileMenuOpen(false)}
-										className='p-1 text-[#6B7280] hover:text-[#111827]'>
+										className='p-1 text-slate-500 hover:text-slate-900'>
 										<X className='h-5 w-5' />
 									</button>
 								</div>
@@ -320,8 +319,8 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 												onClick={() => setIsMobileMenuOpen(false)}
 												className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-medium ${
 													active
-														? 'bg-[#EEF2FF] text-[#3B49DF] font-semibold'
-														: 'text-[#4B5563] hover:bg-[#F8F9FA]'
+														? 'bg-blue-50 text-blue-700 font-semibold'
+														: 'text-slate-600 hover:bg-slate-50'
 												}`}>
 												<Icon className='h-4 w-4' />
 												<span>{item.label}</span>
@@ -342,7 +341,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 				)}
 
 				{/* MAIN WORKSPACE CONTENT */}
-				<main className='flex-1 overflow-y-auto bg-[#F8F9FA]'>
+				<main className='flex-1 overflow-y-auto bg-[#F8FAFC]'>
 					{children}
 				</main>
 			</div>

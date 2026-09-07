@@ -23,7 +23,7 @@ interface OmniboxProps {
 export function Omnibox({
 	className = '',
 	onAskDocSetu,
-	placeholder = 'Search documents or ask AI…'
+	placeholder = 'Search documents or ask questions...'
 }: OmniboxProps) {
 	const router = useRouter();
 	const [query, setQuery] = useState('');

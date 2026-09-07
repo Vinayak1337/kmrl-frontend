@@ -174,18 +174,18 @@ export function DocumentIngestModal({
 
 	return (
 		<div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200'>
-			<div className='relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-[#E1E4DF] overflow-hidden'>
+			<div className='relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden'>
 				{/* Modal Header */}
-				<div className='flex items-center justify-between px-6 py-5 border-b border-[#E1E4DF] bg-[#F6F7F4]/60'>
+				<div className='flex items-center justify-between px-6 py-5 border-b border-slate-200 bg-slate-50/70'>
 					<div className='flex items-center gap-3'>
-						<div className='w-9 h-9 rounded-lg bg-white border border-[#E1E4DF] flex items-center justify-center shadow-2xs'>
+						<div className='w-9 h-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center shadow-2xs'>
 							<DocSetuSymbol size='sm' />
 						</div>
 						<div>
-							<h2 className='text-base font-semibold text-[#172033]'>
+							<h2 className='text-base font-semibold text-[#0F172A]'>
 								Add document to DocSetu
 							</h2>
-							<p className='text-xs text-[#677080]'>
+							<p className='text-xs text-slate-500'>
 								Ingest source documents into the intelligence layer
 							</p>
 						</div>
@@ -196,7 +196,7 @@ export function DocumentIngestModal({
 							resetModal();
 							onClose();
 						}}
-						className='p-1.5 text-[#9098A5] hover:text-[#172033] rounded-md hover:bg-white transition-colors'>
+						className='p-1.5 text-slate-400 hover:text-[#0F172A] rounded-md hover:bg-white transition-colors'>
 						<X className='h-5 w-5' />
 					</button>
 				</div>
@@ -214,13 +214,13 @@ export function DocumentIngestModal({
 					{step === 'file' && (
 						<div className='space-y-4'>
 							{/* Tab selector */}
-							<div className='flex border-b border-[#E1E4DF] pb-2 gap-4 text-xs font-medium'>
+							<div className='flex border-b border-slate-200 pb-2 gap-4 text-xs font-medium'>
 								<button
 									onClick={() => setInputMode('upload')}
 									className={`pb-1 transition-colors ${
 										inputMode === 'upload'
-											? 'text-[#4656D9] border-b-2 border-[#4656D9] font-semibold'
-											: 'text-[#677080] hover:text-[#172033]'
+											? 'text-[#2563EB] border-b-2 border-[#2563EB] font-semibold'
+											: 'text-slate-500 hover:text-[#0F172A]'
 									}`}>
 									Upload Document
 								</button>
@@ -228,8 +228,8 @@ export function DocumentIngestModal({
 									onClick={() => setInputMode('paste')}
 									className={`pb-1 transition-colors ${
 										inputMode === 'paste'
-											? 'text-[#4656D9] border-b-2 border-[#4656D9] font-semibold'
-											: 'text-[#677080] hover:text-[#172033]'
+											? 'text-[#2563EB] border-b-2 border-[#2563EB] font-semibold'
+											: 'text-slate-500 hover:text-[#0F172A]'
 									}`}>
 									Paste Text Content
 								</button>
@@ -245,7 +245,7 @@ export function DocumentIngestModal({
 										}
 									}}
 									onClick={() => fileInputRef.current?.click()}
-									className='border-2 border-dashed border-[#E1E4DF] hover:border-[#4656D9] rounded-xl p-8 text-center bg-[#F6F7F4]/40 hover:bg-[#F6F7F4] cursor-pointer transition-all'>
+									className='border-2 border-dashed border-slate-200 hover:border-[#2563EB] rounded-xl p-8 text-center bg-slate-50/50 hover:bg-blue-50/20 cursor-pointer transition-all'>
 									<input
 										ref={fileInputRef}
 										type='file'
@@ -257,16 +257,16 @@ export function DocumentIngestModal({
 											}
 										}}
 									/>
-									<div className='w-12 h-12 rounded-full bg-white border border-[#E1E4DF] text-[#4656D9] flex items-center justify-center mx-auto mb-3 shadow-xs'>
+									<div className='w-12 h-12 rounded-full bg-white border border-slate-200 text-[#2563EB] flex items-center justify-center mx-auto mb-3 shadow-xs'>
 										<Upload className='h-6 w-6' />
 									</div>
-									<h3 className='text-sm font-semibold text-[#172033] mb-1'>
+									<h3 className='text-sm font-semibold text-[#0F172A] mb-1'>
 										Choose a file or drag & drop here
 									</h3>
-									<p className='text-xs text-[#677080] mb-3'>
+									<p className='text-xs text-slate-500 mb-3'>
 										Supported formats: PDF, DOCX, Images, Text
 									</p>
-									<span className='inline-flex px-3 py-1.5 bg-white border border-[#E1E4DF] rounded-md text-xs font-medium text-[#172033] shadow-2xs'>
+									<span className='inline-flex px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-medium text-[#0F172A] shadow-xs'>
 										Browse Files
 									</span>
 								</div>
@@ -277,13 +277,13 @@ export function DocumentIngestModal({
 										onChange={e => setPastedText(e.target.value)}
 										rows={7}
 										placeholder='Paste raw agreement text, circular content, or operational policy here…'
-										className='w-full p-3 text-xs bg-[#F6F7F4] border border-[#E1E4DF] rounded-lg text-[#172033] placeholder-[#9098A5] focus:outline-none focus:border-[#4656D9] focus:bg-white font-mono'
+										className='w-full p-3 text-xs bg-slate-50 border border-slate-200 rounded-lg text-[#0F172A] placeholder-slate-400 focus:outline-none focus:border-[#2563EB] focus:bg-white font-mono'
 									/>
 									<div className='flex justify-end'>
 										<button
 											type='button'
 											onClick={handlePasteProceed}
-											className='px-4 py-2 bg-[#4656D9] text-white text-xs font-medium rounded-lg hover:bg-[#3B4BBF] flex items-center gap-1.5'>
+											className='px-4 py-2 bg-[#2563EB] text-white text-xs font-medium rounded-lg hover:bg-[#1D4ED8] flex items-center gap-1.5 transition-colors'>
 											<span>Next: Metadata</span>
 											<ArrowRight className='h-3.5 w-3.5' />
 										</button>
@@ -296,15 +296,15 @@ export function DocumentIngestModal({
 					{/* STEP 2: METADATA */}
 					{step === 'metadata' && (
 						<div className='space-y-4'>
-							<div className='flex items-center justify-between pb-3 border-b border-[#E1E4DF] text-xs'>
-								<span className='text-[#677080] font-medium'>Source:</span>
-								<span className='font-semibold text-[#172033] truncate max-w-[280px]'>
+							<div className='flex items-center justify-between pb-3 border-b border-slate-200 text-xs'>
+								<span className='text-slate-500 font-medium'>Source:</span>
+								<span className='font-semibold text-[#0F172A] truncate max-w-[280px]'>
 									{file ? file.name : 'Pasted Text Slice'}
 								</span>
 							</div>
 
 							<div>
-								<label className='block text-xs font-semibold text-[#172033] mb-1'>
+								<label className='block text-xs font-semibold text-[#0F172A] mb-1'>
 									Document Title *
 								</label>
 								<input
@@ -312,19 +312,19 @@ export function DocumentIngestModal({
 									value={title}
 									onChange={e => setTitle(e.target.value)}
 									placeholder='e.g. Master Services Agreement FY26'
-									className='w-full px-3 py-2 text-sm bg-[#F6F7F4] border border-[#E1E4DF] rounded-lg text-[#172033] focus:outline-none focus:border-[#4656D9] focus:bg-white'
+									className='w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-[#0F172A] focus:outline-none focus:border-[#2563EB] focus:bg-white'
 								/>
 							</div>
 
 							<div className='grid grid-cols-2 gap-3'>
 								<div>
-									<label className='block text-xs font-semibold text-[#172033] mb-1'>
+									<label className='block text-xs font-semibold text-[#0F172A] mb-1'>
 										Team / Owner
 									</label>
 									<select
 										value={team}
 										onChange={e => setTeam(e.target.value as TeamName)}
-										className='w-full px-3 py-2 text-xs bg-[#F6F7F4] border border-[#E1E4DF] rounded-lg text-[#172033] focus:outline-none focus:border-[#4656D9]'>
+										className='w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-[#0F172A] focus:outline-none focus:border-[#2563EB]'>
 										{VALID_TEAMS.map(t => (
 											<option key={t} value={t}>
 												{t}
@@ -334,13 +334,13 @@ export function DocumentIngestModal({
 								</div>
 
 								<div>
-									<label className='block text-xs font-semibold text-[#172033] mb-1'>
+									<label className='block text-xs font-semibold text-[#0F172A] mb-1'>
 										Document Type
 									</label>
 									<select
 										value={docType}
 										onChange={e => setDocType(e.target.value as DocSetuDocumentType)}
-										className='w-full px-3 py-2 text-xs bg-[#F6F7F4] border border-[#E1E4DF] rounded-lg text-[#172033] focus:outline-none focus:border-[#4656D9]'>
+										className='w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-[#0F172A] focus:outline-none focus:border-[#2563EB]'>
 										{VALID_DOC_TYPES.map(t => (
 											<option key={t} value={t}>
 												{t}
@@ -352,13 +352,13 @@ export function DocumentIngestModal({
 
 							<div className='grid grid-cols-2 gap-3'>
 								<div>
-									<label className='block text-xs font-semibold text-[#172033] mb-1'>
+									<label className='block text-xs font-semibold text-[#0F172A] mb-1'>
 										Language
 									</label>
 									<select
 										value={language}
 										onChange={e => setLanguage(e.target.value)}
-										className='w-full px-3 py-2 text-xs bg-[#F6F7F4] border border-[#E1E4DF] rounded-lg text-[#172033] focus:outline-none focus:border-[#4656D9]'>
+										className='w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-[#0F172A] focus:outline-none focus:border-[#2563EB]'>
 										<option value='English'>English (Auto-detect)</option>
 										<option value='Hindi'>Hindi</option>
 										<option value='Malayalam'>Malayalam</option>
@@ -367,7 +367,7 @@ export function DocumentIngestModal({
 								</div>
 
 								<div>
-									<label className='block text-xs font-semibold text-[#172033] mb-1'>
+									<label className='block text-xs font-semibold text-[#0F172A] mb-1'>
 										Tags (comma separated)
 									</label>
 									<input
@@ -375,22 +375,22 @@ export function DocumentIngestModal({
 										value={tagsInput}
 										onChange={e => setTagsInput(e.target.value)}
 										placeholder='SLA, FY26, Compliance'
-										className='w-full px-3 py-2 text-xs bg-[#F6F7F4] border border-[#E1E4DF] rounded-lg text-[#172033] focus:outline-none focus:border-[#4656D9] focus:bg-white'
+										className='w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg text-[#0F172A] focus:outline-none focus:border-[#2563EB] focus:bg-white'
 									/>
 								</div>
 							</div>
 
-							<div className='flex items-center justify-between pt-3 border-t border-[#E1E4DF]'>
+							<div className='flex items-center justify-between pt-3 border-t border-slate-200'>
 								<button
 									type='button'
 									onClick={() => setStep('file')}
-									className='px-3 py-1.5 text-xs text-[#677080] hover:text-[#172033]'>
+									className='px-3 py-1.5 text-xs text-slate-500 hover:text-[#0F172A]'>
 									Back
 								</button>
 								<button
 									type='button'
 									onClick={handleStartIngest}
-									className='px-4 py-2 bg-[#4656D9] text-white text-xs font-medium rounded-lg hover:bg-[#3B4BBF] flex items-center gap-1.5 shadow-xs'>
+									className='px-4 py-2 bg-[#2563EB] text-white text-xs font-medium rounded-lg hover:bg-[#1D4ED8] flex items-center gap-1.5 shadow-xs transition-colors'>
 									<Sparkles className='h-3.5 w-3.5' />
 									<span>Process Document</span>
 								</button>
@@ -406,16 +406,16 @@ export function DocumentIngestModal({
 							</div>
 
 							<div>
-								<h3 className='text-sm font-semibold text-[#172033]'>
+								<h3 className='text-sm font-semibold text-[#0F172A]'>
 									Processing Document
 								</h3>
-								<p className='text-xs text-[#677080] mt-0.5'>
+								<p className='text-xs text-slate-500 mt-0.5'>
 									Extracting text, sections, and action items
 								</p>
 							</div>
 
 							{/* Pipeline Stages Checklist */}
-							<div className='max-w-xs mx-auto text-left space-y-2.5 bg-[#F6F7F4] p-4 rounded-xl border border-[#E1E4DF]'>
+							<div className='max-w-xs mx-auto text-left space-y-2.5 bg-slate-50 p-4 rounded-xl border border-slate-200'>
 								{stages.map((stg, idx) => {
 									const isCompleted = idx < pipelineIndex;
 									const isCurrent = idx === pipelineIndex;
@@ -424,17 +424,17 @@ export function DocumentIngestModal({
 											key={idx}
 											className={`flex items-center gap-2.5 text-xs transition-colors ${
 												isCompleted
-													? 'text-[#179C8C] font-medium'
+													? 'text-[#0D9488] font-medium'
 													: isCurrent
-													? 'text-[#4656D9] font-semibold'
-													: 'text-[#9098A5]'
+													? 'text-[#2563EB] font-semibold'
+													: 'text-slate-400'
 											}`}>
 											{isCompleted ? (
-												<CheckCircle2 className='h-4 w-4 text-[#179C8C] flex-shrink-0' />
+												<CheckCircle2 className='h-4 w-4 text-[#0D9488] flex-shrink-0' />
 											) : isCurrent ? (
-												<Loader2 className='h-4 w-4 animate-spin text-[#4656D9] flex-shrink-0' />
+												<Loader2 className='h-4 w-4 animate-spin text-[#2563EB] flex-shrink-0' />
 											) : (
-												<div className='w-3.5 h-3.5 rounded-xs border border-[#CBD5E1] flex-shrink-0' />
+												<div className='w-3.5 h-3.5 rounded-xs border border-slate-300 flex-shrink-0' />
 											)}
 											<span>{stg}</span>
 										</div>
@@ -447,15 +447,15 @@ export function DocumentIngestModal({
 					{/* STEP 4: DONE */}
 					{step === 'done' && (
 						<div className='py-6 text-center space-y-5'>
-							<div className='w-12 h-12 rounded-full bg-[#179C8C]/10 text-[#179C8C] flex items-center justify-center mx-auto'>
+							<div className='w-12 h-12 rounded-full bg-emerald-50 text-[#0D9488] border border-emerald-200 flex items-center justify-center mx-auto'>
 								<CheckCircle2 className='h-7 w-7' />
 							</div>
 
 							<div>
-								<h3 className='text-base font-semibold text-[#172033]'>
+								<h3 className='text-base font-semibold text-[#0F172A]'>
 									Document Ready in Workspace
 								</h3>
-								<p className='text-xs text-[#677080] mt-1 max-w-sm mx-auto'>
+								<p className='text-xs text-slate-500 mt-1 max-w-sm mx-auto'>
 									&ldquo;{title}&rdquo; has been analyzed. Summaries, sections, and actionable deadlines are now structured and searchable.
 								</p>
 							</div>
@@ -467,7 +467,7 @@ export function DocumentIngestModal({
 										resetModal();
 										onClose();
 									}}
-									className='px-4 py-2 border border-[#E1E4DF] rounded-lg text-xs font-medium text-[#172033] hover:bg-[#F6F7F4]'>
+									className='px-4 py-2 border border-slate-200 rounded-lg text-xs font-medium text-[#0F172A] hover:bg-slate-50'>
 									Close
 								</button>
 								{newDocId && (
@@ -479,7 +479,7 @@ export function DocumentIngestModal({
 											if (onSuccess) onSuccess(newDocId);
 											window.location.href = `/documents/${newDocId}`;
 										}}
-										className='px-4 py-2 bg-[#4656D9] text-white text-xs font-medium rounded-lg hover:bg-[#3B4BBF] flex items-center gap-1.5 shadow-xs'>
+										className='px-4 py-2 bg-[#2563EB] text-white text-xs font-medium rounded-lg hover:bg-[#1D4ED8] flex items-center gap-1.5 shadow-xs transition-colors'>
 										<span>Open Document Workspace</span>
 										<ArrowRight className='h-3.5 w-3.5' />
 									</button>

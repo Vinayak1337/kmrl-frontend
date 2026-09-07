@@ -1,36 +1,36 @@
 @import 'tailwindcss';
 
 :root {
-	--background: #F8F9FA;
-	--foreground: #111827;
-	--docsetu-ink: #111827;
-	--docsetu-indigo: #3B49DF;
-	--docsetu-indigo-hover: #2E3BB8;
-	--docsetu-indigo-subtle: #EEF2FF;
-	--bridge-teal: #0F766E;
-	--canvas: #F8F9FA;
+	--background: #F8FAFC;
+	--foreground: #0F172A;
+	--docsetu-ink: #0F172A;
+	--docsetu-indigo: #2563EB;
+	--docsetu-indigo-hover: #1D4ED8;
+	--docsetu-indigo-subtle: #EFF6FF;
+	--bridge-teal: #0D9488;
+	--canvas: #F8FAFC;
 	--surface: #FFFFFF;
-	--surface-muted: #F3F4F6;
-	--border-color: #E5E7EB;
-	--border-subtle: #F0F2F5;
-	--border-strong: #D1D5DB;
-	--text-primary: #111827;
-	--text-secondary: #4B5563;
-	--text-tertiary: #9CA3AF;
-	--accent-subtle: #EEF2FF;
+	--surface-muted: #F1F5F9;
+	--border-color: #E2E8F0;
+	--border-subtle: #F1F5F9;
+	--border-strong: #CBD5E1;
+	--text-primary: #0F172A;
+	--text-secondary: #334155;
+	--text-tertiary: #64748B;
+	--accent-subtle: #EFF6FF;
 	--success: #059669;
 	--warning: #D97706;
 	--danger: #DC2626;
 
 	/* Semantic Muted Pastels (Anti-Slop / Minimalist) */
-	--pastel-sage-bg: #E6F4F1;
-	--pastel-sage-text: #0F766E;
-	--pastel-amber-bg: #FEF3C7;
+	--pastel-sage-bg: #ECFDF5;
+	--pastel-sage-text: #065F46;
+	--pastel-amber-bg: #FFFBEB;
 	--pastel-amber-text: #92400E;
-	--pastel-rose-bg: #FFE4E6;
-	--pastel-rose-text: #9F1239;
-	--pastel-indigo-bg: #EEF2FF;
-	--pastel-indigo-text: #3730A3;
+	--pastel-rose-bg: #FEF2F2;
+	--pastel-rose-text: #991B1B;
+	--pastel-indigo-bg: #EFF6FF;
+	--pastel-indigo-text: #1E40AF;
 	--pastel-slate-bg: #F1F5F9;
 	--pastel-slate-text: #334155;
 }

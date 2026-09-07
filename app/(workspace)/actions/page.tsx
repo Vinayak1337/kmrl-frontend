@@ -95,11 +95,11 @@ export default function ActionsPage() {
 			{/* Header */}
 			<div className='flex flex-col sm:flex-row sm:items-center justify-between gap-4'>
 				<div>
-					<h1 className='text-2xl font-bold text-[#172033] tracking-tight flex items-center gap-2.5'>
-						<CheckSquare className='h-6 w-6 text-text-secondary' />
+					<h1 className='text-2xl font-bold text-[#0F172A] tracking-tight flex items-center gap-2.5'>
+						<CheckSquare className='h-6 w-6 text-[#2563EB]' />
 						<span>Actions & Obligations</span>
 					</h1>
-					<p className='text-sm text-[#677080] mt-0.5'>
+					<p className='text-sm text-slate-500 mt-0.5'>
 						Operational deadlines, approvals, and compliance requirements extracted from your documents.
 					</p>
 				</div>
@@ -108,7 +108,7 @@ export default function ActionsPage() {
 					<select
 						value={selectedTeam}
 						onChange={e => setSelectedTeam(e.target.value)}
-						className='px-3.5 py-2 text-xs font-semibold bg-white border border-[#E1E4DF] rounded-lg text-[#172033] focus:outline-none focus:border-[#4656D9] shadow-2xs'>
+						className='px-3.5 py-2 text-xs font-semibold bg-white border border-slate-200 rounded-lg text-[#0F172A] focus:outline-none focus:border-[#2563EB] shadow-xs'>
 						<option value='All'>All Departments</option>
 						{teams.map(t => (
 							<option key={t} value={t}>
@@ -120,7 +120,7 @@ export default function ActionsPage() {
 			</div>
 
 			{/* Filter Tabs */}
-			<div className='flex border-b border-[#E1E4DF] gap-6 text-xs font-semibold'>
+			<div className='flex border-b border-slate-200 gap-6 text-xs font-semibold'>
 				{[
 					{ id: 'all', label: 'All Obligations', count: actions.length },
 					{ id: 'due_soon', label: 'Due Soon', count: countDueSoon },
@@ -132,15 +132,15 @@ export default function ActionsPage() {
 						onClick={() => setActiveFilter(tab.id as ActionFilter)}
 						className={`pb-3 flex items-center gap-2 transition-colors cursor-pointer ${
 							activeFilter === tab.id
-								? 'border-b-2 border-[#4656D9] text-[#4656D9] font-bold'
-								: 'text-[#677080] hover:text-[#172033]'
+								? 'border-b-2 border-[#2563EB] text-[#2563EB] font-bold'
+								: 'text-slate-500 hover:text-[#0F172A]'
 						}`}>
 						<span>{tab.label}</span>
 						<span
-							className={`px-2 py-0.5 rounded-full text-xs ${
+							className={`px-2 py-0.5 rounded-full text-xs font-mono ${
 								activeFilter === tab.id
-									? 'bg-[#4656D9]/10 text-[#4656D9]'
-									: 'bg-[#F1F3F1] text-[#677080]'
+									? 'bg-blue-50 text-[#2563EB] border border-blue-200'
+									: 'bg-slate-100 text-slate-600'
 							}`}>
 							{tab.count}
 						</span>
@@ -154,7 +154,7 @@ export default function ActionsPage() {
 					{[1, 2, 3, 4].map(i => (
 						<div
 							key={i}
-							className='h-24 bg-white rounded-xl border border-[#E1E4DF] animate-pulse'
+							className='h-24 bg-white rounded-xl border border-slate-200 animate-pulse'
 						/>
 					))}
 				</div>
@@ -170,15 +170,15 @@ export default function ActionsPage() {
 
 			{/* Actions Feed */}
 			{!loading && filteredActions.length > 0 && (
-				<div className='bg-white rounded-xl border border-border-default overflow-hidden'>
-					<div className='divide-y divide-[#E1E4DF]'>
+				<div className='card-bezel'>
+					<div className='card-bezel-inner overflow-hidden divide-y divide-slate-100'>
 						{filteredActions.map(act => {
 							const currentStatus = statusMap[act.id] || 'pending';
 							return (
 								<div
 									key={act.id}
-									className={`p-5 hover:bg-[#F6F7F4]/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
-										currentStatus === 'completed' ? 'bg-[#F6F7F4]/30 opacity-75' : ''
+									className={`p-5 hover:bg-slate-50/70 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+										currentStatus === 'completed' ? 'bg-slate-50/40 opacity-75' : ''
 									}`}>
 									{/* Left: Action description and source */}
 									<div className='space-y-2 flex-1 min-w-0'>
@@ -192,8 +192,8 @@ export default function ActionsPage() {
 												}
 												className={`mt-0.5 h-5 w-5 rounded-md flex items-center justify-center transition-colors border ${
 													currentStatus === 'completed'
-														? 'bg-[#39825E] border-[#39825E] text-white'
-														: 'border-[#E1E4DF] bg-white text-transparent hover:border-[#4656D9]'
+														? 'bg-[#059669] border-[#059669] text-white'
+														: 'border-slate-300 bg-white text-transparent hover:border-[#2563EB]'
 												}`}
 												title='Toggle Completed'>
 												<Check className='h-3.5 w-3.5 stroke-[3]' />
@@ -202,18 +202,18 @@ export default function ActionsPage() {
 											<p
 												className={`text-sm font-semibold leading-snug ${
 													currentStatus === 'completed'
-														? 'line-through text-[#677080]'
-														: 'text-[#172033]'
+														? 'line-through text-slate-500'
+														: 'text-[#0F172A]'
 												}`}>
 												{act.action}
 											</p>
 										</div>
 
-										<div className='flex flex-wrap items-center gap-3 text-xs text-[#677080] pl-8'>
+										<div className='flex flex-wrap items-center gap-3 text-xs text-slate-500 pl-8'>
 											<Link
 												href={`/documents/${act.documentId}`}
-												className='font-semibold text-[#4656D9] hover:underline flex items-center gap-1'>
-												<FileText className='h-3.5 w-3.5 text-[#9098A5]' />
+												className='font-semibold text-[#2563EB] hover:underline flex items-center gap-1'>
+												<FileText className='h-3.5 w-3.5 text-slate-400' />
 												<span className='truncate max-w-[280px]'>{act.documentTitle}</span>
 												<ArrowUpRight className='h-3 w-3' />
 											</Link>
@@ -221,12 +221,12 @@ export default function ActionsPage() {
 											{act.sectionTitle && (
 												<>
 													<span>•</span>
-													<span className='text-[#9098A5]'>{act.sectionTitle}</span>
+													<span className='text-slate-400'>{act.sectionTitle}</span>
 												</>
 											)}
 
 											<span>•</span>
-											<span className='px-2 py-0.5 rounded bg-[#F1F3F1] font-semibold text-[#172033]'>
+											<span className='px-2 py-0.5 rounded bg-slate-100 font-semibold text-[#0F172A] text-[11px]'>
 												{act.team}
 											</span>
 										</div>
@@ -242,10 +242,10 @@ export default function ActionsPage() {
 											}
 											className={`text-xs font-semibold px-2.5 py-1 rounded-lg border focus:outline-none ${
 												currentStatus === 'completed'
-													? 'bg-[#39825E]/10 border-[#39825E]/30 text-[#39825E]'
+													? 'bg-emerald-50 border-emerald-200 text-emerald-700'
 													: currentStatus === 'in_progress'
-													? 'bg-[#4656D9]/10 border-[#4656D9]/30 text-[#4656D9]'
-													: 'bg-white border-[#E1E4DF] text-[#677080]'
+													? 'bg-blue-50 border-blue-200 text-[#2563EB]'
+													: 'bg-white border-slate-200 text-slate-600'
 											}`}>
 											<option value='pending'>Pending</option>
 											<option value='in_progress'>In Progress</option>
@@ -259,7 +259,7 @@ export default function ActionsPage() {
 												<span>Due {act.dueDate}</span>
 											</div>
 										) : (
-											<span className='text-xs text-[#9098A5] italic whitespace-nowrap'>
+											<span className='text-xs text-slate-400 italic whitespace-nowrap'>
 												No date
 											</span>
 										)}
@@ -267,10 +267,10 @@ export default function ActionsPage() {
 										{/* Copy Citation */}
 										<button
 											onClick={() => handleCopyCitation(act)}
-											className='p-1.5 text-[#9098A5] hover:text-[#172033] hover:bg-[#F6F7F4] rounded-md transition-colors'
+											className='p-1.5 text-slate-400 hover:text-[#0F172A] hover:bg-slate-100 rounded-md transition-colors'
 											title='Copy citation'>
 											{copiedId === act.id ? (
-												<Check className='h-4 w-4 text-[#39825E]' />
+												<Check className='h-4 w-4 text-[#059669]' />
 											) : (
 												<Copy className='h-4 w-4' />
 											)}

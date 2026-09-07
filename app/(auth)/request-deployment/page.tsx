@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -142,21 +142,22 @@ export default function RequestDeploymentPage() {
   };
 
   return (
-    <div className="light-scope min-h-[calc(100vh-4rem)] bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 text-gray-900 font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] py-12 px-4 sm:px-6 lg:px-8 text-[#0F172A] font-sans">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white shadow-2xl rounded-3xl p-10 md:p-14 space-y-10">
-          <div className="text-center space-y-4">
-            <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-1 text-sm font-medium text-blue-700">
-              <ShieldCheck className="h-4 w-4" />
-              On-premise ready deployment
-            </span>
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
-              Request Your Private Document Intelligence Dashboard
-            </h1>
-            <p className="text-base md:text-lg text-gray-600 max-w-2xl mx-auto">
-              Tell us about your environment and priorities. Our team will follow up with a tailored installation plan so your organization can run KMRL independently on your infrastructure.
-            </p>
-          </div>
+        <div className="card-bezel">
+          <div className="card-bezel-inner bg-white p-8 md:p-12 space-y-8">
+            <div className="text-center space-y-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-200/80 px-4 py-1 text-xs font-medium text-blue-700">
+                <ShieldCheck className="h-4 w-4" />
+                Enterprise sovereign deployment
+              </span>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-[#0F172A] tracking-tight">
+                Request Your Private Document Intelligence Dashboard
+              </h1>
+              <p className="text-sm md:text-base text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                Tell us about your environment and priorities. Our team will follow up with a tailored installation plan so your organization can run DocSetu independently on your infrastructure.
+              </p>
+            </div>
 
           {isSuccess && (
             <div className="rounded-2xl border border-green-200 bg-green-50 p-6 text-green-800">
@@ -421,7 +422,7 @@ export default function RequestDeploymentPage() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="inline-flex items-center justify-center rounded-full bg-blue-600 px-8 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex items-center justify-center rounded-xl bg-[#0F172A] px-8 py-3 text-sm font-semibold text-white shadow-xs transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB] disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {isSubmitting ? (
                   <>
@@ -434,6 +435,7 @@ export default function RequestDeploymentPage() {
               </button>
             </div>
           </form>
+          </div>
         </div>
 
         <div className="mt-8 text-center text-sm text-gray-500">

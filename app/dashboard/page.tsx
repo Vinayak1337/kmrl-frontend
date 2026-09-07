@@ -242,7 +242,7 @@ export default function DashboardPage() {
 													Uploaded{' '}
 													{doc.createdAt
 														? new Date(doc.createdAt).toLocaleString()
-														: '—'}
+														: '-'}
 												</span>
 												{doc.tags && doc.tags.length > 0 && (
 													<div className='flex flex-wrap gap-1'>
