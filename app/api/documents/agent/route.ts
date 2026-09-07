@@ -48,8 +48,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Provide pages[] or html' }, { status: 400 });
     }
 
-    const geminiKey = process.env.GEMINI_API_KEY;
-    const result = await analyzeDocumentWithGemini({ pages, apiKey: String(geminiKey) });
+    const result = await analyzeDocumentWithGemini({ pages });
 
     // Link nodes sequentially
     const nodes = result.nodes.map((n, i) => ({

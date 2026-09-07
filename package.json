@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint . --ext .js,.ts,.tsx",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "seed:admin": "tsx scripts/seed-admin.ts",

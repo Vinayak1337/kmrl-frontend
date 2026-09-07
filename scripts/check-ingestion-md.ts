@@ -20,7 +20,7 @@
  to verify presence of Markdown fields, classification, node linking, and title lookup.
 */
 
-/* eslint-disable no-console */
+ 
 import fs from 'node:fs';
 import path from 'node:path';
 

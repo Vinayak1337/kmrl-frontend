@@ -61,16 +61,30 @@ export interface DocumentAction {
 	team: string;
 	dueDate?: string;
 	isUrgent?: boolean;
-	type: 'action' | 'information';
+	type?: 'action' | 'information';
 	sectionId?: string;
 	sectionTitle?: string;
+	// Legacy / back-compat aliases used in mock data and UI
+	owner?: string;
+	docTitle?: string;
+	docId?: string;
+	status?: string;
+	sourceSection?: string;
 }
 
-export interface RiskItem {
-	level: 'critical' | 'warning' | 'info';
+/** Document node as stored in mock data and returned by the nodes API */
+export interface DocumentNode {
+	id: string;
+	docId: string;
+	order: number;
 	title: string;
-	description?: string;
-	affectedTeams?: string[];
+	pageRange: { start: number; end: number };
+	content: string;
+	summary: string;
+	keyPoints: string[];
+	actionableItems: string[];
+	isUrgent: boolean;
+	dueDate?: Date | string;
 }
 
 export interface DocSetuDocument {
@@ -95,7 +109,24 @@ export interface DocSetuDocument {
 	rawUrl?: string;
 	rawFormat?: string;
 	tags: string[];
+	// Extended / legacy fields used by UI and services
+	documentType?: string;
+	totalPages?: number;
+	nodesCount?: number;
+	department?: string;
+	filename?: string;
+	createdAt?: Date;
+	updatedAt?: Date;
 }
+
+export interface RiskItem {
+	level: 'critical' | 'warning' | 'info';
+	title: string;
+	description?: string;
+	affectedTeams?: string[];
+}
+
+
 
 export interface Citation {
 	index: number;

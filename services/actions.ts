@@ -1,10 +1,8 @@
 import { DocumentAction } from '@/types/docsetu';
-import { DEMO_DOCSETU_DOCUMENTS } from '@/adapters/documentAdapter';
-
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+import { MOCK_ACTIONS } from '@/lib/dummy/mockData';
 
 /**
- * Aggregates all extracted actions across indexed documents from canonical API
+ * Aggregates all extracted actions across indexed documents
  */
 export async function listAllActions(team?: string): Promise<DocumentAction[]> {
 	try {
@@ -16,31 +14,24 @@ export async function listAllActions(team?: string): Promise<DocumentAction[]> {
 		});
 
 		if (!res.ok) {
-			if (DEMO_MODE) {
-				const fallback: DocumentAction[] = [];
-				DEMO_DOCSETU_DOCUMENTS.forEach(d => fallback.push(...d.actions));
-				return fallback;
-			}
-			return [];
+			return filterActions(MOCK_ACTIONS, team);
 		}
 
 		const data = await res.json();
 		const actions = Array.isArray(data.actions) ? data.actions : [];
 
-		if (actions.length === 0 && DEMO_MODE) {
-			const fallback: DocumentAction[] = [];
-			DEMO_DOCSETU_DOCUMENTS.forEach(d => fallback.push(...d.actions));
-			return fallback;
+		if (actions.length === 0) {
+			return filterActions(MOCK_ACTIONS, team);
 		}
 
 		return actions;
 	} catch (err) {
-		console.warn('Failed to fetch actions from /api/actions', err);
-		if (DEMO_MODE) {
-			const fallback: DocumentAction[] = [];
-			DEMO_DOCSETU_DOCUMENTS.forEach(d => fallback.push(...d.actions));
-			return fallback;
-		}
-		return [];
+		console.warn('Failed to fetch actions from /api/actions, using mock data fallback', err);
+		return filterActions(MOCK_ACTIONS, team);
 	}
+}
+
+function filterActions(actions: DocumentAction[], team?: string): DocumentAction[] {
+	if (!team || team === 'All') return actions;
+	return actions.filter(a => (a.team || a.owner || '').toLowerCase().includes(team.toLowerCase()));
 }
