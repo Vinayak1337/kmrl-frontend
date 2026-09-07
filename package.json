@@ -17,7 +17,8 @@
     "prebuild": "prisma generate || echo \"prisma not available, skipping\"",
     "upload:pdf": "node scripts/upload-pdf-to-cloudinary.js",
     "typecheck": "tsc --noEmit",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "test:provider": "tsx scripts/test-muse-spark.ts"
   },
   "dependencies": {
     "@ckeditor/ckeditor5-react": "^11.0.0",
