@@ -4,6 +4,7 @@ import { listDocuments, getDocument, getDocumentSections } from './documents';
 import { listAllActions } from './actions';
 import { listPeople } from './people';
 import { listAuditEntries } from './audit';
+import { isDocumentAccessible, buildDocumentAccessFilter, type JwtUser } from '@/lib/auth';
 
 const originalFetch = globalThis.fetch;
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
@@ -50,4 +51,13 @@ test('collection filters reach the server and retain metadata and totals', async
   assert.equal(result.documents[0].language, 'Hindi');
   assert.equal(result.documents[0].pageCount, 12);
   assert.equal(result.total, 80);
+});
+
+test('manager access requires the full department and type grant', () => {
+  const manager: JwtUser = { sub: 'fixture', email: 'fixture@example.test', name: 'Fixture', role: 'MANAGER', grants: [{ dept: 'IT', type: 'REPORT', actions: ['read'] }] };
+  assert.equal(isDocumentAccessible(manager, { department: 'IT', documentType: 'report' }), true);
+  assert.equal(isDocumentAccessible(manager, { department: 'AUDIT', documentType: 'report' }), false);
+  assert.equal(isDocumentAccessible(manager, { department: 'IT', documentType: 'incident_report' }), false);
+  assert.equal(isDocumentAccessible(manager, { department: 'IT' }), false);
+  assert.deepEqual(buildDocumentAccessFilter({ ...manager, grants: [] }, 'nodes'), { _id: '__NO_ACCESS__' });
 });
