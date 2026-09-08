@@ -122,7 +122,7 @@ test('failed sign-out leaves the account available to retry', async ({ page }) =
   await page.goto('/home');
   await page.getByLabel('Account menu', { exact: true }).click();
   await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-  await expect(page.getByRole('alert')).toContainText('Could not sign out');
+  await expect(page.getByRole('banner').getByRole('alert')).toContainText('Could not sign out');
   await expect(page).toHaveURL(/\/home$/);
   await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeEnabled();
 });
@@ -134,7 +134,7 @@ test('empty and failed collections never substitute sample documents', async ({ 
   await expect(page.locator('.collection-record')).toHaveCount(0);
   await page.route('**/api/documents/ingest*', route => route.fulfill({ status: 500, json: { error: 'Unavailable' } }));
   await page.reload();
-  await expect(page.getByRole('alert')).toContainText('Could not load documents');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Could not load documents');
   await expect(page.locator('.collection-record')).toHaveCount(0);
 });
 
