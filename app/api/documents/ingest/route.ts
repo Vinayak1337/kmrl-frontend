@@ -336,9 +336,12 @@ export async function GET(request: NextRequest) {
 		const documentId = searchParams.get('id');
 		const department = searchParams.get('department');
 		const documentType = searchParams.get('type');
-		const limit = parseInt(searchParams.get('limit') || '20');
-		const page = parseInt(searchParams.get('page') || '0');
-		const pageSize = parseInt(searchParams.get('pageSize') || '20');
+		const query = searchParams.get('q')?.trim();
+		const language = searchParams.get('language');
+		const pageValue = Number(searchParams.get('page') || '0');
+		const sizeValue = Number(searchParams.get('pageSize') || searchParams.get('limit') || '20');
+		const page = Number.isSafeInteger(pageValue) && pageValue >= 0 ? pageValue : 0;
+		const pageSize = Number.isSafeInteger(sizeValue) && sizeValue > 0 ? Math.min(sizeValue, 100) : 20;
 
 		const docsCollection = await getCollection<DocumentRecord>();
 
@@ -375,9 +378,18 @@ export async function GET(request: NextRequest) {
 		const filter: Record<string, any> = { ...accessFilter };
 		if (department && department !== 'All') filter['metadata.department'] = department;
 		if (documentType && documentType !== 'All') filter['metadata.documentType'] = documentType.toLowerCase();
+		if (query) {
+			const literal = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			// Keep search separate from the access filter's $or so RBAC is preserved.
+			filter.$and = [{ $or: ['title', 'fullSummary', 'searchableText', 'metadata.tags', 'metadata.department'].map(field => ({ [field]: { $regex: literal, $options: 'i' } })) }];
+		}
+		if (language && language !== 'All') {
+			const codes: Record<string, string> = { English: 'en', Hindi: 'hi', Malayalam: 'ml', Tamil: 'ta' };
+			filter.language = { $in: [language, codes[language] || language] };
+		}
 
 		const totalCount = await docsCollection.countDocuments(filter);
-		const effectivePageSize = pageSize > 0 ? pageSize : limit;
+		const effectivePageSize = pageSize;
 		const skip = Math.max(0, page) * Math.max(1, effectivePageSize);
 
 		const documents = await docsCollection
@@ -391,6 +403,8 @@ export async function GET(request: NextRequest) {
 			id: doc.id,
 			title: doc.title || 'Untitled',
 			summary: doc.fullSummary || '',
+			language: doc.language,
+			totalPages: doc.totalPages,
 			nodeCount: doc.nodeCount || (Array.isArray(doc.nodes) ? doc.nodes.length : 0),
 			createdAt: doc.metadata?.createdAt || null,
 			department: doc.metadata?.department || null,

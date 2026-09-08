@@ -18,6 +18,7 @@
     "upload:pdf": "node scripts/upload-pdf-to-cloudinary.js",
     "typecheck": "tsc --noEmit",
     "test:ui": "playwright test",
+    "test:services": "node --import tsx --test services/*.test.ts",
     "test:provider": "tsx scripts/test-muse-spark.ts"
   },
   "dependencies": {

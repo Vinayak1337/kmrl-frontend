@@ -1,5 +1,5 @@
 import { Person } from '@/types/docsetu';
-import { mapBackendUserToPerson, DEMO_PEOPLE } from '@/adapters/userAdapter';
+import { mapBackendUserToPerson } from '@/adapters/userAdapter';
 import { mapTeamToDepartment } from '@/adapters/documentAdapter';
 
 export interface CreatePersonPayload {
@@ -11,23 +11,11 @@ export interface CreatePersonPayload {
 }
 
 export async function listPeople(): Promise<Person[]> {
-	try {
-		const res = await fetch('/api/users', {
-			credentials: 'include'
-		});
-
-		if (!res.ok) {
-			return DEMO_PEOPLE;
-		}
-
-		const data = await res.json();
-		const rawUsers = Array.isArray(data.users) ? data.users : [];
-		if (rawUsers.length === 0) return DEMO_PEOPLE;
-
-		return rawUsers.map(mapBackendUserToPerson);
-	} catch {
-		return DEMO_PEOPLE;
-	}
+  const res = await fetch('/api/users', { credentials: 'include' });
+  if (!res.ok) throw new Error('Could not load people');
+  const data = await res.json();
+  if (!Array.isArray(data.users)) throw new Error('Invalid people response');
+  return data.users.map(mapBackendUserToPerson);
 }
 
 export async function createPerson(payload: CreatePersonPayload): Promise<{ id: string }> {

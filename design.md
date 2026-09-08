@@ -177,7 +177,7 @@ Product copy is concise, factual, and written for the person doing the work. Pre
 
 Every addition needs loading, empty, error/retry, disabled/pending, and success states where applicable. Empty and failed are different states. Persisted data must determine success. Await clipboard/network operations before reporting success. Display truthful dates with locale-aware formatting. Confirm irreversible removal and protect unsaved form work.
 
-Preserve current limits explicitly: action status is browser-local, the access matrix is a read-only reference, and existing services can return labeled sample data. Never present those samples as live customer activity. Do not claim server persistence, notifications, permissions, or metrics that the underlying contract does not provide.
+Preserve current limits explicitly: action status is browser-local, the access matrix is a read-only reference, and the dedicated demo contains sample data. Authenticated services preserve empty responses and surface failures; they must not substitute sample records. Do not claim server persistence, notifications, permissions, or metrics that the underlying contract does not provide.
 
 ## 10. AI workflow contract for future features
 

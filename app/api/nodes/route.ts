@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { AUTH_COOKIE, verifySession } from '@/lib/auth';
+import { AUTH_COOKIE, verifySession, buildDocumentAccessFilter } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
 import type { DocumentNodeRecord } from '@/types/documents';
 
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 			process.env.MONGODB_NODES_COLLECTION || 'document_nodes'
 		);
 		const nodes = await coll
-			.find(filter)
+			.find({ $and: [buildDocumentAccessFilter(session, 'nodes'), filter] })
 			.sort({ order: 1 })
 			.limit(Math.max(1, limit))
 			.toArray();

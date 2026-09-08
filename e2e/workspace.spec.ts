@@ -10,7 +10,10 @@ async function fixtureApis(page: Page) {
     const url = new URL(route.request().url());
     let response: unknown = {};
     if (url.pathname === '/api/auth/session') response = { user };
-    else if (url.pathname === '/api/documents/ingest') response = url.searchParams.has('id') ? document : { documents: [document], totalCount: 1 };
+    else if (url.pathname === '/api/documents/ingest') {
+      const matches = !url.searchParams.get('q') || document.title.toLowerCase().includes(url.searchParams.get('q')!.toLowerCase());
+      response = url.searchParams.has('id') ? document : { documents: matches ? [document] : [], totalCount: matches ? 1 : 0 };
+    }
     else if (url.pathname.endsWith('/nodes')) response = { nodes: [node], total: 1 };
     else if (url.pathname === '/api/chat') response = { messages: [], citations: [] };
     else if (url.pathname === '/api/actions') response = { actions: [{ id:'action-review', documentId, documentTitle:document.title, action:'Resolve review comments.', team:'Operations', dueDate:'20 October 2026' }] };
@@ -112,6 +115,27 @@ test('action progress persists after reload',async({page})=>{
   await expect(page.getByRole('checkbox')).toBeChecked();
   await page.getByRole('button',{name:/Completed/}).click();
   await expect(page.getByRole('heading',{name:'Resolve review comments.'})).toBeVisible();
+});
+
+test('failed sign-out leaves the account available to retry', async ({ page }) => {
+  await page.route('**/api/auth/logout', route => route.fulfill({ status: 500, json: { error: 'Unavailable' } }));
+  await page.goto('/home');
+  await page.getByLabel('Account menu', { exact: true }).click();
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+  await expect(page.getByRole('banner').getByRole('alert')).toContainText('Could not sign out');
+  await expect(page).toHaveURL(/\/home$/);
+  await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeEnabled();
+});
+
+test('empty and failed collections never substitute sample documents', async ({ page }) => {
+  await page.route('**/api/documents/ingest*', route => route.fulfill({ json: { documents: [], totalCount: 0 } }));
+  await page.goto('/documents');
+  await expect(page.getByRole('heading', { name: 'No documents to show' })).toBeVisible();
+  await expect(page.locator('.collection-record')).toHaveCount(0);
+  await page.route('**/api/documents/ingest*', route => route.fulfill({ status: 500, json: { error: 'Unavailable' } }));
+  await page.reload();
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Could not load documents');
+  await expect(page.locator('.collection-record')).toHaveCount(0);
 });
 
 test('mobile pages keep content within the viewport',async({page})=>{

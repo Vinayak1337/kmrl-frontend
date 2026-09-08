@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { AUTH_COOKIE, verifySession } from '@/lib/auth';
+import { AUTH_COOKIE, verifySession, buildDocumentAccessFilter } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
 import type { DocumentNodeRecord } from '@/types/documents';
 
@@ -16,13 +16,14 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ uid: string
 
   try {
     const coll = await getCollection<DocumentNodeRecord>(process.env.MONGODB_NODES_COLLECTION || 'document_nodes');
-    const node = await coll.findOne({ uid });
+    const access = buildDocumentAccessFilter(session, 'nodes');
+    const node = await coll.findOne({ $and: [access, { uid }] });
     if (!node) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!neighbors) return NextResponse.json({ node });
 
     const [prev, next] = await Promise.all([
-      node.prevNodeId ? coll.findOne({ docId: node.docId, nodeId: node.prevNodeId }) : Promise.resolve(null),
-      node.nextNodeId ? coll.findOne({ docId: node.docId, nodeId: node.nextNodeId }) : Promise.resolve(null),
+      node.prevNodeId ? coll.findOne({ $and: [access, { docId: node.docId, nodeId: node.prevNodeId }] }) : Promise.resolve(null),
+      node.nextNodeId ? coll.findOne({ $and: [access, { docId: node.docId, nodeId: node.nextNodeId }] }) : Promise.resolve(null),
     ]);
     return NextResponse.json({ node, prev, next });
   } catch (e) {
@@ -30,4 +31,3 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ uid: string
     return NextResponse.json({ error: 'Failed to fetch node' }, { status: 500 });
   }
 }
-
