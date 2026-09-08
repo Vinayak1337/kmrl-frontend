@@ -1,9 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/UI/card';
-import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/UI/select';
-import { Button } from '@/components/UI/button';
+import Link from 'next/link';
 
 type DemoPage = { page: number; html?: string; image?: string; content?: Record<string, string> };
 type DemoPreview = { title?: string; language?: string; languages?: string[]; pages: DemoPage[] };
@@ -59,96 +57,17 @@ export default function DemoPage(): React.ReactElement {
     return { ...pg, html } as DemoPage & { html: string };
   }, [data, activePage, language]);
 
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
-      <Card className="sticky top-0 z-10 -mx-4 px-0 mb-6">
-        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <CardTitle>Demo Preview{data?.title ? ` — ${data.title}` : ''}</CardTitle>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Language</span>
-              <Select value={language} onValueChange={setLanguage} placeholder="Language">
-                <SelectTrigger />
-                <SelectContent>
-                  {languages.map((lng) => (
-                    <SelectItem key={lng} value={lng}>{lng.toUpperCase()}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant={viewMode === 'all' ? 'default' : 'outline'} onClick={() => setViewMode('all')}>All slides</Button>
-              <Button variant={viewMode === 'single' ? 'default' : 'outline'} onClick={() => setViewMode('single')}>Single slide</Button>
-            </div>
-            {viewMode === 'single' && data?.pages?.length ? (
-              <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={() => setActivePage((p) => Math.max(1, p - 1))}>Prev</Button>
-                <Select value={String(activePage)} onValueChange={(v) => setActivePage(Number(v))} placeholder="Slide">
-                  <SelectTrigger />
-                  <SelectContent>
-                    {data.pages.map((p) => (
-                      <SelectItem key={p.page} value={String(p.page)}>Slide {p.page}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" onClick={() => setActivePage((p) => (data.pages ? Math.min(data.pages[data.pages.length - 1]?.page || p, p + 1) : p))}>Next</Button>
-              </div>
-            ) : null}
-          </div>
-        </CardHeader>
-      </Card>
-
-      {loading && (
-        <div className="space-y-4">
-          {[1,2,3].map((i) => (
-            <div key={i} className="animate-pulse">
-              <div className="h-6 w-40 bg-gray-200 rounded mb-3" />
-              <div className="h-40 bg-gray-100 rounded" />
-            </div>
-          ))}
-        </div>
-      )}
-      {error && (
-        <div className="text-red-600">{error}</div>
-      )}
-      {!loading && !error && data && (
-        <div className="space-y-8">
-          {viewMode === 'single' && current ? (
-            <Card key={current.page}>
-              <CardHeader className="bg-gray-50">
-                <CardTitle>Slide {current.page} of {data.pages.length}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {current.image && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={current.image} alt={`Slide ${current.page}`} className="mb-4 rounded border w-full max-h-96 object-contain bg-white" />
-                )}
-                <div className="doc-content" dangerouslySetInnerHTML={{ __html: current.html }} />
-              </CardContent>
-            </Card>
-          ) : (
-            data.pages.map((p) => {
-              const html = p.html || (p.content ? (p.content[language] || Object.values(p.content)[0] || '') : '');
-              return (
-                <Card key={p.page}>
-                  <CardHeader className="bg-gray-50">
-                    <CardTitle>Slide {p.page}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {p.image && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.image} alt={`Slide ${p.page}`} className="mb-4 rounded border w-full max-h-96 object-contain bg-white" />
-                    )}
-                    <div className="doc-content" dangerouslySetInnerHTML={{ __html: html }} />
-                  </CardContent>
-                </Card>
-              );
-            })
-          )}
-        </div>
-      )}
-
-      <div className="mt-8 text-sm text-gray-500">Demo uses a fixed dataset and ignores query parameters.</div>
+  const shownPages = viewMode === 'single' && current ? [current] : data?.pages || [];
+  return <main id="main-content" className="demo-page">
+    <Link href="/home" className="text-link">← Back to workspace</Link>
+    <header className="page-heading"><div><p className="eyebrow">Sample document</p><h1>{data?.title || 'Document preview'}</h1><p>Explore the reading and language views with a sample document.</p></div></header>
+    <div className="collection-toolbar">
+      <label className="filter-field">Language<select value={language} onChange={e => setLanguage(e.target.value)}>{languages.map(lng => <option key={lng} value={lng}>{({en:'English',hi:'Hindi',ml:'Malayalam',ta:'Tamil'} as Record<string,string>)[lng] || lng}</option>)}</select></label>
+      <div className="demo-controls"><button className="button" aria-pressed={viewMode === 'all'} onClick={() => setViewMode('all')}>All slides</button><button className="button" aria-pressed={viewMode === 'single'} onClick={() => setViewMode('single')}>Single slide</button></div>
+      {viewMode === 'single' && data && <div className="demo-controls"><button className="button" disabled={activePage === data.pages[0]?.page} onClick={() => setActivePage(data.pages[Math.max(0,data.pages.findIndex(p=>p.page===activePage)-1)].page)}>Previous</button><label className="sr-only" htmlFor="demo-page">Slide</label><select id="demo-page" value={activePage} onChange={e=>setActivePage(Number(e.target.value))}>{data.pages.map(p=><option key={p.page} value={p.page}>Slide {p.page}</option>)}</select><button className="button" disabled={activePage === data.pages.at(-1)?.page} onClick={() => setActivePage(data.pages[Math.min(data.pages.length-1,data.pages.findIndex(p=>p.page===activePage)+1)].page)}>Next</button></div>}
     </div>
-  );
+    {loading && <p role="status">Loading sample document…</p>}
+    {error && <p className="notice error" role="alert">The sample document could not be loaded. Please refresh to try again.</p>}
+    {!loading && !error && shownPages.map(p => <section className="demo-slide" key={p.page}><h2>Slide {p.page}</h2>{p.image && <img width={1200} height={675} loading="lazy" src={p.image} alt={`Slide ${p.page}`} className="demo-slide-image" />}{/* eslint-disable-line @next/next/no-img-element */}<div className="doc-content" dangerouslySetInnerHTML={{__html:p.html || p.content?.[language] || Object.values(p.content || {})[0] || ''}} /></section>)}
+  </main>;
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { DocSetuLogo } from '@/components/brand/DocSetuBrand';
 
 export default function LoginPage() {
@@ -89,119 +89,19 @@ export default function LoginPage() {
 		}
 	};
 
-	return (
-		<div className='min-h-screen bg-[#F6F7F4] flex flex-col justify-center py-12 sm:px-6 lg:px-8'>
-			<div className='sm:mx-auto sm:w-full sm:max-w-md text-center space-y-3'>
-				<div className='flex justify-center'>
-					<DocSetuLogo size='lg' />
-				</div>
-				<h2 className='text-xl font-bold text-[#172033] tracking-tight'>
-					Sign in to your organization workspace
-				</h2>
-				<p className='text-xs text-[#677080]'>
-					Document intelligence, cross-team discovery, and action tracking.
-				</p>
-			</div>
-
-			<div className='mt-6 sm:mx-auto sm:w-full sm:max-w-md px-4'>
-				<div className='bg-white py-8 px-6 shadow-xl rounded-2xl border border-[#E1E4DF] sm:px-8 space-y-6'>
-					{errors.general && (
-						<div className='rounded-lg bg-red-50 border border-red-200 p-3 text-xs text-red-800'>
-							{errors.general}
-						</div>
-					)}
-
-					<form className='space-y-4 text-xs' onSubmit={handleSubmit}>
-						<div>
-							<label
-								htmlFor='email'
-								className='block font-semibold text-[#172033] mb-1'>
-								Work Email
-							</label>
-							<div className='relative'>
-								<div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#9098A5]'>
-									<Mail className='h-4 w-4' />
-								</div>
-								<input
-									id='email'
-									name='email'
-									type='email'
-									autoComplete='email'
-									required
-									value={formData.email}
-									onChange={handleChange}
-									placeholder='name@organization.com'
-									className={`w-full pl-9 pr-3 py-2.5 bg-[#F6F7F4] border ${
-										errors.email ? 'border-red-400' : 'border-[#E1E4DF]'
-									} rounded-lg text-sm text-[#172033] placeholder-[#9098A5] focus:outline-none focus:border-[#4656D9] focus:bg-white transition-all`}
-								/>
-							</div>
-							{errors.email && (
-								<p className='mt-1 text-[11px] text-red-600'>{errors.email}</p>
-							)}
-						</div>
-
-						<div>
-							<label
-								htmlFor='password'
-								className='block font-semibold text-[#172033] mb-1'>
-								Password
-							</label>
-							<div className='relative'>
-								<div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#9098A5]'>
-									<Lock className='h-4 w-4' />
-								</div>
-								<input
-									id='password'
-									name='password'
-									type={showPassword ? 'text' : 'password'}
-									autoComplete='current-password'
-									required
-									value={formData.password}
-									onChange={handleChange}
-									placeholder='••••••••'
-									className={`w-full pl-9 pr-10 py-2.5 bg-[#F6F7F4] border ${
-										errors.password ? 'border-red-400' : 'border-[#E1E4DF]'
-									} rounded-lg text-sm text-[#172033] placeholder-[#9098A5] focus:outline-none focus:border-[#4656D9] focus:bg-white transition-all`}
-								/>
-								<button
-									type='button'
-									className='absolute inset-y-0 right-0 pr-3 flex items-center text-[#9098A5] hover:text-[#172033]'
-									onClick={() => setShowPassword(!showPassword)}>
-									{showPassword ? (
-										<EyeOff className='h-4 w-4' />
-									) : (
-										<Eye className='h-4 w-4' />
-									)}
-								</button>
-							</div>
-							{errors.password && (
-								<p className='mt-1 text-[11px] text-red-600'>{errors.password}</p>
-							)}
-						</div>
-
-						<div className='pt-2'>
-							<button
-								type='submit'
-								disabled={isLoading}
-								className='w-full py-2.5 px-4 rounded-lg bg-[#4656D9] text-white text-xs font-semibold hover:bg-[#3B4BBF] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#4656D9] disabled:opacity-50 transition-all shadow-xs flex items-center justify-center gap-2'>
-								{isLoading ? (
-									<Loader2 className='h-4 w-4 animate-spin' />
-								) : null}
-								<span>{isLoading ? 'Signing in…' : 'Sign in to DocSetu'}</span>
-							</button>
-						</div>
-					</form>
-
-					<div className='pt-2 border-t border-[#E1E4DF] text-center'>
-						<Link
-							href='/'
-							className='text-xs text-[#677080] hover:text-[#172033] transition-colors'>
-							&larr; Back to DocSetu overview
-						</Link>
-					</div>
-				</div>
-			</div>
-		</div>
-	);
+  return <main id="main-content" className="auth-page">
+    <section className="auth-intro"><Link href="/"><DocSetuLogo size="lg" /></Link><div><p className="eyebrow">The document workspace</p><h1>Back to <br />the work at hand.</h1><p>Find your documents, review the details, and keep the next step in sight.</p></div><Link href="/" className="text-link">← Back to DocSetu</Link></section>
+    <section className="auth-form"><div><p className="eyebrow">Workspace access</p><h2>Sign in</h2><p>Use your organization account to continue.</p></div>
+      <form onSubmit={handleSubmit} className="form-stack">
+        {errors.general && <p className="notice error" role="alert">{errors.general}</p>}
+        <label htmlFor="email">Work email<input id="email" name="email" type="email" autoComplete="email" spellCheck={false} required value={formData.email} onChange={handleChange} placeholder="name@organization.com" aria-invalid={!!errors.email} aria-describedby={errors.email ? 'email-error' : undefined} /></label>
+        {errors.email && <p id="email-error" className="field-error">{errors.email}</p>}
+        <label htmlFor="password">Password<span className="password-field"><input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required value={formData.password} onChange={handleChange} aria-invalid={!!errors.password} aria-describedby={errors.password ? 'password-error' : undefined} /><button type="button" className="icon-button" aria-label={showPassword ? 'Hide password' : 'Show password'} aria-pressed={showPassword} onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></span></label>
+        {errors.password && <p id="password-error" className="field-error">{errors.password}</p>}
+        <button type="submit" disabled={isLoading} className="button button-primary">{isLoading && <Loader2 size={16} className="animate-spin" />}{isLoading ? 'Signing in…' : 'Sign in to workspace'}</button>
+      </form>
+      <div className="demo-access"><h3>Take a look around</h3><p>Choose a demo account to fill the sign-in details.</p><div><button className="button" onClick={() => setFormData({ email: 'admin@example.com', password: 'admin123' })}>Demo administrator</button><button className="button" onClick={() => setFormData({ email: 'vin@gmail.com', password: 'admin123' })}>Demo manager</button></div></div>
+      <Link href="/request-deployment" className="text-link">Need workspace access? →</Link>
+    </section>
+  </main>;
 }

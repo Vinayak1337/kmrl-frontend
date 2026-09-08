@@ -3,9 +3,9 @@ import type { DocumentNodeRecord } from '@/types/documents';
 import {
 	mapBackendDocToDocSetu,
 	mapBackendNodeToSection,
-	mapTeamToDepartment,
-	DEMO_DOCSETU_DOCUMENTS
+	mapTeamToDepartment
 } from '@/adapters/documentAdapter';
+import { MOCK_DOCUMENTS, MOCK_NODES } from '@/lib/dummy/mockData';
 
 export interface DocumentListParams {
 	page?: number;
@@ -23,6 +23,7 @@ export interface DocumentListResponse {
 }
 
 export interface IngestDocumentPayload {
+	language?: string;
 	title: string;
 	team: string;
 	type: string;
@@ -32,8 +33,6 @@ export interface IngestDocumentPayload {
 	format?: 'pdf' | 'text' | 'image' | 'html' | 'doc';
 	text?: string;
 }
-
-const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 /**
  * Fetch list of documents with metadata, pagination, and team/type filters
@@ -60,30 +59,14 @@ export async function listDocuments(
 		});
 
 		if (!res.ok) {
-			if (DEMO_MODE) {
-				return {
-					documents: DEMO_DOCSETU_DOCUMENTS,
-					total: DEMO_DOCSETU_DOCUMENTS.length,
-					page: 0,
-					pageSize: 20
-				};
-			}
-			return { documents: [], total: 0, page: 0, pageSize: 20 };
+			return filterAndPaginateMockDocs(params);
 		}
 
 		const data = await res.json();
 		const rawDocs = Array.isArray(data.documents) ? data.documents : [];
 
-		if (rawDocs.length === 0 && (!team || team === 'All') && (!type || type === 'All')) {
-			if (DEMO_MODE) {
-				return {
-					documents: DEMO_DOCSETU_DOCUMENTS,
-					total: DEMO_DOCSETU_DOCUMENTS.length,
-					page: 0,
-					pageSize: 20
-				};
-			}
-			return { documents: [], total: 0, page: 0, pageSize: 20 };
+		if (rawDocs.length === 0) {
+			return filterAndPaginateMockDocs(params);
 		}
 
 		let documents: DocSetuDocument[] = rawDocs.map(mapBackendDocToDocSetu);
@@ -107,24 +90,48 @@ export async function listDocuments(
 			pageSize: data.pageSize || pageSize
 		};
 	} catch (err) {
-		console.warn('listDocuments network failure', err);
-		if (DEMO_MODE) {
-			return {
-				documents: DEMO_DOCSETU_DOCUMENTS,
-				total: DEMO_DOCSETU_DOCUMENTS.length,
-				page: 0,
-				pageSize: 20
-			};
-		}
-		return { documents: [], total: 0, page: 0, pageSize: 20 };
+		console.warn('listDocuments network failure, using fallback mock documents', err);
+		return filterAndPaginateMockDocs(params);
 	}
+}
+
+function filterAndPaginateMockDocs(params: DocumentListParams): DocumentListResponse {
+	const { page = 0, pageSize = 20, team, type, search } = params;
+	let docs = [...MOCK_DOCUMENTS];
+
+	if (team && team !== 'All') {
+		docs = docs.filter(d => d.team.toLowerCase() === team.toLowerCase() || d.department?.toLowerCase() === team.toLowerCase());
+	}
+	if (type && type !== 'All') {
+		docs = docs.filter(d => (d.documentType || d.type || '').toLowerCase() === type.toLowerCase());
+	}
+	if (search && search.trim()) {
+		const q = search.toLowerCase().trim();
+		docs = docs.filter(
+			d =>
+				d.title.toLowerCase().includes(q) ||
+				d.summary.toLowerCase().includes(q) ||
+				d.tags.some(t => t.toLowerCase().includes(q))
+		);
+	}
+
+	const total = docs.length;
+	const start = page * pageSize;
+	const paginated = docs.slice(start, start + pageSize);
+
+	return {
+		documents: paginated,
+		total,
+		page,
+		pageSize
+	};
 }
 
 /**
  * Fetch a single document by ID including its sections and extracted actions
  */
 export async function getDocument(id: string): Promise<DocSetuDocument> {
-	const demoDoc = DEMO_MODE ? DEMO_DOCSETU_DOCUMENTS.find(d => d.id === id) : undefined;
+	const mockDoc = MOCK_DOCUMENTS.find(d => d.id === id);
 
 	try {
 		const res = await fetch(`/api/documents/ingest?id=${encodeURIComponent(id)}`, {
@@ -132,14 +139,14 @@ export async function getDocument(id: string): Promise<DocSetuDocument> {
 		});
 
 		if (!res.ok) {
-			if (demoDoc) return demoDoc;
+			if (mockDoc) return mockDoc;
 			throw new Error('Document not found');
 		}
 
 		const data = await res.json();
 		return mapBackendDocToDocSetu(data);
 	} catch (err) {
-		if (demoDoc) return demoDoc;
+		if (mockDoc) return mockDoc;
 		throw err;
 	}
 }
@@ -152,7 +159,22 @@ export async function getDocumentSections(
 	page: number = 0,
 	limit: number = 20
 ): Promise<{ sections: DocumentSection[]; total: number }> {
-	const demoDoc = DEMO_MODE ? DEMO_DOCSETU_DOCUMENTS.find(d => d.id === id) : undefined;
+	const mockNodes = MOCK_NODES[id] || [];
+	const mockSections: DocumentSection[] = mockNodes.map((n, idx) => ({
+		id: n.id,
+		order: n.order || idx + 1,
+		title: n.title,
+		pageRange: { start: n.pageRange.start, end: n.pageRange.end },
+		content: n.content,
+		summary: n.summary,
+		keyPoints: n.keyPoints,
+		actions: n.actionableItems,
+		criticalFlags: [],
+		affectedTeams: [],
+		sourceContent: n.content,
+		isUrgent: n.isUrgent,
+		dueDate: n.dueDate ? (typeof n.dueDate === 'string' ? n.dueDate : n.dueDate.toISOString()) : undefined
+	}));
 
 	try {
 		const res = await fetch(
@@ -161,14 +183,18 @@ export async function getDocumentSections(
 		);
 
 		if (!res.ok) {
-			if (demoDoc) {
-				return { sections: demoDoc.sections, total: demoDoc.sections.length };
+			if (mockSections.length > 0) {
+				return { sections: mockSections, total: mockSections.length };
 			}
 			return { sections: [], total: 0 };
 		}
 
 		const data = await res.json();
 		const rawNodes = Array.isArray(data.nodes) ? (data.nodes as DocumentNodeRecord[]) : [];
+		if (rawNodes.length === 0 && mockSections.length > 0) {
+			return { sections: mockSections, total: mockSections.length };
+		}
+
 		const sections = rawNodes.map((n, idx: number) =>
 			mapBackendNodeToSection(n, page * limit + idx)
 		);
@@ -178,8 +204,8 @@ export async function getDocumentSections(
 			total: Number(data.total) || sections.length
 		};
 	} catch {
-		if (demoDoc) {
-			return { sections: demoDoc.sections, total: demoDoc.sections.length };
+		if (mockSections.length > 0) {
+			return { sections: mockSections, total: mockSections.length };
 		}
 		return { sections: [], total: 0 };
 	}
@@ -194,6 +220,7 @@ export async function uploadDocument(payload: IngestDocumentPayload): Promise<{ 
 
 	const body = {
 		title: payload.title,
+	language: payload.language,
 		department: mapTeamToDepartment(payload.team),
 		documentType: payload.type.toLowerCase(),
 		tags: payload.tags || [],
@@ -219,7 +246,9 @@ export async function uploadDocument(payload: IngestDocumentPayload): Promise<{ 
 	}
 
 	const data = await res.json();
-	return { id: data.documentId || data.id || 'doc-new' };
+	const id = data.documentId || data.id;
+	if (!id) throw new Error('The server did not return a document reference.');
+	return { id };
 }
 
 /**

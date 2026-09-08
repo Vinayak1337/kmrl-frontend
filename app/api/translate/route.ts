@@ -1,10 +1,9 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateJsonWithMuseSpark } from '@/lib/ai/opencodeZen';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession, buildDocumentAccessFilter } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
-import { callGeminiWithRetry } from '@/lib/ai/gemini';
 import type { DocumentNodeRecord } from '@/types/documents';
 
 export async function POST(request: NextRequest) {
@@ -62,14 +61,6 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
-		const geminiKey = process.env.GEMINI_API_KEY;
-		if (!geminiKey) {
-			return NextResponse.json(
-				{ error: 'Translation service unavailable. Gemini key not configured.' },
-				{ status: 503 }
-			);
-		}
-
 		const payload = {
 			target_language: targetLanguage,
 			summary,
@@ -77,68 +68,25 @@ export async function POST(request: NextRequest) {
 			action_items: actionableItems
 		};
 
-		const prompt = [
-			'You are an expert technical translator assisting Kochi Metro Rail Limited (KMRL).',
-			`Translate the provided content into ${targetLanguage}.`,
+		const instructions = [
+			'You are an expert technical translator for DocSetu enterprise documents.',
+			`Translate the provided content faithfully into ${targetLanguage}.`,
 			'CRITICAL RULES:',
 			'1) PRESERVE exact dates, deadlines, timestamps, and years (e.g. "January 15, 2026", "24 hours", "01:00 AM").',
 			'2) PRESERVE all numerical values, financial figures, and currencies (e.g. "Rs. 50,000", "₹25 Lakhs", "16 tonnes").',
 			'3) PRESERVE all technical parameters, limits, and units (e.g. "km/h", "tonnes", "RDSO", "CMRS").',
-			'4) Return ONLY valid JSON matching this schema:',
-			'{',
-			'  "summary": string,',
-			'  "keyPoints": string[],',
-			'  "actionableItems": string[]',
-			'}',
-			'Do not include any commentary, markdown wrappers outside the JSON, or explanations.'
+			'4) Return ONLY valid JSON matching this schema: {"summary": string, "keyPoints": string[], "actionableItems": string[]}.',
+			'Do not include any commentary or code fences outside the JSON.'
 		].join('\n');
 
-		const genAI = new GoogleGenerativeAI(geminiKey);
-		const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-		const result = await callGeminiWithRetry(
-			() =>
-				model.generateContent({
-					contents: [
-						{
-							role: 'user',
-							parts: [
-								{ text: prompt },
-								{ text: `Target language: ${targetLanguage}` },
-								{ text: JSON.stringify(payload) }
-							]
-						}
-					],
-					generationConfig: {
-						responseMimeType: 'application/json' as unknown as never
-					}
-				} as any),
-			{ operationName: `Translate to ${targetLanguage}` }
-		);
-
-		const raw = result?.response?.text?.() || '';
-		let translated: {
+		const translated = await generateJsonWithMuseSpark<{
 			summary?: string;
 			keyPoints?: string[];
 			actionableItems?: string[];
-		} | null = null;
-
-		try {
-			translated = JSON.parse(raw);
-		} catch {
-			const start = raw.indexOf('{');
-			const end = raw.lastIndexOf('}');
-			if (start >= 0 && end > start) {
-				translated = JSON.parse(raw.slice(start, end + 1));
-			}
-		}
-
-		if (!translated) {
-			return NextResponse.json(
-				{ error: 'Failed to parse translated response.' },
-				{ status: 422 }
-			);
-		}
+		}>({
+			instructions,
+			input: `Target Language: ${targetLanguage}\nPayload to translate:\n${JSON.stringify(payload)}`
+		});
 
 		// Return translation as projection; never mutates stored database record
 		return NextResponse.json(

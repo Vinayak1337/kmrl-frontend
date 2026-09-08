@@ -1,395 +1,45 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import {
-  Home,
-  FileText,
-  Sparkles,
-  CheckSquare,
-  Users,
-  Shield,
-  Clock,
-  Plus,
-  LogOut,
-  User,
-  Menu,
-  X,
-  Search,
-} from "lucide-react";
-import { DocSetuLogo } from "@/components/brand/DocSetuBrand";
-import { Omnibox } from "./Omnibox";
-import { AiSidePanel } from "./AiSidePanel";
-import { DocumentIngestModal } from "@/components/documents/DocumentIngestModal";
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { ArrowUpRight, Menu, X, Plus, Search, LogOut, MessageSquare } from 'lucide-react';
+import { DocSetuLogo } from '@/components/brand/DocSetuBrand';
+import { Omnibox } from './Omnibox';
+import { AiSidePanel } from './AiSidePanel';
+import { DocumentIngestModal } from '@/components/documents/DocumentIngestModal';
 
-interface WorkspaceShellProps {
-  children: React.ReactNode;
-}
-
-interface SessionUser {
-  id?: string;
-  email?: string;
-  name?: string;
-  role?: "ADMIN" | "MANAGER" | "MEMBER";
-  department?: string;
-}
-
-export function WorkspaceShell({ children }: WorkspaceShellProps) {
+interface SessionUser { name?: string; email?: string; role?: string; department?: string }
+const navigation = [['/home', 'Workspace'], ['/documents', 'Documents'], ['/intelligence', 'Intelligence'], ['/actions', 'Actions'], ['/people', 'People'], ['/access', 'Access'], ['/audit', 'Audit history']];
+export function WorkspaceShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-
   const [session, setSession] = useState<SessionUser | null>(null);
-  const [isIngestOpen, setIsIngestOpen] = useState(false);
-  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
-  const [aiPanelQuestion, setAiPanelQuestion] = useState<string | undefined>();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-
-  // Load session details
+  const [ingest, setIngest] = useState(false);
+  const [assistant, setAssistant] = useState(false);
+  const [question, setQuestion] = useState<string>();
+  const [docId, setDocId] = useState<string>();
+  const [menu, setMenu] = useState(false);
+  const [search, setSearch] = useState(false);
+  useEffect(() => { fetch('/api/auth/session').then(r => r.json()).then(d => setSession(d.user || null)).catch(() => setSession(null)); }, []);
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const res = await fetch("/api/auth/session");
-        if (res.ok) {
-          const data = await res.json();
-          setSession(data.user || null);
-        }
-      } catch {
-        setSession(null);
-      }
-    };
-    void checkSession();
+    const open = (event: Event) => { const detail = (event as CustomEvent<{ question?: string; docId?: string }>).detail; setQuestion(detail?.question); setDocId(detail?.docId); setAssistant(true); };
+    const upload = () => setIngest(true);
+    window.addEventListener('open-docsetu-ai', open);
+    window.addEventListener('open-docsetu-ingest', upload);
+    return () => { window.removeEventListener('open-docsetu-ai', open); window.removeEventListener('open-docsetu-ingest', upload); };
   }, []);
-
-  // Handle global "ask-docsetu" event
-  useEffect(() => {
-    const handleOpenAi = (
-      e: CustomEvent<{ question?: string; docId?: string }>,
-    ) => {
-      setAiPanelQuestion(e.detail?.question);
-      setIsAiPanelOpen(true);
-    };
-    window.addEventListener("open-docsetu-ai", handleOpenAi as EventListener);
-    return () =>
-      window.removeEventListener(
-        "open-docsetu-ai",
-        handleOpenAi as EventListener,
-      );
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-      router.push("/login");
-    } catch {
-      router.push("/login");
-    }
-  };
-
-  const primaryNav = [
-    { href: "/home", label: "Home", icon: Home },
-    { href: "/documents", label: "Documents", icon: FileText },
-    { href: "/intelligence", label: "Intelligence", icon: Sparkles },
-    { href: "/actions", label: "Actions", icon: CheckSquare },
-  ];
-
-  const adminNav = [
-    { href: "/people", label: "People", icon: Users },
-    { href: "/access", label: "Access", icon: Shield },
-    { href: "/audit", label: "Audit", icon: Clock },
-  ];
-
-  const isActive = (href: string) => {
-    if (href === "/documents") {
-      return pathname.startsWith("/documents");
-    }
-    return pathname === href;
-  };
-
-  return (
-    <div className="flex min-h-screen flex-col bg-canvas font-sans text-text-primary antialiased">
-      {/* TOPBAR */}
-      <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b border-border-default bg-canvas/95 px-4 backdrop-blur sm:px-6">
-        {/* Brand Logo & Mobile Trigger */}
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="rounded-md p-1.5 text-text-secondary hover:text-text-primary lg:hidden"
-            aria-label="Toggle navigation"
-          >
-            {isMobileMenuOpen ? (
-              <X className="h-5 w-5" />
-            ) : (
-              <Menu className="h-5 w-5" />
-            )}
-          </button>
-
-          <Link href="/home" className="flex items-center">
-            <DocSetuLogo size="md" />
-          </Link>
-        </div>
-
-        {/* Center: Omnibox */}
-        <div className="hidden max-w-xl flex-1 lg:block">
-          <Omnibox
-            onAskDocSetu={(q) => {
-              setAiPanelQuestion(q);
-              setIsAiPanelOpen(true);
-            }}
-          />
-        </div>
-
-        {/* Right: Search (mobile), + Add Document button, AI Assistant trigger, Profile */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          {/* Mobile Search Button */}
-          <button
-            onClick={() => setIsMobileSearchOpen(true)}
-            className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-surface-muted hover:text-text-primary lg:hidden"
-            aria-label="Search workspace"
-          >
-            <Search className="h-4 w-4" />
-          </button>
-
-          {/* Ask DocSetu Assistant Button */}
-          <button
-            onClick={() => {
-              setAiPanelQuestion(undefined);
-              setIsAiPanelOpen(true);
-            }}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-strong bg-white text-text-primary hover:bg-surface-muted text-xs font-medium transition-colors"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Ask DocSetu</span>
-          </button>
-
-          {/* Primary Add Document Button */}
-          <button
-            onClick={() => setIsIngestOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#4656D9] text-white hover:bg-[#3B4BBF] text-xs font-medium transition-colors shadow-2xs"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Add document</span>
-          </button>
-
-          {/* User Avatar Menu */}
-          <div className="relative">
-            <button
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-              className="w-8 h-8 rounded-full bg-[#172033] text-white flex items-center justify-center text-xs font-semibold hover:ring-2 hover:ring-[#4656D9]/30 transition-all"
-            >
-              {session?.name
-                ? session.name.charAt(0).toUpperCase()
-                : session?.email?.charAt(0).toUpperCase() || "U"}
-            </button>
-
-            {isUserMenuOpen && (
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-[#E1E4DF] py-2 z-50 animate-in fade-in-50 duration-100">
-                <div className="px-4 py-2 border-b border-[#E1E4DF]">
-                  <p className="text-xs font-semibold text-[#172033] truncate">
-                    {session?.name || "Workspace Member"}
-                  </p>
-                  <p className="text-xs text-[#677080] truncate">
-                    {session?.email || "user@docsetu.internal"}
-                  </p>
-                  <span className="inline-block mt-1.5 px-2 py-0.5 rounded bg-surface-muted text-xs font-semibold text-text-secondary uppercase">
-                    {session?.role || "MEMBER"}
-                  </span>
-                </div>
-
-                <div className="py-1">
-                  <Link
-                    href="/people"
-                    onClick={() => setIsUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2 text-xs text-[#172033] hover:bg-[#F6F7F4]"
-                  >
-                    <User className="h-3.5 w-3.5 text-[#677080]" />
-                    <span>Organization Directory</span>
-                  </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left flex items-center gap-2 px-4 py-2 text-xs text-red-600 hover:bg-red-50"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    <span>Sign Out</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* BODY LAYOUT: SIDEBAR + CONTENT */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* LEFT SIDEBAR (Desktop) */}
-        <aside className="hidden w-60 flex-shrink-0 flex-col justify-between border-r border-border-default bg-canvas px-4 py-6 lg:flex">
-          <div className="space-y-6">
-            {/* Primary Navigation */}
-            <div className="space-y-1">
-              <div className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-tertiary">
-                Workspace
-              </div>
-              {primaryNav.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2.5 border-l-2 px-3 py-2 text-sm font-medium transition-colors ${
-                      active
-                        ? "border-docsetu-indigo text-text-primary font-semibold"
-                        : "border-transparent text-text-secondary hover:text-text-primary"
-                    }`}
-                  >
-                    <Icon
-                      className={`h-4 w-4 ${
-                        active ? "text-docsetu-indigo" : "text-text-tertiary"
-                      }`}
-                    />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-
-            {/* Administration Navigation */}
-            <div className="space-y-1">
-              <div className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.12em] text-text-tertiary">
-                Governance
-              </div>
-              {adminNav.map((item) => {
-                const Icon = item.icon;
-                const active = isActive(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-2.5 border-l-2 px-3 py-2 text-sm font-medium transition-colors ${
-                      active
-                        ? "border-docsetu-indigo text-text-primary font-semibold"
-                        : "border-transparent text-text-secondary hover:text-text-primary"
-                    }`}
-                  >
-                    <Icon
-                      className={`h-4 w-4 ${
-                        active ? "text-docsetu-indigo" : "text-text-tertiary"
-                      }`}
-                    />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Sidebar Footer: Active Workspace info */}
-          <div className="border-t border-border-default px-3 pt-4">
-            <p className="text-xs font-semibold text-text-primary">
-              DocSetu workspace
-            </p>
-            <p className="mt-1 text-xs leading-5 text-text-tertiary">
-              Document intelligence
-            </p>
-          </div>
-        </aside>
-
-        {/* MOBILE NAVIGATION DRAWER */}
-        {isMobileMenuOpen && (
-          <div className="fixed inset-0 z-50 flex bg-black/30 lg:hidden">
-            <div className="w-64 bg-white h-full p-5 flex flex-col justify-between border-r border-[#E1E4DF]">
-              <div className="space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-[#E1E4DF]">
-                  <DocSetuLogo size="sm" />
-                  <button
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="p-1 text-[#677080]"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  {primaryNav.concat(adminNav).map((item) => {
-                    const Icon = item.icon;
-                    const active = isActive(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-medium ${
-                          active
-                            ? "bg-[#4656D9]/10 text-[#4656D9] font-semibold"
-                            : "text-[#677080]"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 p-2 text-xs text-red-600"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* MAIN WORKSPACE CONTENT */}
-        <main className="flex-1 overflow-y-auto bg-canvas">{children}</main>
-      </div>
-
-      {/* GLOBAL OVERLAYS */}
-      <DocumentIngestModal
-        isOpen={isIngestOpen}
-        onClose={() => setIsIngestOpen(false)}
-        onSuccess={(docId) => {
-          router.push(`/documents/${docId}`);
-        }}
-      />
-
-      <AiSidePanel
-        isOpen={isAiPanelOpen}
-        onClose={() => setIsAiPanelOpen(false)}
-        initialQuestion={aiPanelQuestion}
-      />
-
-      {/* Mobile Search Overlay */}
-      {isMobileSearchOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col items-center bg-black/40 p-4 pt-12 backdrop-blur-xs animate-in fade-in-50 duration-150 lg:hidden">
-          <div className="w-full max-w-lg bg-white rounded-2xl p-4 shadow-2xl border border-[#E1E4DF] space-y-3">
-            <div className="flex items-center justify-between pb-2 border-b border-[#E1E4DF]">
-              <span className="text-xs font-semibold text-[#172033] flex items-center gap-2">
-                <Search className="h-3.5 w-3.5 text-[#4656D9]" />
-                <span>Search Workspace</span>
-              </span>
-              <button
-                onClick={() => setIsMobileSearchOpen(false)}
-                className="p-1 rounded-md text-[#677080] hover:text-[#172033] hover:bg-[#F6F7F4]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <Omnibox
-              onAskDocSetu={(q) => {
-                setIsMobileSearchOpen(false);
-                setAiPanelQuestion(q);
-                setIsAiPanelOpen(true);
-              }}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  useEffect(() => { const close = (event: KeyboardEvent) => { if (event.key === 'Escape') { setMenu(false); setSearch(false); } }; window.addEventListener('keydown', close); return () => window.removeEventListener('keydown', close); }, []);
+  const ask = (q?: string) => { setDocId(undefined); setQuestion(q); setAssistant(true); setSearch(false); };
+  const logout = async () => { await fetch('/api/auth/logout', { method: 'POST' }); router.push('/login'); };
+  return <div className="workspace-shell">
+    <header className="workspace-header"><div className="workspace-topline"><Link href="/home" aria-label="DocSetu workspace"><DocSetuLogo /></Link><span className="workspace-identity">KMRL <span>/</span> Document workspace</span><div className="workspace-tools"><button className="icon-button" onClick={() => setSearch(!search)} aria-label="Search workspace" aria-expanded={search}><Search size={18} /></button><button className="button ask-button" onClick={() => ask()}><MessageSquare size={16} />Ask DocSetu</button><button className="button button-primary" onClick={() => setIngest(true)} aria-label="Add document"><Plus size={17} /><span className="add-label">Add document</span></button><button className="icon-button mobile-menu" onClick={() => setMenu(!menu)} aria-label="Toggle navigation" aria-expanded={menu}>{menu ? <X size={20} /> : <Menu size={20} />}</button><details className="account-menu"><summary aria-label="Account menu">{session?.name?.charAt(0) || session?.email?.charAt(0) || 'D'}</summary><div><strong>{session?.name || 'Your account'}</strong><p>{session?.email}</p><p>{session?.role?.toLowerCase()}</p><button className="text-link" onClick={logout}><LogOut size={15} /> Sign out</button></div></details></div></div>
+      <nav className={`workspace-nav ${menu ? 'is-open' : ''}`} aria-label="Workspace navigation">{navigation.filter(([href]) => session?.role === 'ADMIN' || !['/people', '/audit'].includes(href)).map(([href, label]) => <Link href={href} key={href} onClick={() => setMenu(false)} aria-current={pathname === href || (href === '/documents' && pathname.startsWith('/documents/')) ? 'page' : undefined}>{label}</Link>)}<Link href="/" className="workspace-about">About DocSetu <ArrowUpRight size={13} /></Link></nav>
+      {search && <div className="workspace-search"><Omnibox onAskDocSetu={ask} /><button className="icon-button" onClick={() => setSearch(false)} aria-label="Close search"><X size={18} /></button></div>}
+    </header>
+    <main id="main-content" className="workspace-main">{children}</main>
+    <footer className="workspace-footer"><span>DocSetu · KMRL</span><span>Read the source. Review the result.</span></footer>
+    <DocumentIngestModal isOpen={ingest} onClose={() => setIngest(false)} onSuccess={id => { setIngest(false); router.push(`/documents/${id}`); }} />
+    <AiSidePanel isOpen={assistant} onClose={() => setAssistant(false)} initialQuestion={question} docId={docId} />
+  </div>;
 }

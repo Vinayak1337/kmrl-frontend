@@ -269,7 +269,8 @@ export function mapBackendDocToDocSetu(
 	const meta = (rawDoc.metadata || {}) as Record<string, unknown>;
 	const team = mapDepartmentToTeam(String(meta.department || rawDoc.department || ''));
 	const type = mapDocTypeToTaxonomy(String(meta.documentType || rawDoc.documentType || ''));
-	const language = String(rawDoc.language || 'English');
+	const rawLanguage = String(rawDoc.language || 'English');
+	const language = ({ en: 'English', hi: 'Hindi', ml: 'Malayalam', ta: 'Tamil' } as Record<string,string>)[rawLanguage] || rawLanguage;
 	const summary = String(rawDoc.fullSummary || rawDoc.summary || '');
 	const briefMd = String(rawDoc.overallMd || rawDoc.summaryMd || summary);
 	const pageCount = Number(rawDoc.totalPages) || 1;
@@ -298,7 +299,6 @@ export function mapBackendDocToDocSetu(
 		new Set(
 			sections
 				.flatMap(s => s.keyPoints)
-				.concat(Array.isArray(rawDoc.keywords) ? rawDoc.keywords : [])
 		)
 	).slice(0, 10);
 

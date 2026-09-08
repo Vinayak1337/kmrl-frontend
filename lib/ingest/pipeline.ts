@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateJsonWithMuseSpark } from '@/lib/ai/opencodeZen';
 import {
 	analyzeDocumentWithGemini,
 	type AgentPage
@@ -52,42 +52,17 @@ Output JSON only (no extra text):\n{\n  "nodes": [{\n    "pageRange": { "start":
 export async function processDocumentWithAI(
 	text: string,
 	images: Array<{ base64: string; mimeType: string }>,
-	apiKey: string,
+	_apiKey?: string,
 	meta?: { department?: string; documentType?: string }
 ): Promise<{ nodes: Partial<PipelineNode>[]; fullSummary: string }> {
-	const genAI = new GoogleGenerativeAI(apiKey);
-	const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 	const prompt = buildManagerFocusedPrompt(meta);
-	const parts: Array<{
-		text?: string;
-		inlineData?: { data: string; mimeType: string };
-	}> = [];
-	parts.push({ text: prompt });
-	parts.push({ text: `Document Content (raw text):\n${text}` });
-	for (const im of images || []) {
-		if (im?.base64 && im?.mimeType) {
-			parts.push({ inlineData: { data: im.base64, mimeType: im.mimeType } });
-		}
-	}
-	const req: unknown = {
-		contents: [
-			{
-				role: 'user',
-				parts
-			}
-		],
-		generationConfig: {
-			responseMimeType: 'application/json' as unknown as never
-		}
-	};
-	// Cast to unknown to avoid strict Part typing mismatches
-	type GenContent = { response: { text: () => string } };
-	const result = await (
-		model as unknown as { generateContent: (r: unknown) => Promise<GenContent> }
-	).generateContent(req);
-	const responseText = result.response.text();
+	const input = `Document Content (raw text):\n${text.slice(0, 45000)}`;
+
 	try {
-		const parsed = JSON.parse(responseText);
+		const parsed: any = await generateJsonWithMuseSpark({
+			instructions: prompt,
+			input
+		});
 		interface ParsedNode {
 			pageRange?: { start: number; end: number };
 			detailedSummary?: string;
@@ -145,12 +120,12 @@ export async function processDocumentWithAI(
 				{
 					pageRange: { start: 1, end: 1 },
 					content: text,
-					summary: responseText,
+					summary: text.slice(0, 300),
 					keyPoints: [],
 					actionableItems: []
 				}
 			],
-			fullSummary: responseText.substring(0, 500)
+			fullSummary: text.slice(0, 500)
 		};
 	}
 }

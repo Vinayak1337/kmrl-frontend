@@ -1,6 +1,6 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateJsonWithMuseSpark } from '@/lib/ai/opencodeZen';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession, buildDocumentAccessFilter, isDocumentAccessible } from '@/lib/auth';
 import { getCollection, ensureDocumentIndexes, ensureNodeIndexes } from '@/lib/mongo';
@@ -10,10 +10,10 @@ import { chunkDocument } from '@/lib/ingest/chunker';
 import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, buildPersistedDocument, ChunkEnrichmentData } from '@/lib/ingest/builder';
 import { buildManagerMdPrompt, ManagerAnalysisJSON } from '@/lib/prompt';
-import { callGeminiWithRetry } from '@/lib/ai/gemini';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 interface IngestPayload {
+	language?: string;
 	documents?: RawDocumentInput[];
 	html?: string;
 	title?: string;
@@ -54,43 +54,22 @@ function extractActionsHeuristic(text: string): string[] {
 	return sentences.filter(s => actionRegex.test(s) && s.length >= 20 && s.length <= 200).slice(0, 5);
 }
 
-async function runGeminiEnrichment(
+async function runMuseSparkEnrichment(
 	text: string,
-	images: Array<{ base64: string; mimeType: string }>,
-	apiKey: string,
 	meta?: { department?: string; documentType?: string }
 ): Promise<ManagerAnalysisJSON | null> {
 	try {
-		const genAI = new GoogleGenerativeAI(apiKey);
-		const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 		const prompt = buildManagerMdPrompt(meta);
+		const input = `Document Content:\n${text.slice(0, 45000)}`;
 
-		const parts: Array<{ text?: string; inlineData?: { data: string; mimeType: string } }> = [
-			{ text: prompt },
-			{ text: `Document Content:\n${text.slice(0, 35000)}` }
-		];
+		const result = await generateJsonWithMuseSpark<ManagerAnalysisJSON>({
+			instructions: prompt,
+			input
+		});
 
-		for (const im of (images || []).slice(0, 4)) {
-			if (im?.base64 && im?.mimeType && im.mimeType.startsWith('image/')) {
-				parts.push({ inlineData: { data: im.base64, mimeType: im.mimeType } });
-			}
-		}
-
-		const result = await callGeminiWithRetry(
-			() =>
-				model.generateContent({
-					contents: [{ role: 'user', parts }],
-					generationConfig: {
-						responseMimeType: 'application/json' as unknown as never
-					}
-				} as any),
-			{ operationName: 'Ingestion Gemini Enrichment' }
-		);
-
-		const respText = result.response.text();
-		return JSON.parse(respText) as ManagerAnalysisJSON;
+		return result;
 	} catch (err) {
-		console.warn('[ingest] Gemini enrichment call failed, using heuristic extraction', err);
+		console.warn('[ingest] OpenCode Zen Muse Spark enrichment failed, using heuristic extraction', err);
 		return null;
 	}
 }
@@ -126,7 +105,6 @@ export async function POST(request: NextRequest) {
 			process.env.MONGODB_NODES_COLLECTION || 'document_nodes'
 		);
 
-		const apiKey = process.env.GEMINI_API_KEY;
 		const results = [];
 
 		for (let i = 0; i < rawDocs.length; i++) {
@@ -185,11 +163,9 @@ export async function POST(request: NextRequest) {
 			// 4. AI ENRICHMENT
 			console.log(`[ingest] AI_STARTED | docId=${docId}`);
 			let aiAnalysis: ManagerAnalysisJSON | null = null;
-			if (apiKey && normalized.fullText.trim().length > 0) {
-				aiAnalysis = await runGeminiEnrichment(
+			if (normalized.fullText.trim().length > 0) {
+				aiAnalysis = await runMuseSparkEnrichment(
 					normalized.fullText,
-					rawChunks.flatMap(c => c.images || []),
-					apiKey,
 					{ department, documentType }
 				);
 			}
@@ -256,6 +232,10 @@ export async function POST(request: NextRequest) {
 				uploadedBy: session.sub,
 				chunks: persistedChunks
 			});
+
+			if (body.language && ['English', 'Hindi', 'Malayalam', 'Tamil'].includes(body.language)) {
+				persistedDoc.language = body.language;
+			}
 
 			// 7. PERSISTENCE WITH COMPENSATING CLEANUP
 			console.log(`[ingest] PERSIST_STARTED | docId=${docId}`);

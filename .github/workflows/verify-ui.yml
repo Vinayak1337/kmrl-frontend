@@ -1,0 +1,32 @@
+name: Verify interface
+on:
+  pull_request:
+  push:
+    branches: [redesign/docsetu-new-ui]
+permissions:
+  contents: read
+jobs:
+  interface:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:generate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:md
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui
+        env:
+          AUTH_SECRET: docsetu-browser-test-secret
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-results
+          path: |
+            playwright-report/
+            test-results/

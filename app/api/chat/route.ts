@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateWithMuseSpark } from '@/lib/ai/opencodeZen';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
 import { searchDocumentsAndChunks, ChunkSearchResult } from '@/lib/search/searchService';
@@ -99,22 +99,15 @@ Key Points: ${(c.keyPoints || []).join('; ')}`
 			.join('\n\n---\n\n');
 
 		let reply = '';
-		const geminiKey = process.env.GEMINI_API_KEY;
-
-		if (geminiKey) {
-			try {
-				const genAI = new GoogleGenerativeAI(geminiKey);
-				const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-				const systemInstruction = `You are a manager-focused document intelligence assistant for DocSetu / KMRL.
+		try {
+			const systemInstruction = `You are a manager-focused document intelligence assistant for DocSetu.
 - Answer in English clearly and factually based on the provided context blocks.
 - Highlight concrete decisions, deadlines, compliance guidelines, and responsible owners.
 - GROUND your response in the provided context blocks.
 - Explicitly cite your sources using [#N] corresponding to the context blocks.
 - If the context blocks do not contain sufficient evidence to answer the question, clearly state what information is missing.`;
 
-				const prompt = `${systemInstruction}
-
-Context Blocks:
+			const prompt = `Context Blocks:
 ${contextBlocks || '(No matching context blocks found)'}
 
 Conversation History:
@@ -125,11 +118,14 @@ ${query}
 
 Assistant Answer:`;
 
-				const result = await model.generateContent(prompt);
-				reply = result?.response?.text?.() || '';
-			} catch (llmErr) {
-				console.warn('[chat] Gemini synthesis failed, falling back to summary', llmErr);
-			}
+			const museRes = await generateWithMuseSpark({
+				instructions: systemInstruction,
+				input: prompt,
+				sessionId
+			});
+			reply = museRes.text;
+		} catch (llmErr) {
+			console.warn('[chat] OpenCode Zen Muse Spark synthesis failed, falling back to summary', llmErr);
 		}
 
 		if (!reply) {
@@ -198,7 +194,8 @@ export async function GET(req: NextRequest) {
 		if (sessionId) filter.sessionId = sessionId;
 		if (docId) filter.docId = docId;
 
-		const record = await historyCollection.findOne(filter);
+		if (!docId && !sessionId) filter.docId = null;
+		const record = await historyCollection.findOne(filter, { sort: { updatedAt: -1 } });
 
 		if (!record) {
 			return NextResponse.json({ messages: [], sessionId: sessionId || null });

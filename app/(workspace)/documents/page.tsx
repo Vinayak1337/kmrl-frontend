@@ -1,371 +1,89 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Search, Grid, List, Trash2, Eye, Sparkles } from "lucide-react";
-import { DocSetuDocument } from "@/types/docsetu";
-import { listDocuments, deleteDocument } from "@/services/documents";
-import { VALID_TEAMS, VALID_DOC_TYPES } from "@/adapters/documentAdapter";
-import { DocSetuEmptyState } from "@/components/brand/DocSetuBrand";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
+import { ArrowUpRight, Search, Plus, LayoutGrid, List, Trash2, MessageSquare } from 'lucide-react';
+import { DocSetuDocument } from '@/types/docsetu';
+import { listDocuments, deleteDocument } from '@/services/documents';
+import { VALID_TEAMS, VALID_DOC_TYPES } from '@/adapters/documentAdapter';
+import { DocumentIngestModal } from '@/components/documents/DocumentIngestModal';
+import { DocSetuEmptyState } from '@/components/brand/DocSetuBrand';
+import { Modal } from '@/components/workspace/Modal';
 
 export default function DocumentsPage() {
-  const router = useRouter();
   const [documents, setDocuments] = useState<DocSetuDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTeam, setSelectedTeam] = useState("All");
-  const [selectedType, setSelectedType] = useState("All");
-  const [selectedLanguage, setSelectedLanguage] = useState("All");
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await listDocuments({
-        team: selectedTeam,
-        type: selectedType,
-        search: searchQuery,
-        pageSize: 50,
-      });
-      setDocuments(res.documents);
-    } catch (err) {
-      console.error("Failed to load documents", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedTeam, selectedType, searchQuery]);
-
+  const [query, setQuery] = useState('');
+  const [team, setTeam] = useState('All');
+  const [type, setType] = useState('All');
+  const [language, setLanguage] = useState('All');
+  const [view, setView] = useState<'list' | 'grid'>('list');
+  const [ingest, setIngest] = useState(false);
+  const [remove, setRemove] = useState<DocSetuDocument | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [urlReady, setUrlReady] = useState(false);
+  const requestVersion = useRef(0);
   useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  const handleDelete = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    if (!confirm("Remove this document from the intelligence workspace?"))
-      return;
-    setDeletingId(id);
+    const sync = () => {
+      const params = new URLSearchParams(window.location.search);
+      setQuery(params.get('q') || ''); setTeam(params.get('team') || 'All');
+      setType(params.get('type') || 'All'); setLanguage(params.get('language') || 'All');
+      setView(params.get('view') === 'grid' ? 'grid' : 'list');
+      setPage(Math.max(0, Number(params.get('page')) || 0)); setUrlReady(true);
+    };
+    sync(); window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+  useEffect(() => {
+    if (!urlReady) return;
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    if (team !== 'All') params.set('team', team);
+    if (type !== 'All') params.set('type', type);
+    if (language !== 'All') params.set('language', language);
+    if (view !== 'list') params.set('view', view);
+    if (page) params.set('page', String(page));
+    window.history.replaceState(null, '', `${window.location.pathname}${params.size ? `?${params}` : ''}`);
+  }, [query, team, type, language, view, page, urlReady]);
+  const loadData = useCallback(async () => {
+    const version = ++requestVersion.current;
+    setLoading(true); setError('');
     try {
-      await deleteDocument(id);
-      setDocuments((prev) => prev.filter((d) => d.id !== id));
-    } catch {
-      alert("Failed to delete document");
-    } finally {
-      setDeletingId(null);
-    }
+      const result = await listDocuments({ team, type, search: query, page, pageSize: 50 });
+      if (version === requestVersion.current) { setDocuments(result.documents); setTotal(result.total); }
+    } catch { if (version === requestVersion.current) setError('Could not load documents. Try again.'); }
+    finally { if (version === requestVersion.current) setLoading(false); }
+  }, [team, type, query, page]);
+  useEffect(() => {
+    if (!urlReady) return;
+    const versionCounter = requestVersion;
+    const timer = setTimeout(() => void loadData(), 180);
+    return () => { clearTimeout(timer); versionCounter.current++; };
+  }, [loadData, urlReady]);
+  const handleDelete = async () => {
+    if (!remove) return;
+    setDeleting(true); setError('');
+    try { await deleteDocument(remove.id); setDocuments(prev => prev.filter(d => d.id !== remove.id)); setNotice('Document removed.'); setRemove(null); }
+    catch { setError('Could not remove this document. Check your access and try again.'); }
+    finally { setDeleting(false); }
   };
-
-  const openAiForDoc = (doc: DocSetuDocument, e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    window.dispatchEvent(
-      new CustomEvent("open-docsetu-ai", {
-        detail: {
-          question: `What are the key requirements and deadlines in ${doc.title}?`,
-          docId: doc.id,
-        },
-      }),
-    );
-  };
-
-  // Client-side language filtering if chosen
-  const filteredDocs = documents.filter((doc) => {
-    if (selectedLanguage !== "All" && doc.language !== selectedLanguage)
-      return false;
-    return true;
-  });
-
-  return (
-    <div className="mx-auto max-w-7xl space-y-7 p-5 sm:p-8 lg:p-10">
-      {/* Header */}
-      <div className="flex flex-col justify-between gap-4 border-b border-border-default pb-6 sm:flex-row sm:items-end">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-            Repository
-          </p>
-          <h1 className="text-3xl font-semibold tracking-[-0.03em] text-text-primary">
-            Documents
-          </h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            Everything DocSetu knows starts here.
-          </p>
-        </div>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div className="space-y-3 border-y border-border-default py-4">
-        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-          {/* Search input */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#9098A5]" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search documents by title, team, or content…"
-              className="w-full pl-9 pr-3 py-2 text-xs bg-[#F6F7F4] border border-[#E1E4DF] rounded-lg text-[#172033] placeholder-[#9098A5] focus:outline-none focus:border-[#4656D9] focus:bg-white transition-all"
-            />
-          </div>
-
-          {/* Dropdown Filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Team Filter */}
-            <select
-              value={selectedTeam}
-              onChange={(e) => setSelectedTeam(e.target.value)}
-              className="px-3 py-2 text-xs bg-[#F6F7F4] border border-[#E1E4DF] rounded-lg text-[#172033] focus:outline-none focus:border-[#4656D9]"
-            >
-              <option value="All">All Teams</option>
-              {VALID_TEAMS.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-
-            {/* Type Filter */}
-            <select
-              value={selectedType}
-              onChange={(e) => setSelectedType(e.target.value)}
-              className="px-3 py-2 text-xs bg-[#F6F7F4] border border-[#E1E4DF] rounded-lg text-[#172033] focus:outline-none focus:border-[#4656D9]"
-            >
-              <option value="All">All Types</option>
-              {VALID_DOC_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
-
-            {/* Language Filter */}
-            <select
-              value={selectedLanguage}
-              onChange={(e) => setSelectedLanguage(e.target.value)}
-              className="px-3 py-2 text-xs bg-[#F6F7F4] border border-[#E1E4DF] rounded-lg text-[#172033] focus:outline-none focus:border-[#4656D9]"
-            >
-              <option value="All">All Languages</option>
-              <option value="English">English</option>
-              <option value="Hindi">Hindi</option>
-              <option value="Malayalam">Malayalam</option>
-              <option value="Tamil">Tamil</option>
-            </select>
-
-            {/* View Switcher */}
-            <div className="flex items-center border border-[#E1E4DF] rounded-lg p-0.5 bg-[#F6F7F4] ml-auto">
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-1.5 rounded-md ${
-                  viewMode === "list"
-                    ? "bg-white shadow-2xs text-[#172033]"
-                    : "text-[#677080] hover:text-[#172033]"
-                }`}
-                title="List view"
-              >
-                <List className="h-3.5 w-3.5" />
-              </button>
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`p-1.5 rounded-md ${
-                  viewMode === "grid"
-                    ? "bg-white shadow-2xs text-[#172033]"
-                    : "text-[#677080] hover:text-[#172033]"
-                }`}
-                title="Grid view"
-              >
-                <Grid className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {loading && (
-        <div className="divide-y divide-border-default border-y border-border-default">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="flex h-28 flex-col justify-between bg-white p-4 animate-pulse"
-            />
-          ))}
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!loading && filteredDocs.length === 0 && (
-        <DocSetuEmptyState
-          title="No documents matched your criteria"
-          description="Try adjusting your search query, clearing filters, or adding a new document to the workspace."
-          action={
-            <button
-              onClick={() => {
-                setSelectedTeam("All");
-                setSelectedType("All");
-                setSelectedLanguage("All");
-                setSearchQuery("");
-              }}
-              className="px-3 py-1.5 bg-white border border-[#E1E4DF] text-xs font-medium text-[#172033] rounded-md hover:bg-[#F6F7F4] shadow-2xs"
-            >
-              Reset Filters
-            </button>
-          }
-        />
-      )}
-
-      {/* LIST VIEW */}
-      {!loading && filteredDocs.length > 0 && viewMode === "list" && (
-        <div className="divide-y divide-border-default border-y border-border-strong">
-          {filteredDocs.map((doc) => (
-            <div
-              key={doc.id}
-              onClick={() => router.push(`/documents/${doc.id}`)}
-              className="group cursor-pointer bg-transparent px-1 py-5 transition-colors hover:bg-white/60 sm:px-3"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                {/* Left Content */}
-                <div className="space-y-2.5 flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base font-semibold text-[#172033] group-hover:underline underline-offset-4 truncate">
-                      {doc.title}
-                    </h2>
-                    <span className="text-xs font-medium text-text-secondary">
-                      {doc.type}
-                    </span>
-                    <span className="text-xs font-medium text-text-secondary">
-                      {doc.team}
-                    </span>
-                    <span className="text-xs text-[#9098A5] font-medium">
-                      {doc.language}
-                    </span>
-                  </div>
-
-                  <p className="text-sm text-[#677080] line-clamp-2 leading-relaxed">
-                    {doc.summary ||
-                      "Document ingested and available for cross-corpus intelligence."}
-                  </p>
-
-                  {/* Bottom details row */}
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-[#677080] pt-1">
-                    <span>
-                      {doc.pageCount} {doc.pageCount === 1 ? "page" : "pages"}
-                    </span>
-                    <span>•</span>
-                    <span>{doc.sectionsCount} sections</span>
-                    <span>•</span>
-                    <span className="font-semibold text-success">Indexed</span>
-                    <span>•</span>
-                    <span>
-                      {doc.uploadedAt
-                        ? new Date(doc.uploadedAt).toLocaleDateString()
-                        : "Recent"}
-                    </span>
-                    {doc.actions && doc.actions.length > 0 && (
-                      <>
-                        <span>•</span>
-                        <span className="text-[#C77B1B] font-semibold">
-                          {doc.actions.length}{" "}
-                          {doc.actions.length === 1 ? "action" : "actions"}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div
-                  className="flex items-center gap-2 sm:self-center flex-shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    onClick={(e) => openAiForDoc(doc, e)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-strong text-text-primary bg-white hover:bg-surface-muted text-xs font-medium transition-colors"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>Ask</span>
-                  </button>
-
-                  <Link
-                    href={`/documents/${doc.id}`}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white border border-[#E1E4DF] hover:bg-[#F6F7F4] text-xs font-medium text-[#172033] transition-colors"
-                  >
-                    <Eye className="h-3.5 w-3.5 text-[#677080]" />
-                    <span>View</span>
-                  </Link>
-
-                  <button
-                    onClick={(e) => handleDelete(doc.id, e)}
-                    disabled={deletingId === doc.id}
-                    className="p-1.5 text-[#9098A5] hover:text-red-600 rounded-md hover:bg-red-50 transition-colors"
-                    title="Remove document"
-                  >
-                    <span className="sr-only">Remove {doc.title}</span>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* GRID VIEW */}
-      {!loading && filteredDocs.length > 0 && viewMode === "grid" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredDocs.map((doc) => (
-            <div
-              key={doc.id}
-              onClick={() => router.push(`/documents/${doc.id}`)}
-              className="group bg-white rounded-xl border border-border-default hover:border-border-strong p-5 transition-colors cursor-pointer flex flex-col justify-between space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="px-2.5 py-0.5 bg-surface-muted border border-border-default text-text-secondary rounded-md text-xs font-semibold">
-                    {doc.type}
-                  </span>
-                  <span className="text-xs text-[#9098A5] font-medium">
-                    {doc.team}
-                  </span>
-                </div>
-
-                <h2 className="text-base font-semibold text-[#172033] group-hover:underline underline-offset-4 line-clamp-2">
-                  {doc.title}
-                </h2>
-
-                <p className="text-sm text-[#677080] line-clamp-3 leading-relaxed">
-                  {doc.summary}
-                </p>
-              </div>
-
-              <div
-                className="pt-3 border-t border-[#E1E4DF] flex items-center justify-between text-xs text-[#677080]"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <span>
-                  {doc.pageCount} pages • {doc.sectionsCount} sections
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={(e) => openAiForDoc(doc, e)}
-                    aria-label={`Ask about ${doc.title}`}
-                    className="p-1.5 text-[#4656D9] hover:bg-[#4656D9]/10 rounded-md"
-                  >
-                    <Sparkles className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={(e) => handleDelete(doc.id, e)}
-                    aria-label={`Remove ${doc.title}`}
-                    className="p-1.5 text-[#9098A5] hover:text-red-600 rounded-md hover:bg-red-50"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  const filtered = documents.filter(d => language === 'All' || d.language === language);
+  const reset = () => { setQuery(''); setTeam('All'); setType('All'); setLanguage('All'); setPage(0); };
+  return <div className="desk-page collection-page">
+    <header className="page-heading"><div><p className="eyebrow">The collection</p><h1>Documents</h1><p>Source files, summaries, and the work they contain.</p></div><button className="button button-primary" onClick={() => setIngest(true)}><Plus size={16} />Add document</button></header>
+    <div className="collection-toolbar"><label className="collection-search"><Search size={17} /><span className="sr-only">Search documents</span><input value={query} onChange={e => { setQuery(e.target.value); setPage(0); }} placeholder="Search title, team, or content…" name="document-search" autoComplete="off" /></label><div className="view-switch" aria-label="Document view"><button className="icon-button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')}><List size={18} /></button><button className="icon-button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')}><LayoutGrid size={17} /></button></div></div>
+    <div className="collection-filters"><label>Team<select value={team} onChange={e => { setTeam(e.target.value); setPage(0); }}><option value="All">All teams</option>{VALID_TEAMS.map(t => <option key={t}>{t}</option>)}</select></label><label>Type<select value={type} onChange={e => { setType(e.target.value); setPage(0); }}><option value="All">All types</option>{VALID_DOC_TYPES.map(t => <option key={t}>{t}</option>)}</select></label><label>Language<select value={language} onChange={e => setLanguage(e.target.value)}><option value="All">All languages</option>{['English','Hindi','Malayalam','Tamil'].map(l => <option key={l}>{l}</option>)}</select></label>{(query || team !== 'All' || type !== 'All' || language !== 'All') && <button className="text-link" onClick={reset}>Clear filters</button>}<span className="result-count" role="status">{loading ? 'Loading…' : `${filtered.length} documents shown`}</span></div>
+    {error && <div className="notice error" role="alert">{error} <button className="text-link" onClick={loadData}>Try again</button></div>}{notice && <p className="notice" role="status">{notice}</p>}
+    {loading ? <div className="skeleton-list" role="status" aria-label="Loading collection"><div /><div /><div /></div> : !filtered.length ? <DocSetuEmptyState title="No documents to show" description="Try another search or clear your filters. You can also add a document to this collection." action={<button className="button" onClick={reset}>Clear filters</button>} /> : <div className={view === 'list' ? 'collection-list' : 'collection-grid'}>{filtered.map((doc, index) => <article className="collection-record" key={doc.id}>
+      <span className="record-index">{String(page * 50 + index + 1).padStart(2, '0')}</span><div className="record-main"><div className="ledger-meta"><span>{doc.type}</span><span>{doc.team}</span>{doc.id.startsWith('doc-kmrl') && <span>Sample document</span>}</div><h2><Link href={`/documents/${doc.id}`}>{doc.title}<ArrowUpRight size={16} /></Link></h2><p>{doc.summary.replace(/^#+\s*/gm, '')}</p><div className="record-details"><span>{doc.language}</span><span>{doc.pageCount} {doc.pageCount === 1 ? 'page' : 'pages'}</span><span>{doc.sectionsCount} {doc.sectionsCount === 1 ? 'section' : 'sections'}</span><span className={`document-status status-${doc.status}`}>{doc.status === 'ready' ? 'Ready to read' : doc.status === 'processing' ? 'Processing' : 'Needs attention'}</span></div></div>
+      <div className="record-actions"><button className="text-link" onClick={() => window.dispatchEvent(new CustomEvent('open-docsetu-ai', { detail: { question: `What are the key requirements and deadlines in ${doc.title}?`, docId: doc.id } }))}><MessageSquare size={15} />Ask</button><button className="icon-button" aria-label={`Remove ${doc.title}`} onClick={() => { setError(''); setRemove(doc); }}><Trash2 size={15} /></button></div>
+    </article>)}</div>}
+    {total > 50 && <nav className="pagination" aria-label="Document pages"><button className="button" disabled={page === 0 || loading} onClick={() => setPage(p => p - 1)}>Previous</button><span>Page {page + 1}</span><button className="button" disabled={(page + 1) * 50 >= total || loading} onClick={() => setPage(p => p + 1)}>Next</button></nav>}
+    <DocumentIngestModal isOpen={ingest} onClose={() => setIngest(false)} onSuccess={() => { setIngest(false); void loadData(); }} />
+    <Modal open={!!remove} onClose={() => setRemove(null)} title="Remove document?" busy={deleting}><p>This removes <strong>{remove?.title}</strong> from the workspace. This cannot be undone.</p>{error && <p className="notice error" role="alert">{error}</p>}<div className="modal-actions"><button className="button" disabled={deleting} onClick={() => setRemove(null)}>Keep document</button><button className="button button-danger" disabled={deleting} onClick={handleDelete}>{deleting ? 'Removing…' : 'Remove document'}</button></div></Modal>
+  </div>;
 }

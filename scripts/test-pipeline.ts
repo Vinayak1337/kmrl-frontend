@@ -1,134 +1,69 @@
 #!/usr/bin/env tsx
-/**
- * End-to-end sanity test for the 5-layer pipeline.
- * - Auth cookie synthesized via JWT
- * - Ingestion -> indexing
- * - Vector search
- * - Chat (RAG)
- * - Feedback + reprocess
- *
- * Usage: API_URL=http://localhost:3000 npx tsx scripts/test-pipeline.ts
+/** Live local funnel test. Uses the demo login; always removes its own fixture.
+ * API_URL defaults to localhost. All assertions, including cleanup, affect exit status.
+ * Retrieval uses lexical relevance despite the legacy /api/search/vector URL.
  */
+import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
+import { testAuthCookie } from './testAuth';
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { signSession, AUTH_COOKIE } from '../lib/auth';
-
-const API_URL = process.env.API_URL || 'http://localhost:3000';
-
-type StepResult = { name: string; status: 'ok' | 'skipped' | 'error'; details?: string };
-
+const base = process.env.API_URL || 'http://localhost:3000';
+const steps: string[] = [];
 async function run() {
-  const results: StepResult[] = [];
-  const timestamp = new Date().toISOString();
-
-  // Create auth cookie for an admin user
-  const token = signSession({
-    sub: 'admin-automation',
-    email: 'admin@kmrl.local',
-    name: 'Automation Admin',
-    role: 'ADMIN',
-    grants: [{ dept: 'ALL', type: 'ALL', actions: ['read', 'write'] }],
-  });
-  const headersBase: Record<string, string> = { 'Content-Type': 'application/json', Cookie: `${AUTH_COOKIE}=${token}` };
-
-  // 1) Ingestion (HTML) -> persist
-  let documentId: string | null = null;
-  try {
-    const payload = {
-      documents: [
-        {
-          type: 'html',
-          filename: 'sanity-ingest.html',
-          content: '<h1>Test Policy</h1><p>All staff must complete fire safety training by Jan 31, 2025.</p>',
-        },
-      ],
-      department: 'Safety',
-      documentType: 'policy',
-      tags: ['sanity', 'automation'],
-    };
-    const res = await fetch(`${API_URL}/api/documents/ingest`, { method: 'POST', headers: headersBase, body: JSON.stringify(payload) });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error || 'ingest failed');
-    documentId = data.documentId || null;
-    results.push({ name: 'ingestion', status: 'ok', details: `docId=${documentId}, nodes=${data.nodeCount}` });
-  } catch (e: any) {
-    results.push({ name: 'ingestion', status: 'error', details: e?.message || String(e) });
+  const cookie = await testAuthCookie(base);
+  const headers = { 'Content-Type': 'application/json', Cookie: cookie };
+  async function api(path: string, body?: unknown, method = body ? 'POST' : 'GET') {
+    const response = await fetch(base + path, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: AbortSignal.timeout(240000) });
+    const data = await response.json();
+    assert.ok(response.ok, `${method} ${path}: ${response.status} ${data.error || ''}`);
+    return data;
   }
-
-  // 2) Vector search
+  function passed(step: string) { steps.push(step); console.log(`PASS: ${step}`); }
+  let documentId: string | undefined;
   try {
-    const res = await fetch(`${API_URL}/api/search/vector`, {
-      method: 'POST',
-      headers: headersBase,
-      body: JSON.stringify({ query: 'fire safety training', limit: 5, searchNodes: true }),
+    const ingest = await api('/api/documents/ingest', {
+      title: 'TEST FIXTURE — Document funnel audit',
+      documents: [{ type: 'html', filename: 'funnel-audit.html', content: '<h1>Fire safety training procedure</h1><p>TEST FIXTURE for a temporary workflow audit. All Operations staff must complete fire safety training by 31 January 2031. The Operations manager must record completion before publishing the compliance report. Unresolved training issues must be escalated to the Safety team.</p>' }],
+      department: 'Operations', documentType: 'sop', language: 'English', tags: ['test-fixture'],
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error || 'search failed');
-    const found = Number(data?.resultsFound || 0);
-    results.push({ name: 'vector-search', status: found > 0 ? 'ok' : 'skipped', details: `results=${found}` });
-  } catch (e: any) {
-    results.push({ name: 'vector-search', status: 'error', details: e?.message || String(e) });
+    documentId = ingest.documentId;
+    assert.ok(documentId, 'Ingestion must return a persisted document ID');
+    assert.ok(ingest.nodeCount > 0, 'Ingestion must produce chunks');
+    passed('ingestion');
+    const saved = await api(`/api/documents/ingest?id=${documentId}`);
+    assert.ok(saved.nodes?.some((node: { content: string }) => node.content.includes('31 January 2031')), 'Stored source must retain the deadline');
+    passed('persisted source and chunks');
+    const search = await api('/api/search/vector', { query: 'fire safety training', documentId, searchNodes: true, limit: 5 });
+    assert.ok(search.results?.some((result: { documentId: string }) => result.documentId === documentId), 'Search must retrieve this fixture, not an unrelated document');
+    passed('scoped lexical retrieval');
+    const chat = await api('/api/chat', { docId: documentId, messages: [{ role: 'user', content: 'What is the fire safety training deadline? Answer in one sentence.' }] });
+    assert.match(chat.reply, /2031/);
+    assert.match(chat.reply, /31/);
+    assert.ok(!chat.reply.startsWith('Based on [#1] ('), 'A summary fallback is not a successful model synthesis');
+    assert.ok(chat.citations?.some((citation: { docId: string }) => citation.docId === documentId));
+    passed('document answer and source citation');
+    const history = await api(`/api/chat?docId=${documentId}`);
+    assert.ok(history.messages?.some((message: { role: string; content: string }) => message.role === 'assistant' && message.content.includes('2031')));
+    passed('conversation history');
+    const translation = await api('/api/translate', { language: 'Hindi', summary: 'The training deadline is 31 January 2031.', keyPoints: [], actionableItems: [] });
+    assert.match(translation.summary, /[\u0900-\u097f]/, 'Translation must contain Hindi text');
+    assert.match(translation.summary, /2031/);
+    assert.match(translation.summary, /31/);
+    passed('live Hindi translation and numerical retention');
+    const actions = await api('/api/actions');
+    assert.ok(actions.actions?.some((action: { documentId: string }) => action.documentId === documentId));
+    passed('extracted actions');
+    const feedback = await api(`/api/documents/${documentId}/feedback`, { type: 'general', message: 'Verify source retention during reprocessing.', reprocess: true });
+    assert.equal(feedback.reprocessed, true, 'Feedback acceptance alone does not prove reprocessing');
+    const reprocessed = await api(`/api/documents/ingest?id=${documentId}`);
+    assert.ok(reprocessed.nodes?.some((node: { content: string }) => node.content.includes('31 January 2031')));
+    passed('feedback reprocessing and source retention');
+  } finally {
+    if (documentId) {
+      await api(`/api/documents/${documentId}`, undefined, 'DELETE');
+      passed('fixture cleanup');
+    }
+    if (process.env.TEST_REPORT_PATH) await writeFile(process.env.TEST_REPORT_PATH, JSON.stringify({ base, steps }, null, 2));
   }
-
-  // 3) Chat (RAG) – requires OPENAI + GEMINI
-  try {
-    const res = await fetch(`${API_URL}/api/chat`, {
-      method: 'POST',
-      headers: headersBase,
-      body: JSON.stringify({
-        messages: [
-          { role: 'user', content: 'What is the deadline for fire safety training?' },
-        ],
-        docId: documentId,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error || 'chat failed');
-    const reply = String(data?.reply || '').slice(0, 120);
-    results.push({ name: 'chat', status: reply ? 'ok' : 'skipped', details: `reply=${reply}` });
-  } catch (e: any) {
-    results.push({ name: 'chat', status: 'error', details: e?.message || String(e) });
-  }
-
-  // 4) Feedback + reprocess – requires GEMINI
-  try {
-    if (!documentId) throw new Error('missing documentId from ingestion');
-    const res = await fetch(`${API_URL}/api/documents/${documentId}/feedback`, {
-      method: 'POST',
-      headers: headersBase,
-      body: JSON.stringify({ type: 'correction', message: 'Add mention of quarterly drills.', reprocess: true }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error || 'feedback failed');
-    results.push({ name: 'feedback', status: 'ok' });
-  } catch (e: any) {
-    results.push({ name: 'feedback', status: 'error', details: e?.message || String(e) });
-  }
-
-  // 5) Update PROJECT_STATUS.md with a run entry
-  try {
-    const statusPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'PROJECT_STATUS.md');
-    const md = fs.readFileSync(statusPath, 'utf8');
-    const summary = results.map(r => `- ${r.name}: ${r.status}${r.details ? ` — ${r.details}` : ''}`).join('\n');
-    const block = `\n\n## 🧪 Pipeline Test Run — ${timestamp}\n${summary}\n`;
-    fs.writeFileSync(statusPath, md + block);
-    results.push({ name: 'status-update', status: 'ok' });
-  } catch (e: any) {
-    results.push({ name: 'status-update', status: 'error', details: e?.message || String(e) });
-  }
-
-  // Print concise summary
-  const ok = results.filter(r => r.status === 'ok').length;
-  const errors = results.filter(r => r.status === 'error').length;
-  const skipped = results.filter(r => r.status === 'skipped').length;
-  console.log(`\nSummary: ok=${ok}, skipped=${skipped}, error=${errors}`);
-  for (const r of results) console.log(` - ${r.name}: ${r.status}${r.details ? ` — ${r.details}` : ''}`);
-
-  // Exit non-zero if critical phases failed
-  if (results.find(r => ['ingestion'].includes(r.name) && r.status !== 'ok')) process.exit(1);
 }
-
-run().catch(e => { console.error(e); process.exit(1); });
-
+run().catch(error => { console.error(error.message); process.exitCode = 1; });
