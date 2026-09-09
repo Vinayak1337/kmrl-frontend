@@ -42,7 +42,7 @@ export function Conversation({ docId, initialQuestion, compact = false }: { docI
   }, [docId, initialQuestion, send]);
   useEffect(() => { if (loading || messages.length) end.current?.scrollIntoView({ block: 'nearest', behavior: 'instant' }); }, [loading, messages.length]);
   const reset = () => { setMessages([]); setSessionId(crypto.randomUUID()); setInput(''); setError(''); setRetry(''); inputRef.current?.focus(); };
-  const suggestions = docId ? ['Summarize this document.', 'Which actions and deadlines are mentioned?', 'What should the responsible team review?'] : ['Which documents need review?', 'What are the procurement approval requirements?', 'Summarize the maintenance obligations.'];
+  const suggestions = docId ? ['What is this document about?', 'Who issued this document and when?', 'Does it mention any deadlines?'] : ['Which documents need review?', 'What are the procurement approval requirements?', 'Summarize the maintenance obligations.'];
   return <div className={`conversation ${compact ? 'conversation-compact' : ''}`}>
     <div className="conversation-top"><span>{docId ? 'This document' : 'Across your documents'}</span><button className="text-link" onClick={reset} disabled={loading || restoring}><RotateCcw size={13} />New conversation</button></div>
     <div className="conversation-messages" aria-busy={loading || restoring}>

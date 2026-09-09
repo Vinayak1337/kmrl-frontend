@@ -1,4 +1,5 @@
 import { randomUUID } from 'crypto';
+import { responseText } from './responseText';
 
 export interface MuseSparkOptions {
 	instructions?: string;
@@ -16,10 +17,10 @@ export interface MuseSparkResponse {
 }
 
 const OPENCODE_RESPONSES_URL = 'https://opencode.ai/zen/v1/responses';
-const DEFAULT_MODEL = 'muse-spark-1.3-contributor-free';
+const DEFAULT_MODEL = 'muse-spark-1.2-contributor-free';
 
 /**
- * Robust caller for OpenCode Zen - Muse Spark 1.3 free tier
+ * Robust caller for OpenCode Zen - Muse Spark 1.2 free tier
  * Does not require an API key, utilizes x-opencode-session UUID header.
  */
 export async function generateWithMuseSpark(
@@ -62,8 +63,6 @@ export async function generateWithMuseSpark(
 				signal: controller.signal
 			});
 
-			clearTimeout(timeoutId);
-
 			if (!res.ok) {
 				const errText = await res.text().catch(() => '');
 				let parsedErr = '';
@@ -77,12 +76,10 @@ export async function generateWithMuseSpark(
 			}
 
 			const data = await res.json();
-			const outputItems = Array.isArray(data?.output) ? data.output : [];
-			const messageObj = outputItems.find((item: any) => item.type === 'message' || item.role === 'assistant');
-			const contentItems = Array.isArray(messageObj?.content) ? messageObj.content : [];
-			const textItem = contentItems.find((c: any) => typeof c?.text === 'string');
+			const replyText = responseText(data);
 
-			const replyText = textItem?.text || (typeof messageObj?.content === 'string' ? messageObj.content : '');
+			if (!replyText.trim()) throw new Error('OpenCode Zen returned an empty response');
+			clearTimeout(timeoutId);
 
 			return {
 				text: replyText.trim(),
@@ -106,13 +103,12 @@ export async function generateWithMuseSpark(
 }
 
 /**
- * Generate and parse structured JSON using Muse Spark 1.3
+ * Generate and parse structured JSON using Muse Spark 1.2
  */
 export async function generateJsonWithMuseSpark<T>(options: {
 	instructions?: string;
 	input: string;
 	sessionId?: string;
-	fallback?: T;
 }): Promise<T> {
 	const systemInstructions = [
 		options.instructions || '',
@@ -142,9 +138,6 @@ export async function generateJsonWithMuseSpark<T>(options: {
 		}
 	} catch (err) {
 		console.error('[OpenCode Zen] JSON generation failed:', err);
-		if (options.fallback !== undefined) {
-			return options.fallback;
-		}
 		throw err;
 	}
 }

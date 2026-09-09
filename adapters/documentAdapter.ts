@@ -6,6 +6,7 @@ import {
 	DocSetuDocumentType,
 	TeamName
 } from '@/types/docsetu';
+import { CODE_TO_LANGUAGE_MAP } from '@/lib/languages';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 // Standard Modern Business Teams Taxonomy
@@ -270,7 +271,7 @@ export function mapBackendDocToDocSetu(
 	const team = mapDepartmentToTeam(String(meta.department || rawDoc.department || ''));
 	const type = mapDocTypeToTaxonomy(String(meta.documentType || rawDoc.documentType || ''));
 	const rawLanguage = String(rawDoc.language || 'English');
-	const language = ({ en: 'English', hi: 'Hindi', ml: 'Malayalam', ta: 'Tamil' } as Record<string,string>)[rawLanguage] || rawLanguage;
+	const language = CODE_TO_LANGUAGE_MAP[rawLanguage.toLowerCase()] || CODE_TO_LANGUAGE_MAP[rawLanguage] || rawLanguage;
 	const summary = String(rawDoc.fullSummary || rawDoc.summary || '');
 	const briefMd = String(rawDoc.overallMd || rawDoc.summaryMd || summary);
 	const pageCount = Number(rawDoc.totalPages) || 1;

@@ -3,7 +3,7 @@ import { analyzeDocumentWithGemini, type AgentImage, type AgentPage, type AgentN
 export type { AgentImage, AgentPage, AgentNode, AgentResult };
 
 /**
- * Analyzes a document using OpenCode Zen - Muse Spark 1.3 free model
+ * Analyzes a document using OpenCode Zen - Muse Spark 1.2 free model
  */
 export async function analyzeDocumentWithAgent(options: {
   pages: AgentPage[];

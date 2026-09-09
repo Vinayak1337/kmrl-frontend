@@ -10,6 +10,7 @@ import { chunkDocument } from '@/lib/ingest/chunker';
 import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, buildPersistedDocument, ChunkEnrichmentData } from '@/lib/ingest/builder';
 import { buildManagerMdPrompt, ManagerAnalysisJSON } from '@/lib/prompt';
+import { VALID_LANGUAGES } from '@/lib/languages';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 interface IngestPayload {
@@ -233,7 +234,7 @@ export async function POST(request: NextRequest) {
 				chunks: persistedChunks
 			});
 
-			if (body.language && ['English', 'Hindi', 'Malayalam', 'Tamil'].includes(body.language)) {
+			if (body.language && VALID_LANGUAGES.includes(body.language)) {
 				persistedDoc.language = body.language;
 			}
 

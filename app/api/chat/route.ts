@@ -1,241 +1,116 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { generateWithMuseSpark } from '@/lib/ai/opencodeZen';
+import { answerQuestion } from '@/lib/chat/answer';
+import { classifyIntent, directReply } from '@/lib/chat/intent';
+import type { ChatMessage } from '@/lib/chat/types';
+import { parseChatRequest, ChatInputError } from '@/lib/chat/request';
 import { AUTH_COOKIE, verifySession } from '@/lib/auth';
-import { getCollection } from '@/lib/mongo';
-import { searchDocumentsAndChunks, ChunkSearchResult } from '@/lib/search/searchService';
-import { ObjectId } from 'mongodb';
-
-type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string };
-type ChatHistoryRecord = {
-	_id?: ObjectId;
-	sessionId: string;
-	userId: string;
-	docId?: string;
-	messages: ChatMessage[];
-	citations?: Array<{
-		index: number;
-		docId: string;
-		nodeId: string;
-		title?: string;
-		sectionTitle?: string;
-		pageRange?: { start?: number; end?: number };
-		score?: number;
-		uid?: string;
-	}>;
-	createdAt: Date;
-	updatedAt: Date;
-};
+import { chatHistoryCollection, saveChatTurn } from '@/lib/chat/history';
 
 export async function POST(req: NextRequest) {
-	const token = (await cookies()).get(AUTH_COOKIE)?.value;
-	const session = token ? verifySession(token) : null;
-	if (!session) {
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-	}
+  const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const session = token ? verifySession(token) : null;
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
-	try {
-		const body = await req.json();
-		const sessionId: string = body.sessionId || `${session.sub}-${Date.now()}`;
-		const clientMessages: ChatMessage[] = Array.isArray(body.messages) ? body.messages : [];
-		const docId: string | undefined = body.docId || undefined;
-		const topK: number = Math.max(1, Math.min(10, Number(body.topK) || 5));
+  try {
+    const body = await req.json();
+    const { sessionId, clientMessages, docId, topK } = parseChatRequest(body);
 
-		const historyCollection = await getCollection<ChatHistoryRecord>(
-			process.env.MONGODB_CHAT_COLLECTION || 'chat_sessions'
-		);
+    const historyCollection = await chatHistoryCollection();
 
-		const historyFilter: Record<string, any> = {
-			userId: session.sub,
-			sessionId
-		};
-		if (docId) historyFilter.docId = docId;
+    const historyFilter: Record<string, unknown> = {
+      userId: session.sub,
+      sessionId
+    };
+    historyFilter.docId = docId ?? null;
 
-		const existingHistory = await historyCollection.findOne(historyFilter);
-		const historyMessages: ChatMessage[] = existingHistory?.messages || [];
+    const existingHistory = await historyCollection.findOne(historyFilter);
+    const historyMessages: ChatMessage[] = existingHistory?.messages || [];
 
-		// Deduplicate client messages against history to prevent compounding duplication
-		let newMessages: ChatMessage[] = [];
-		if (clientMessages.length > historyMessages.length) {
-			newMessages = clientMessages.slice(historyMessages.length);
-		} else if (clientMessages.length > 0 && historyMessages.length === 0) {
-			newMessages = clientMessages;
-		} else if (clientMessages.length > 0) {
-			const last = clientMessages[clientMessages.length - 1];
-			if (last.role === 'user' && historyMessages[historyMessages.length - 1]?.content !== last.content) {
-				newMessages = [last];
-			}
-		}
+    // Persisted history is authoritative; clients submit the latest user turn.
+    const mergedMessages = [...historyMessages, clientMessages[clientMessages.length - 1]];
+    const lastUser = [...mergedMessages].reverse().find(m => m.role === 'user');
+    const query = lastUser?.content?.trim() || '';
 
-		const mergedMessages = [...historyMessages, ...newMessages];
-		const lastUser = [...mergedMessages].reverse().find(m => m.role === 'user');
-		const query = lastUser?.content?.trim() || '';
+    if (!query) {
+      return NextResponse.json({ error: 'No user query provided' }, { status: 400 });
+    }
 
-		if (!query) {
-			return NextResponse.json({ error: 'No user query provided' }, { status: 400 });
-		}
+    const intent = classifyIntent(query);
 
-		// Retrieve candidate chunks using canonical search service
-		const searchResult = await searchDocumentsAndChunks({
-			query,
-			session,
-			documentId: docId,
-			searchNodes: true,
-			limit: topK
-		});
+    const result = intent === 'document'
+      ? await answerQuestion({ query, session, docId, topK, mergedMessages, sessionId })
+      : { reply: directReply(intent, Boolean(docId)), citations: [], generation: 'direct' };
+    const { reply, citations, generation } = result;
+    await saveChatTurn({ sessionId, userId: session.sub, docId, messages: [...mergedMessages, { role: 'assistant', content: reply }], citations });
 
-		const topChunks = (searchResult.results as ChunkSearchResult[]) || [];
-
-		// Build evidence-rich context blocks with raw chunk text
-		const contextBlocks = topChunks
-			.map(
-				(c, i) =>
-					`[#${i + 1}] Document: "${c.documentTitle}" | Section: "${c.title}" (Pages ${c.pageRange.start}-${c.pageRange.end})
-Content:
-${c.content}
-Key Points: ${(c.keyPoints || []).join('; ')}`
-			)
-			.join('\n\n---\n\n');
-
-		let reply = '';
-		try {
-			const systemInstruction = `You are a manager-focused document intelligence assistant for DocSetu.
-- Answer in English clearly and factually based on the provided context blocks.
-- Highlight concrete decisions, deadlines, compliance guidelines, and responsible owners.
-- GROUND your response in the provided context blocks.
-- Explicitly cite your sources using [#N] corresponding to the context blocks.
-- If the context blocks do not contain sufficient evidence to answer the question, clearly state what information is missing.`;
-
-			const prompt = `Context Blocks:
-${contextBlocks || '(No matching context blocks found)'}
-
-Conversation History:
-${mergedMessages.slice(-6, -1).map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}
-
-User Question:
-${query}
-
-Assistant Answer:`;
-
-			const museRes = await generateWithMuseSpark({
-				instructions: systemInstruction,
-				input: prompt,
-				sessionId
-			});
-			reply = museRes.text;
-		} catch (llmErr) {
-			console.warn('[chat] OpenCode Zen Muse Spark synthesis failed, falling back to summary', llmErr);
-		}
-
-		if (!reply) {
-			if (topChunks.length > 0) {
-				const focus = topChunks[0];
-				reply = `Based on [#1] (${focus.documentTitle} - ${focus.title}):\n\n${focus.nodeSummary || focus.content.slice(0, 300)}`;
-			} else {
-				reply = 'No relevant information could be found in the authorized document corpus to answer this question.';
-			}
-		}
-
-		const citations = topChunks.map((c, i) => ({
-			index: i + 1,
-			docId: c.documentId,
-			nodeId: c.nodeId,
-			score: c.score,
-			title: c.documentTitle,
-			sectionTitle: c.title,
-			pageRange: c.pageRange,
-			uid: c.uid
-		}));
-
-		const finalMessages: ChatMessage[] = [
-			...mergedMessages,
-			{ role: 'assistant', content: reply }
-		];
-
-		await historyCollection.updateOne(
-			{ sessionId, userId: session.sub },
-			{
-				$set: {
-					sessionId,
-					userId: session.sub,
-					docId: docId ?? undefined,
-					messages: finalMessages,
-					citations,
-					updatedAt: new Date()
-				},
-				$setOnInsert: { createdAt: new Date() }
-			},
-			{ upsert: true }
-		);
-
-		return NextResponse.json({ reply, citations, sessionId });
-	} catch (e) {
-		console.error('Chat error:', e);
-		return NextResponse.json({ error: 'Chat failed' }, { status: 500 });
-	}
+    return NextResponse.json({ reply, citations, sessionId, generation });
+  } catch (e) {
+    if (e instanceof ChatInputError || e instanceof SyntaxError) return NextResponse.json({ error: e.message }, { status: 400 });
+    console.error('Chat error:', e);
+    return NextResponse.json({ error: 'Chat failed' }, { status: 500 });
+  }
 }
 
 export async function GET(req: NextRequest) {
-	const token = (await cookies()).get(AUTH_COOKIE)?.value;
-	const session = token ? verifySession(token) : null;
-	if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const session = token ? verifySession(token) : null;
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-	try {
-		const { searchParams } = new URL(req.url);
-		const sessionId = searchParams.get('sessionId');
-		const docId = searchParams.get('docId');
+  try {
+    const { searchParams } = new URL(req.url);
+    const sessionId = searchParams.get('sessionId');
+    const docId = searchParams.get('docId');
 
-		const historyCollection = await getCollection<ChatHistoryRecord>(
-			process.env.MONGODB_CHAT_COLLECTION || 'chat_sessions'
-		);
+    const historyCollection = await chatHistoryCollection();
 
-		const filter: Record<string, any> = { userId: session.sub };
-		if (sessionId) filter.sessionId = sessionId;
-		if (docId) filter.docId = docId;
+    const filter: Record<string, unknown> = { userId: session.sub };
+    if (sessionId) filter.sessionId = sessionId;
+    if (docId) filter.docId = docId;
 
-		if (!docId && !sessionId) filter.docId = null;
-		const record = await historyCollection.findOne(filter, { sort: { updatedAt: -1 } });
+    if (!docId) filter.docId = null;
+    const record = await historyCollection.findOne(filter, { sort: { updatedAt: -1 } });
 
-		if (!record) {
-			return NextResponse.json({ messages: [], sessionId: sessionId || null });
-		}
+    if (!record) {
+      return NextResponse.json({ messages: [], sessionId: sessionId || null });
+    }
 
-		return NextResponse.json({
-			sessionId: record.sessionId,
-			docId: record.docId || null,
-			messages: record.messages || [],
-			citations: record.citations || [],
-			updatedAt: record.updatedAt
-		});
-	} catch (err) {
-		console.error('Chat history error:', err);
-		return NextResponse.json({ error: 'Failed to load history' }, { status: 500 });
-	}
+    return NextResponse.json({
+      sessionId: record.sessionId,
+      docId: record.docId || null,
+      messages: record.messages || [],
+      citations: record.citations || [],
+      updatedAt: record.updatedAt
+    });
+  } catch (err) {
+    console.error('Chat history error:', err);
+    return NextResponse.json({ error: 'Failed to load history' }, { status: 500 });
+  }
 }
 
 export async function DELETE(req: NextRequest) {
-	const token = (await cookies()).get(AUTH_COOKIE)?.value;
-	const session = token ? verifySession(token) : null;
-	if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const session = token ? verifySession(token) : null;
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-	try {
-		const { searchParams } = new URL(req.url);
-		const sessionId = searchParams.get('sessionId');
-		const docId = searchParams.get('docId');
+  try {
+    const { searchParams } = new URL(req.url);
+    const sessionId = searchParams.get('sessionId');
+    const docId = searchParams.get('docId');
 
-		const historyCollection = await getCollection<ChatHistoryRecord>(
-			process.env.MONGODB_CHAT_COLLECTION || 'chat_sessions'
-		);
+    const historyCollection = await chatHistoryCollection();
 
-		const filter: Record<string, any> = { userId: session.sub };
-		if (sessionId) filter.sessionId = sessionId;
-		if (docId) filter.docId = docId;
+    const filter: Record<string, unknown> = { userId: session.sub };
+    if (sessionId) filter.sessionId = sessionId;
+    if (docId) filter.docId = docId;
 
-		await historyCollection.deleteMany(filter);
-		return NextResponse.json({ success: true });
-	} catch (err) {
-		console.error('Chat history delete error:', err);
-		return NextResponse.json({ error: 'Failed to delete history' }, { status: 500 });
-	}
+    await historyCollection.deleteMany(filter);
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('Chat history delete error:', err);
+    return NextResponse.json({ error: 'Failed to delete history' }, { status: 500 });
+  }
 }

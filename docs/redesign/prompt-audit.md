@@ -55,10 +55,19 @@ The provider test makes a real OpenCode request. The funnel test uses localhost 
 
 ## This audit's observed results
 
-- Direct provider check: exact `muse-spark-1.3-contributor-free` request, correct response, no API-key or Authorization header.
+- Direct provider check (original redesign audit): exact `muse-spark-1.3-contributor-free` request, correct response, no API-key or Authorization header.
 - Local typecheck and 13 browser tests passed. Lint reported zero errors and six existing warnings.
 - All nine functional funnel assertions passed, including reprocessing and fixture cleanup. Server logs confirmed model-enriched initial ingestion; the cited chat was not the summary fallback.
 - **Degraded stage:** feedback reprocessing exhausted its model retries (one HTTP 500, then timeouts) and regenerated source chunks using its existing heuristic fallback. Therefore this run proves functional reprocessing, but must not be described as successful AI enrichment at every stage. Provider availability is intermittent.
 - Negative harness checks: a chat failure and a response with `reprocessed: false` each produced a failing exit code and still deleted the fixture.
 
 A targeted follow-up using the same manager-enrichment prompt returned structured nodes successfully through Muse Spark. This confirms the configured structured-generation path works, while preserving the record of the failed reprocessing attempt. The final local production build passed. No application/provider configuration changed in this audit; additions are documentation and stronger test scripts.
+
+## Multilingual chat / Muse Spark 1.2 review — 9 September 2026
+
+- Live provider check passed with exact `muse-spark-1.2-contributor-free`, answer `42`, and no API-key or Authorization header.
+- Live pipeline passed ingestion, persisted source/chunks, scoped retrieval, cited model synthesis, document-overview intent, Hindi chat over English source, history, Hindi translation with numerical retention, actions, feedback reprocessing, and fixture cleanup. Initial ingestion logged `status=enriched`; this run logged no provider fallback.
+- Live chat-history regressions passed malformed-request rejection, repeated turns, and document/global scope isolation. Temporary sessions were removed.
+- Deterministic chat regressions, typecheck, production build, and all 13 existing Playwright tests passed. Lint has zero errors and six existing warnings outside this change.
+- The first pipeline attempt failed before ingestion because system DNS returned `EBADRESP` for MongoDB SRV resolution. The successful run used a temporary Node-process DNS override to public resolvers; no application or system DNS configuration was changed.
+- Language selection covers the shared catalog; live language verification here covers Hindi against English source, not every listed language. Retrieval remains lexical and depends on query translation for cross-language matching.

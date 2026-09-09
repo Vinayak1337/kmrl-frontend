@@ -151,6 +151,14 @@ If SMTP variables are not configured, the deployment request API stores the requ
 
 Read root [design.md](design.md) before UI additions. It specifies the implemented document-desk language and reuse rules; AGENTS.md links to it. See [prompt audit](docs/redesign/prompt-audit.md) for requirements/evidence and precise remaining limits.
 
-The active text-generation provider is OpenCode Zen at `https://opencode.ai/zen/v1/responses`, requesting `muse-spark-1.3-contributor-free` through `lib/ai/opencodeZen.ts` without an API key. The legacy `/api/search/vector` route uses lexical relevance. Feedback reprocessing rereads source, rather than applying correction text as an edit.
+The active text-generation provider is OpenCode Zen at `https://opencode.ai/zen/v1/responses`, requesting `muse-spark-1.2-contributor-free` through `lib/ai/opencodeZen.ts` without an API key. The legacy `/api/search/vector` route uses lexical relevance. Feedback reprocessing rereads source, rather than applying correction text as an edit.
 
 `npm run test:provider` verifies a live provider request. `npm run test:pipeline` verifies the local authenticated funnel and fails on required-stage failures, including reprocessing. Optional test-only `TEST_REPORT_PATH` writes a JSON step report; it is not an application environment variable. The test no longer appends generated results to PROJECT_STATUS.md. Existing TEST_EMAIL/TEST_PASSWORD/TEST_SESSION overrides remain available; do not commit credentials.
+
+### Multilingual chat integration
+
+`lib/languages.ts` is the shared selector and language normalization catalog. Chat HTTP validation lives in `lib/chat/request.ts`, scoped persistence in `history.ts`, exact small-talk classification in `intent.ts`, query translation in `retrieval.ts`, and evidence synthesis in `answer.ts` with instructions in `prompt.ts`. Stored history is authoritative; only the latest user turn is appended. Session lookups and writes include the document scope.
+
+Native-script questions retain their original search terms and add an English translation for the lexical index. Answers follow the question’s language or its explicit language instruction. This is lexical retrieval, not multilingual embeddings; translation failure falls back to native terms and may miss evidence in another language. The chat response includes `generation` (`direct`, `model`, or `fallback`) so live checks cannot mistake a passage fallback for model synthesis. No new application environment variables are required.
+
+Run `npx tsx scripts/test-chat.ts` for deterministic intent, input and language regressions. `npx tsx scripts/test-chat-history.ts` checks live request validation, repeated turns and document/global history isolation, cleaning up its own sessions. The live pipeline also checks document-overview intent and a Hindi question against English source text.
