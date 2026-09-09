@@ -2,12 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { DocSetuLogo } from '@/components/brand/DocSetuBrand';
 
 export default function LoginPage() {
-	const router = useRouter();
 	const [showPassword, setShowPassword] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
 	const [formData, setFormData] = useState({
@@ -20,22 +18,22 @@ export default function LoginPage() {
 		general: ''
 	});
 
-	const validateForm = () => {
+	const validateForm = (values: { email: string; password: string }) => {
 		const newErrors = { email: '', password: '', general: '' };
 		let isValid = true;
 
-		if (!formData.email) {
+		if (!values.email) {
 			newErrors.email = 'Email is required';
 			isValid = false;
-		} else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+		} else if (!/\S+@\S+\.\S+/.test(values.email)) {
 			newErrors.email = 'Please enter a valid email address';
 			isValid = false;
 		}
 
-		if (!formData.password) {
+		if (!values.password) {
 			newErrors.password = 'Password is required';
 			isValid = false;
-		} else if (formData.password.length < 6) {
+		} else if (values.password.length < 6) {
 			newErrors.password = 'Password must be at least 6 characters';
 			isValid = false;
 		}
@@ -44,10 +42,13 @@ export default function LoginPage() {
 		return isValid;
 	};
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault();
-
-		if (!validateForm()) return;
+		if (isLoading) return;
+		// Autofill may update the native inputs without firing React's onChange.
+		const fields = new FormData(e.currentTarget);
+		const values = { email: String(fields.get('email') || '').trim(), password: String(fields.get('password') || '') };
+		if (!validateForm(values)) return;
 
 		setIsLoading(true);
 		setErrors({ email: '', password: '', general: '' });
@@ -56,7 +57,7 @@ export default function LoginPage() {
 			const res = await fetch('/api/auth/login', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email: formData.email, password: formData.password })
+				body: JSON.stringify(values)
 			});
 
 			if (!res.ok) {
@@ -68,8 +69,8 @@ export default function LoginPage() {
 				return;
 			}
 
-			// Redirect to DocSetu Home
-			router.push('/home');
+			// Start a fresh navigation after the cookie changes, without cached redirects.
+			window.location.replace('/home');
 		} catch (error) {
 			console.error('Login request failed', error);
 			setErrors(prev => ({

@@ -90,20 +90,16 @@ export function isDocumentAccessible(
   doc: { metadata?: { department?: string; documentType?: string }; department?: string; documentType?: string }
 ): boolean {
   if (session.role === 'ADMIN') return true;
-  const dept = (doc.metadata?.department || doc.department || '').toLowerCase().trim();
-  const dtype = (doc.metadata?.documentType || doc.documentType || '').toLowerCase().trim();
-  if (!dept && !dtype) return false;
+  const normalize = (value: string) => value.toLowerCase().trim().replace(/[_\s-]+/g, ' ');
+  const dept = normalize(doc.metadata?.department || doc.department || '');
+  const dtype = normalize(doc.metadata?.documentType || doc.documentType || '');
+  if (!dept || !dtype) return false;
 
   const grants = Array.isArray(session.grants) ? session.grants : [];
   return grants.some((g) => {
     if (!g.dept || !g.type || !Array.isArray(g.actions) || !g.actions.includes('read')) {
       return false;
     }
-    const gDept = g.dept.toLowerCase().trim();
-    const gType = g.type.toLowerCase().trim();
-    const deptMatch = !dept || gDept === dept || dept.includes(gDept) || gDept.includes(dept);
-    const typeMatch = !dtype || gType === dtype || dtype.includes(gType) || gType.includes(dtype);
-    return deptMatch && typeMatch;
+    return normalize(g.dept) === dept && normalize(g.type) === dtype;
   });
 }
-
