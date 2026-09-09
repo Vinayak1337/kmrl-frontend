@@ -28,7 +28,7 @@ export type AgentResult = {
 };
 
 /**
- * Analyzes document pages using OpenCode Zen - Muse Spark 1.3 free model
+ * Analyzes document pages using OpenCode Zen - Muse Spark 1.2 free model
  * Fully preserves interface compatibility with analyzeDocumentWithGemini
  */
 export async function analyzeDocumentWithGemini(options: {

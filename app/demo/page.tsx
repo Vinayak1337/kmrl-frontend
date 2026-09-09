@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { CODE_TO_LANGUAGE_MAP } from '@/lib/languages';
 
 type DemoPage = { page: number; html?: string; image?: string; content?: Record<string, string> };
 type DemoPreview = { title?: string; language?: string; languages?: string[]; pages: DemoPage[] };
@@ -62,7 +63,7 @@ export default function DemoPage(): React.ReactElement {
     <Link href="/home" className="text-link">← Back to workspace</Link>
     <header className="page-heading"><div><p className="eyebrow">Sample document</p><h1>{data?.title || 'Document preview'}</h1><p>Explore the reading and language views with a sample document.</p></div></header>
     <div className="collection-toolbar">
-      <label className="filter-field">Language<select value={language} onChange={e => setLanguage(e.target.value)}>{languages.map(lng => <option key={lng} value={lng}>{({en:'English',hi:'Hindi',ml:'Malayalam',ta:'Tamil'} as Record<string,string>)[lng] || lng}</option>)}</select></label>
+      <label className="filter-field">Language<select value={language} onChange={e => setLanguage(e.target.value)}>{languages.map(lng => <option key={lng} value={lng}>{CODE_TO_LANGUAGE_MAP[lng] || lng}</option>)}</select></label>
       <div className="demo-controls"><button className="button" aria-pressed={viewMode === 'all'} onClick={() => setViewMode('all')}>All slides</button><button className="button" aria-pressed={viewMode === 'single'} onClick={() => setViewMode('single')}>Single slide</button></div>
       {viewMode === 'single' && data && <div className="demo-controls"><button className="button" disabled={activePage === data.pages[0]?.page} onClick={() => setActivePage(data.pages[Math.max(0,data.pages.findIndex(p=>p.page===activePage)-1)].page)}>Previous</button><label className="sr-only" htmlFor="demo-page">Slide</label><select id="demo-page" value={activePage} onChange={e=>setActivePage(Number(e.target.value))}>{data.pages.map(p=><option key={p.page} value={p.page}>Slide {p.page}</option>)}</select><button className="button" disabled={activePage === data.pages.at(-1)?.page} onClick={() => setActivePage(data.pages[Math.min(data.pages.length-1,data.pages.findIndex(p=>p.page===activePage)+1)].page)}>Next</button></div>}
     </div>

@@ -3,7 +3,7 @@ import { generateWithMuseSpark } from '../lib/ai/opencodeZen';
 
 async function run() {
   const originalFetch = globalThis.fetch;
-  const expectedModel = 'muse-spark-1.3-contributor-free';
+  const expectedModel = 'muse-spark-1.2-contributor-free';
   let observed = false;
   globalThis.fetch = async (input, init) => {
     assert.equal(String(input), 'https://opencode.ai/zen/v1/responses');

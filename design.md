@@ -183,7 +183,7 @@ Preserve current limits explicitly: action status is browser-local, the access m
 
 This is implementation guidance, not text to display to end users.
 
-The active provider wrapper is `lib/ai/opencodeZen.ts`. It requests model `muse-spark-1.3-contributor-free` at `https://opencode.ai/zen/v1/responses`, using an `x-opencode-session` UUID, with no API-key or Authorization header. Preserve this key-free configuration unless the user explicitly changes it. Do not substitute a paid/key-required provider because legacy dependencies or comments mention another service.
+The active provider wrapper is `lib/ai/opencodeZen.ts`. It requests model `muse-spark-1.2-contributor-free` at `https://opencode.ai/zen/v1/responses`, using an `x-opencode-session` UUID, with no API-key or Authorization header. Preserve this key-free configuration unless the user explicitly changes it. Do not substitute a paid/key-required provider because legacy dependencies or comments mention another service.
 
 The existing funnel is: authenticated ingestion → normalize and chunk → enrich and persist → authorized lexical retrieval → grounded answer with citations → history/actions/translation → optional feedback-triggered reprocessing. The `/api/search/vector` path is a legacy name; it currently uses lexical relevance, not vector embeddings. Feedback reprocessing rereads source; it does not apply a submitted correction to the source text.
 
