@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useApp } from "../../src/store";
 import { queryClient } from "../../src/api";
 import {
@@ -17,7 +16,6 @@ import {
 } from "../../src/ui";
 export default function Workspace() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const session = useApp((s) => s.session);
   const theme = useApp((s) => s.theme);
   const [error, setError] = useState<unknown>(null);
@@ -44,7 +42,7 @@ export default function Workspace() {
     }
   }
   return (
-    <Screen style={{ paddingTop: insets.top + 24 }}>
+    <Screen safeTop>
       <Brand wordmark />
       <Text size="title" accessibilityRole="header">
         Workspace

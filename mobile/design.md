@@ -66,3 +66,7 @@ Check rendered screens against references at 390×844 and 360×800, light/dark, 
 - [Taste mobile image skill](https://github.com/Leonxlnx/taste-skill/blob/main/skills/imagegen-frontend-mobile/SKILL.md): screen-first mock-ups, consistent palette, readable type and review before lock.
 - [Google Drive upload interaction](https://support.google.com/drive/answer/2424368?hl=en&co=GENIE.Platform%3DAndroid): explicit Add → source picker, adapted to the existing ingestion contract.
 - Built-in image generation produced the three references. Prompt direction: warm paper/forest single accent; Documents→Reader→Ask; no gradients, fabricated counts, tiny text or nested cards. Full visual requirements above are authoritative where generated pixels differ.
+
+### Android device corrections
+
+The shared `Screen` uses Android keyboard height avoidance. Sign-in and Workspace keep their top safe-area padding outside the scroll content so text cannot scroll over the status bar. Preserve these behaviors when adding forms. Native builds include `expo-system-ui` for automatic system appearance.

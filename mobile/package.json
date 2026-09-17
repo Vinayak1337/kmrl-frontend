@@ -12,6 +12,7 @@
     "expo": "~57.0.23",
     "expo-clipboard": "~57.0.2",
     "expo-constants": "~57.0.18",
+    "expo-dev-client": "~57.0.19",
     "expo-document-picker": "~57.0.2",
     "expo-file-system": "~57.0.7",
     "expo-haptics": "~57.0.3",
@@ -23,6 +24,7 @@
     "expo-sharing": "~57.0.20",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.4",
     "punycode": "^2.3.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -56,7 +58,8 @@
     "export": "expo export --platform all",
     "test": "node --import tsx --test tests/*.test.ts",
     "assets": "node scripts/brand-assets.cjs",
-    "test:ui": "expo export --platform web && playwright test"
+    "test:ui": "expo export --platform web && playwright test",
+    "android:build": "expo run:android"
   },
   "private": true
 }

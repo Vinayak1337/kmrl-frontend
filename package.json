@@ -19,7 +19,8 @@
     "typecheck": "tsc --noEmit",
     "test:ui": "playwright test",
     "test:services": "node --import tsx --test services/*.test.ts",
-    "test:provider": "tsx scripts/test-muse-spark.ts"
+    "test:provider": "tsx scripts/test-muse-spark.ts",
+    "test:mobile:pipeline": "tsx scripts/test-mobile-pipeline.ts"
   },
   "dependencies": {
     "@ckeditor/ckeditor5-react": "^11.0.0",

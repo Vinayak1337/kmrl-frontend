@@ -1,6 +1,10 @@
 # Codex handoff — DocSetu mobile
 
-## Request and current status
+## Local continuation — 17 September 2026
+
+The branch has now been checked out and run on the connected Vivo I2207 (Android 15). See the latest section in `VERIFICATION.md`. Local API testing uses a separate `docsetu_mobile_verification` database and backend port 3100, with credentials kept outside the repository. The configured OpenCode provider currently returns HTTP 403 restricting its free tier to OpenCode; source-based fallback is verified, model synthesis is still blocked. Android keyboard avoidance, scrolling safe areas, page-count grammar, native system-theme support and the missing development client are corrected. A repeatable live bearer workflow test is available as root `npm run test:mobile:pipeline`.
+
+## Request and current status (original handoff)
 
 Build a React Native + Expo mobile counterpart to `Vinayak1337/kmrl-frontend`, emphasizing interactive DMS UX and minimal explanatory copy. User requested image-first mock-ups, Appllama design guidance, a locked design MD, branded assets, backend changes as needed, and a new branch. The user rejected the initial UI as generic; a second image-first design pass is implemented. The latest instruction is to stop further implementation, push all work, and hand off to Codex. Do not merge or deploy automatically.
 

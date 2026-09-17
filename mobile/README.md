@@ -16,7 +16,9 @@ npx expo start
 Open in a compatible Expo Go client, Android emulator, iOS simulator, or development build. The project uses Expo SDK 57, React Native 0.86.3 and React 19.2.3. Dependencies are pinned by `package-lock.json`; install native libraries with `npx expo install`.
 
 - `npm run web`: browser UI preview; choose **Explore sample workspace** to inspect all core screens without credentials.
-- `npm run android` / `npm run ios`: launch on an available device/simulator.
+- `npm run android` / `npm run ios`: launch Expo Go on an available device/simulator.
+- `npm run android:build -- --device I2207`: build and install the native Android debug app. Use Java 17 and an installed Android SDK. This local debug build includes Expo Dev Client, needs Metro and is not a store-signed release. Start its server with `npx expo start --dev-client --localhost` when using USB port forwarding.
+- For a USB-connected Android phone, run `adb reverse tcp:8081 tcp:8081` and `adb reverse tcp:3100 tcp:3100`; use `http://127.0.0.1:3100` as the workspace address when the test backend runs on port 3100.
 - Set `EXPO_PUBLIC_API_URL` to an HTTPS deployment of **this branch's backend**. The production main branch does not yet contain `/api/mobile/auth`.
 - For local native development, point to the computer's LAN address (`http://192.168.x.x:3000`), not the phone's localhost. Android emulator can use `http://10.0.2.2:3000`. Plain HTTP is accepted only in development.
 - Sign in with an existing administrator-provisioned DocSetu account. No credentials or API keys ship in the application.
@@ -79,6 +81,8 @@ Saved document **IDs** and action marks are stored locally, scoped by workspace 
 ```sh
 # Repository root
 node --import tsx --test scripts/test-mobile-auth.ts
+# Dedicated test backend; supply TEST_EMAIL and TEST_PASSWORD through your environment
+API_URL=http://127.0.0.1:3100 npm run test:mobile:pipeline
 npm run typecheck
 npm run lint
 npm run build

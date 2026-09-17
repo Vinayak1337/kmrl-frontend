@@ -88,7 +88,7 @@ export function ChatScreen({
         backgroundColor: colors.canvas,
         paddingTop: docId ? 0 : insets.top,
       }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={docId ? insets.top + 44 : 0}
     >
       <ScrollView

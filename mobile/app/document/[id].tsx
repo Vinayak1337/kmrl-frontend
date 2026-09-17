@@ -137,7 +137,9 @@ export default function Reader() {
             </Text>
             <Text tone="secondary">
               {humanize(departmentOf(doc))}
-              {doc.totalPages ? ` · ${doc.totalPages} pages` : ""}
+              {doc.totalPages
+                ? ` · ${doc.totalPages} ${doc.totalPages === 1 ? "page" : "pages"}`
+                : ""}
             </Text>
           </View>
         </View>

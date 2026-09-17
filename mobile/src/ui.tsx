@@ -346,18 +346,24 @@ export function Row({
 export function Screen({
   children,
   scroll = true,
+  safeTop = false,
   style,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
+  safeTop?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.canvas }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{
+        flex: 1,
+        backgroundColor: colors.canvas,
+        paddingTop: safeTop ? insets.top : 0,
+      }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 44 : 0}
     >
       {scroll ? (

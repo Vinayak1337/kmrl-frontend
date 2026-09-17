@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { View, Linking, Platform } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "../src/api";
@@ -15,7 +14,6 @@ import {
   Text,
 } from "../src/ui";
 export default function Login() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,7 +38,7 @@ export default function Login() {
     },
   });
   return (
-    <Screen style={{ paddingTop: insets.top + 40, gap: 28 }}>
+    <Screen safeTop style={{ paddingTop: 40, gap: 28 }}>
       <Brand size={48} wordmark />
       <View style={{ gap: 12, marginTop: 28 }}>
         <Text size="title">Your documents.{"\n"}Within reach.</Text>

@@ -349,7 +349,9 @@ export default function Documents() {
                 </Text>
                 <Text size="small" tone="secondary">
                   {humanize(departmentOf(item))}
-                  {item.totalPages ? ` · ${item.totalPages} pages` : ""}
+                  {item.totalPages
+                    ? ` · ${item.totalPages} ${item.totalPages === 1 ? "page" : "pages"}`
+                    : ""}
                 </Text>
               </View>
             </Pressable>
