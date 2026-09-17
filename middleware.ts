@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthSecret } from './lib/authSecret';
 
 const AUTH_COOKIE = 'kmrl_session';
 
@@ -12,8 +13,9 @@ async function verifyJwtEdge(token: string): Promise<Record<string, unknown> | n
 		if (parts.length !== 3) return null;
 		const [headerB64, payloadB64, sigB64] = parts;
 
-		const secret =
-			process.env.AUTH_SECRET || process.env.NEXT_AUTH_SECRET || 'dev-secret-change-me';
+		const secret = getAuthSecret();
+		const header = JSON.parse(atob(headerB64.replace(/-/g, '+').replace(/_/g, '/')));
+		if (header.alg !== 'HS256') return null;
 
 		const key = await crypto.subtle.importKey(
 			'raw',
@@ -38,6 +40,8 @@ async function verifyJwtEdge(token: string): Promise<Record<string, unknown> | n
 		const paddedPayload = payloadPad ? payloadB64 + '='.repeat(4 - payloadPad) : payloadB64;
 		const payloadJson = atob(paddedPayload.replace(/-/g, '+').replace(/_/g, '/'));
 		const payload = JSON.parse(payloadJson) as Record<string, unknown>;
+		if (typeof payload.sub !== 'string' || !['ADMIN', 'MANAGER'].includes(String(payload.role)) ||
+			typeof payload.exp !== 'number') return null;
 
 		if (typeof payload.exp === 'number' && Date.now() >= payload.exp * 1000) {
 			return null;
@@ -52,6 +56,20 @@ async function verifyJwtEdge(token: string): Promise<Record<string, unknown> | n
 export default async function middleware(req: NextRequest) {
 	const { pathname } = req.nextUrl;
 	const token = req.cookies.get(AUTH_COOKIE)?.value;
+
+	// Native requests use SecureStore-backed bearer tokens. Only verified API tokens
+	// are bridged to the existing cookie readers, so every route retains its RBAC.
+	const authorization = req.headers.get('authorization');
+	if (pathname.startsWith('/api/') && authorization) {
+		const bearer = /^Bearer ([A-Za-z0-9_.-]+)$/.exec(authorization)?.[1];
+		if (!bearer || !(await verifyJwtEdge(bearer))) {
+			return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+		}
+		const headers = new Headers(req.headers);
+		// Never allow a simultaneous browser session to change the bearer identity.
+		headers.set('cookie', `${AUTH_COOKIE}=${bearer}`);
+		return NextResponse.next({ request: { headers } });
+	}
 
 	// 1. Backward Compatibility Redirects from legacy /dashboard/* routes
 	if (pathname === '/dashboard') {
@@ -80,6 +98,7 @@ export default async function middleware(req: NextRequest) {
 	// 2. Public API allowlist
 	const PUBLIC_API = new Set<string>([
 		'/api/auth/login',
+		'/api/mobile/auth',
 		'/api/auth/logout',
 		'/api/auth/session',
 		'/api/requests',

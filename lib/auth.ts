@@ -1,14 +1,7 @@
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
+import { getAuthSecret } from './authSecret';
 
 export const AUTH_COOKIE = 'kmrl_session';
-
-function getAuthSecret(): string {
-  const secret = process.env.AUTH_SECRET || process.env.NEXT_AUTH_SECRET || 'dev-secret-change-me';
-  if (!secret && process.env.NODE_ENV === 'production') {
-    throw new Error('AUTH_SECRET is required in production');
-  }
-  return secret;
-}
 
 export type JwtUser = {
   sub: string;

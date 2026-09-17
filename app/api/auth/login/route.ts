@@ -1,8 +1,7 @@
 export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
+import { authenticate } from '@/lib/authenticate';
 
-import { prisma } from '@/lib/prisma';
 import { AUTH_COOKIE, signSession } from '@/lib/auth';
 // grants computed directly from DB JSON
 
@@ -14,28 +13,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
-    }
-
-    const ok = await bcrypt.compare(password, user.passwordHash);
-    if (!ok) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
-    }
-
-    const rawGrants = (user as unknown as { grants?: Array<{ dept: string; type: string; actions: string[] }> }).grants;
-    const grants: Array<{ dept: string; type: string; actions: string[] }> = Array.isArray(rawGrants) ? rawGrants : [];
-    const token = signSession({
-      sub: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role as 'ADMIN' | 'MANAGER',
-      permissions: [],
-      department: user.department ?? null,
-      docTypes: [],
-      grants,
-    });
+    const user = await authenticate(email, password);
+    if (!user) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    const token = signSession(user);
 
     const res = NextResponse.json({ ok: true }, { status: 200 });
     res.cookies.set({

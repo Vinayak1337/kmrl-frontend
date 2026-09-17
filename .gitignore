@@ -42,7 +42,15 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-GEMINI_API_KEY=AIzaSyCbNlpt53gwqN_fJ-7t5hppKqgntNnYC44
 # Browser verification artifacts
 /playwright-report/
 /test-results/
+# Expo application
+/mobile/node_modules/
+/mobile/.expo/
+/mobile/dist/
+/mobile/ios/
+/mobile/android/
+/mobile/test-results/
+!/mobile/package-lock.json
+!/mobile/.env.example

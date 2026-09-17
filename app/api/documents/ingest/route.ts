@@ -11,6 +11,7 @@ import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, buildPersistedDocument, ChunkEnrichmentData } from '@/lib/ingest/builder';
 import { buildManagerMdPrompt, ManagerAnalysisJSON } from '@/lib/prompt';
 import { VALID_LANGUAGES } from '@/lib/languages';
+import { canIngestDocument } from '@/lib/documentPermissions';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 interface IngestPayload {
@@ -85,6 +86,9 @@ export async function POST(request: NextRequest) {
 
 	try {
 		const body = (await request.json()) as IngestPayload;
+		if (!canIngestDocument(session, body.department, body.documentType)) {
+			return NextResponse.json({ error: 'You do not have permission to add this document type to this team.' }, { status: 403 });
+		}
 
 		// Normalize raw documents from payload
 		let rawDocs: RawDocumentInput[] = [];

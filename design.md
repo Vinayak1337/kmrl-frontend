@@ -211,3 +211,7 @@ Reject the change if it introduces nested card scaffolding, another font/palette
 - [Ingestion dialog](docs/redesign/screenshots/ingestion-dialog.png)
 
 These are examples of hierarchy and composition, not pixel templates to force onto unrelated content. The shared stylesheet and components are the executable source of truth; this document explains how to extend them consistently.
+
+## 13. Native mobile extension
+
+The Expo application in `mobile/` follows [mobile/design.md](mobile/design.md), locked against reviewed image mock-ups. It shares the warm paper/forest identity and document/evidence semantics while using native touch geometry, four bottom tabs, system typography, light/dark semantic tokens, and platform pickers. These intentional native adaptations do not change the website's layout rules.

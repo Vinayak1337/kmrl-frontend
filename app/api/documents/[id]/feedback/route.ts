@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { AUTH_COOKIE, verifySession } from '@/lib/auth';
+import { AUTH_COOKIE, verifySession, isDocumentAccessible } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
 import { normalizeExtractedContent } from '@/lib/ingest/normalization';
 import { chunkDocument } from '@/lib/ingest/chunker';
@@ -50,6 +50,9 @@ export async function POST(
 		const doc = await docsColl.findOne({ id });
 		if (!doc) {
 			return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+		}
+		if (!isDocumentAccessible(session, doc) || (reprocess && session.role !== 'ADMIN')) {
+			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 		}
 
 		const feedback = {

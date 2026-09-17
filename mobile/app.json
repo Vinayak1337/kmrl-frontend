@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "DocSetu",
+    "slug": "docsetu",
+    "version": "1.0.0",
+    "scheme": "docsetu",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.docsetu.mobile",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.docsetu.mobile",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#294F43",
+        "monochromeImage": "./assets/monochrome.png"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 112,
+          "backgroundColor": "#F6F5F0",
+          "dark": {
+            "backgroundColor": "#151C18",
+            "image": "./assets/splash-dark.png"
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Take a photo of a document to add it to DocSetu.",
+          "photosPermission": "Select a document image to add to DocSetu.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-sharing",
+      "expo-image"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

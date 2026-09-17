@@ -162,3 +162,11 @@ The active text-generation provider is OpenCode Zen at `https://opencode.ai/zen/
 Native-script questions retain their original search terms and add an English translation for the lexical index. Answers follow the question’s language or its explicit language instruction. This is lexical retrieval, not multilingual embeddings; translation failure falls back to native terms and may miss evidence in another language. The chat response includes `generation` (`direct`, `model`, or `fallback`) so live checks cannot mistake a passage fallback for model synthesis. No new application environment variables are required.
 
 Run `npx tsx scripts/test-chat.ts` for deterministic intent, input and language regressions. `npx tsx scripts/test-chat-history.ts` checks live request validation, repeated turns and document/global history isolation, cleaning up its own sessions. The live pipeline also checks document-overview intent and a Hindi question against English source text.
+
+## Native mobile application (September 2026)
+
+The Expo/React Native application lives in `mobile/` and has an independent lockfile and TypeScript configuration. Follow `mobile/design.md` for its locked native design; see `mobile/README.md` for setup, API parity, EAS profiles, and verification limits. The root Next.js build and lint exclude mobile sources.
+
+The native sign-in endpoint is `POST /api/mobile/auth`. It shares credential verification with web login and issues seven-day bearer sessions. API middleware bridges only verified bearer tokens into existing cookie-based route authorization; web cookies remain unchanged. Set `AUTH_SECRET` (or `NEXT_AUTH_SECRET`) in production; the development signing fallback is no longer used in production. `EXPO_PUBLIC_API_URL` in the mobile build is a public workspace origin, never a credential. Deploy the backend branch before connecting the native application. Browser previews require a same-origin proxy or explicit CORS for live cross-origin APIs.
+
+Ingestion enforces department/type `ingest` grants. Feedback enforces document access; reprocessing requires ADMIN. Native tokens use the existing stateless JWT expiry semantics, with no immediate account revocation/refresh rotation added. The app's image capture preserves images but does not claim OCR; existing image normalization does not extract text.

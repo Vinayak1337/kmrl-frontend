@@ -1,0 +1,32 @@
+name: Verify mobile
+on:
+  pull_request:
+    paths: ['mobile/**', 'middleware.ts', 'lib/auth*', 'lib/documentPermissions.ts', 'app/api/**', 'scripts/test-mobile-auth.ts', '.github/workflows/verify-mobile.yml']
+  push:
+    branches: ['feat/docsetu-expo-mobile']
+jobs:
+  expo:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx expo export --platform all
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-verification
+          path: |
+            mobile/test-results
+            mobile/design/screenshots
