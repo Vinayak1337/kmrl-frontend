@@ -4,6 +4,7 @@
     "development": { "developmentClient": true, "distribution": "internal" },
     "preview": {
       "distribution": "internal",
+      "env": { "DOCSETU_BUILD_PROFILE": "preview" },
       "android": { "buildType": "apk" }
     },
     "production": { "autoIncrement": true }

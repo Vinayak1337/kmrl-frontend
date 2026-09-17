@@ -58,3 +58,11 @@ Native dependencies missing from the handoff were added: `expo-system-ui` for sy
 Release gates still open: signed distribution/release performance profiling, iOS device coverage, large-text and screen-reader coverage, comprehensive interrupted-network testing, full-motion review and remaining permission/sharing cases. A device screenshot or a debug APK does not establish release-level frame rate.
 
 Standalone Android development APK: built successfully with Java 17 and installed as `com.docsetu.mobile` on the Vivo. Launched through `docsetu://expo-development-client/?url=http%3A%2F%2F127.0.0.1%3A8081` with ADB port forwarding. Output: `mobile/android/app/build/outputs/apk/debug/app-debug.apk` (ignored build artifact). This is a debug-signed development build requiring Metro, not a distribution or performance-certified build.
+
+## Release preview build — 17 September 2026
+
+The preview profile now uses Android package `com.docsetu.mobile.preview` and a separate URL scheme, allowing installation beside the development app. The local ARM64 release build uses bundled Hermes JavaScript and a private preview signing key stored outside the repository. Its API URL points to the local Next.js test server through a temporary HTTPS tunnel; it requires that server/tunnel to remain running, but does not require Metro.
+
+Credential HTTP smoke check against that HTTPS endpoint: wrong password → 401; dedicated test-account login → 200; bearer-authenticated `/api/auth/session` → 200; document listing → 200. No account credentials are bundled in the APK.
+
+Release APK smoke passed on the Vivo with Metro stopped: native sign-in reached the live document list, then force-stop/cold relaunch restored the test account through SecureStore. `apksigner verify` passed (v2 signature); Android package flags exclude DEBUGGABLE. Artifact: `mobile/dist/docsetu-preview-1.0.0-arm64.apk` (~44 MB), with adjacent SHA-256 checksum. The preview is ARM64-only for the connected device and similar phones. Release lint and assembly passed after increasing Gradle metadata memory to 2 GB. This small smoke check is not the full release/performance test matrix.
