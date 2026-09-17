@@ -66,3 +66,10 @@ The preview profile now uses Android package `com.docsetu.mobile.preview` and a 
 Credential HTTP smoke check against that HTTPS endpoint: wrong password → 401; dedicated test-account login → 200; bearer-authenticated `/api/auth/session` → 200; document listing → 200. No account credentials are bundled in the APK.
 
 Release APK smoke passed on the Vivo with Metro stopped: native sign-in reached the live document list, then force-stop/cold relaunch restored the test account through SecureStore. `apksigner verify` passed (v2 signature); Android package flags exclude DEBUGGABLE. Artifact: `mobile/dist/docsetu-preview-1.0.0-arm64.apk` (~44 MB), with adjacent SHA-256 checksum. The preview is ARM64-only for the connected device and similar phones. Release lint and assembly passed after increasing Gradle metadata memory to 2 GB. This small smoke check is not the full release/performance test matrix.
+
+### Launch identity refresh — 17 September 2026
+
+- Replaced generic file icon with shared folded-paper / bridge monogram; reviewed generated concept and exact vector exports in `design/brand/`.
+- Exported 1024px icon, Android adaptive and monochrome layers, theme-specific splash images and favicon; Android foreground occupied radius 296px is within the 312px safe circle.
+- Mobile TypeScript and repository lint pass (six pre-existing lint warnings). Native preview release rebuilt with the updated resources.
+- Vivo was disconnected during this refresh. On-device launcher masking and cold-start light/dark transitions still require verification; the artwork board is a design preview, not a device capture.

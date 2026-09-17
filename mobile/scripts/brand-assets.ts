@@ -1,0 +1,72 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import sharp from "sharp";
+import { BRAND_PATH, BRAND_FOLD } from "../src/brand";
+
+const root = path.resolve(__dirname, "..");
+const colors = {
+  forest: "#294F43",
+  ivory: "#FFFEFA",
+  sage: "#ACCEB7",
+  paper: "#F6F5F0",
+  night: "#151C18",
+};
+function mark(fill: string, fold = fill) {
+  return `<path d="${BRAND_PATH}" fill="${fill}"/><path d="${BRAND_FOLD}" fill="${fold}"/>`;
+}
+function svg(bg: string | null, fill: string, fold: string, height: number) {
+  const scale = height / 100;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">${bg ? `<path fill="${bg}" d="M0 0H1024V1024H0Z"/>` : ""}<g transform="translate(${512 - 53 * scale} ${512 - 58 * scale}) scale(${scale})">${mark(fill, fold)}</g></svg>`;
+}
+async function main() {
+  await fs.mkdir(path.join(root, "assets"), { recursive: true });
+  const exports: [string, number, string | null, string, string, number][] = [
+    ["icon", 1024, colors.forest, colors.ivory, colors.sage, 580],
+    // All foreground artwork fits inside Android's central 66/108 safe circle.
+    ["adaptive-icon", 1024, null, colors.ivory, colors.sage, 448],
+    ["monochrome", 1024, null, "#FFFFFF", "#FFFFFF", 448],
+    ["splash", 1024, null, colors.forest, "#739482", 700],
+    ["splash-dark", 1024, null, colors.sage, "#739482", 700],
+    ["favicon", 64, colors.forest, colors.ivory, colors.sage, 640],
+  ];
+  for (const [name, size, bg, fill, fold, height] of exports) {
+    const source = svg(bg, fill, fold, height);
+    await sharp(Buffer.from(source))
+      .resize(size, size)
+      .png()
+      .toFile(path.join(root, "assets", `${name}.png`));
+    if (name === "icon")
+      await fs.writeFile(path.join(root, "assets", "icon.svg"), source);
+  }
+  // Exact flat artwork review: icon, light launch, dark launch, launcher mask and small size.
+  const icon = await fs.readFile(path.join(root, "assets/icon.png"));
+  const markAt = (
+    x: number,
+    y: number,
+    h: number,
+    fill: string,
+    fold: string,
+  ) =>
+    `<g transform="translate(${x} ${y}) scale(${h / 100})">${mark(fill, fold)}</g>`;
+  const board = `<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="980" viewBox="0 0 1440 980">
+<rect width="1440" height="980" fill="#EAECE4"/>
+<g font-family="Helvetica, Arial, sans-serif" fill="${colors.forest}"><text x="64" y="82" font-size="34" font-weight="600">DocSetu.</text><text x="64" y="120" font-size="17">Paper. A bridge to understanding.</text></g>
+<defs><clipPath id="rounded"><rect x="64" y="206" width="360" height="360" rx="80"/></clipPath><clipPath id="circle"><circle cx="150" cy="744" r="66"/></clipPath></defs>
+<image href="data:image/png;base64,${icon.toString("base64")}" x="64" y="206" width="360" height="360" clip-path="url(#rounded)"/>
+<rect x="494" y="180" width="410" height="724" rx="40" fill="${colors.paper}"/>
+<rect x="938" y="180" width="410" height="724" rx="40" fill="${colors.night}"/>
+${markAt(646, 484, 100, colors.forest, "#739482")}${markAt(1090, 484, 100, colors.sage, "#739482")}
+<circle cx="150" cy="744" r="66" fill="${colors.forest}"/>${markAt(118, 706, 68, colors.ivory, colors.sage)}
+<rect x="274" y="713" width="60" height="60" rx="14" fill="${colors.forest}"/>${markAt(287, 722, 36, colors.ivory, colors.sage)}
+<g font-family="Helvetica, Arial, sans-serif" font-size="16" fill="#687168"><text x="64" y="614">APP ICON</text><text x="64" y="852">Adaptive + small-size check</text><text x="630" y="944">LIGHT LAUNCH</text><text x="1074" y="944">DARK LAUNCH</text></g></svg>`;
+  await sharp(Buffer.from(board))
+    .png()
+    .toFile(path.join(root, "design/brand/preview.png"));
+  console.log(
+    "Exported six launch assets, vector master and brand review board.",
+  );
+}
+void main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

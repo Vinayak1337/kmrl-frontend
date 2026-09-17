@@ -21,6 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Svg, { Path } from "react-native-svg";
+import { BRAND_VIEWBOX, BRAND_PATH, BRAND_FOLD } from "./brand";
 import * as Haptics from "expo-haptics";
 import { useTheme } from "./theme";
 import { useApp } from "./store";
@@ -87,15 +88,11 @@ export function Brand({
       <Svg
         width={size}
         height={size}
-        viewBox="0 0 36 36"
+        viewBox={BRAND_VIEWBOX}
         accessibilityLabel="DocSetu"
       >
-        <Path d="M5 4h17l9 9v19H5V4Z" fill={colors.accent} />
-        <Path
-          d="M22 4v9h9M11 18h14M11 23h14M11 28h8"
-          stroke={colors.onAccent}
-          strokeWidth={1.7}
-        />
+        <Path d={BRAND_PATH} fill={colors.accent} />
+        <Path d={BRAND_FOLD} fill={colors.canvas} opacity={0.35} />
       </Svg>
       {wordmark && (
         <Text style={{ fontWeight: "600", fontSize: 24, letterSpacing: -0.8 }}>

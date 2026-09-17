@@ -10,7 +10,7 @@ A document desk in your pocket. Find, understand, verify, act. Prefer content an
 
 - `design/mockups/documents.png`: approved hierarchy, ruled rows, search, compact filters, reachable Add document action.
 - `design/mockups/reader.png`: approved overview/sections/source separation, generous reading surface, fixed contextual Ask action.
-- `design/mockups/ask.png`: approved question/answer/evidence hierarchy and bottom composer. Correct the generated logo drift by using the existing DocSetu folded-page glyph everywhere. Use the same system-safe frame in implementation; rendered device shells are not UI assets.
+- `design/mockups/ask.png`: approved question/answer/evidence hierarchy and bottom composer. Use the shared folded-paper / bridge monogram from `src/brand.ts` everywhere. Use the same system-safe frame in implementation; rendered device shells are not UI assets.
 - The images contain labelled sample records, not live records. Do not copy sample claims into production responses.
 
 ## Revision: a recognizable document workspace
@@ -70,3 +70,9 @@ Check rendered screens against references at 390×844 and 360×800, light/dark, 
 ### Android device corrections
 
 The shared `Screen` uses Android keyboard height avoidance. Sign-in and Workspace keep their top safe-area padding outside the scroll content so text cannot scroll over the status bar. Preserve these behaviors when adding forms. Native builds include `expo-system-ui` for automatic system appearance.
+
+## Launch identity revision
+
+The approved launch identity is `design/brand/preview.png`, refined from the generated `design/brand/concept.png`. A folded paper silhouette forms a D, with a bridge-shaped opening referencing Setu. Use the shared paths in `src/brand.ts` for app branding; keep document format glyphs separate. Forest tile, ivory mark, sage fold. Native launch uses forest on warm paper, sage on the night canvas. No tagline, spinner, artificial delay, or extra launch route.
+
+`npm run assets` reproduces all PNGs and the vector master from TypeScript. The 1024px launcher master is opaque and square: OS applies corners. Android foreground and monochrome artwork stay inside the central safe circle; monochrome is a true single-color alpha silhouette. Splash image width is 144 logical pixels (visible mark about 101), centered by the native splash screen. Session hydration controls dismissal. Reference: [Android launch guidelines](https://developer.android.com/develop/ui/views/launch/splash-screen).
