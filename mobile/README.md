@@ -36,7 +36,7 @@ npx eas-cli build --platform android --profile preview
 npx eas-cli build --platform ios --profile preview
 ```
 
-`DOCSETU_BUILD_PROFILE=preview` selects **DocSetu Preview**, Android package `com.docsetu.mobile.preview`, and the `docsetu-preview` scheme. The EAS preview profile sets this automatically, so it installs beside the development/production app. Set `EXPO_PUBLIC_API_URL` to an HTTPS backend that includes this branch’s native authentication endpoint. Release APKs bundle their JavaScript and do not require Metro.
+`DOCSETU_BUILD_PROFILE=preview` keeps the display name **DocSetu** and selects Android package `com.docsetu.mobile.preview`, and the `docsetu-preview` scheme. The EAS preview profile sets this automatically, so it installs beside the development/production app. Set `EXPO_PUBLIC_API_URL` to an HTTPS backend that includes this branch’s native authentication endpoint. Release APKs bundle their JavaScript and do not require Metro.
 
 `eas.json` includes development, internal preview, and production profiles. Set the public API URL in the corresponding EAS environment. No Expo project ID or store account is configured. Local preview signing uses a separate private key kept outside the repository; it is not a Play Store signing setup. Exporting JS bundles does not create an APK/IPA or publish an app.
 

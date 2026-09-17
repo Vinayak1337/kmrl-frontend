@@ -4,7 +4,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   const preview = process.env.DOCSETU_BUILD_PROFILE === "preview";
   return {
     ...config,
-    name: preview ? "DocSetu Preview" : "DocSetu",
+    name: "DocSetu",
     slug: "docsetu",
     scheme: preview ? "docsetu-preview" : "docsetu",
     android: {
