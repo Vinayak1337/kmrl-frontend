@@ -1,12 +1,13 @@
 import React from 'react';
+import { BRAND_VIEWBOX, BRAND_PATH, BRAND_FOLD } from './mark';
 
 type Size = 'sm' | 'md' | 'lg' | 'xl';
 interface LogoProps { className?: string; size?: Size; showText?: boolean; light?: boolean }
 export function DocSetuSymbol({ className = '', size = 'md', light = false }: { className?: string; size?: Size; light?: boolean }) {
   const dimension = { sm: 24, md: 30, lg: 38, xl: 48 }[size];
-  return <svg width={dimension} height={dimension} viewBox="0 0 36 36" fill="none" aria-hidden="true" className={className}>
-    <path d="M5 4h17l9 9v19H5V4Z" fill={light ? '#f5f4ee' : '#294f43'} />
-    <path d="M22 4v9h9M11 18h14M11 23h14M11 28h8" stroke={light ? '#294f43' : '#f5f4ee'} strokeWidth="1.7" />
+  return <svg width={dimension} height={dimension} viewBox={BRAND_VIEWBOX} fill="none" aria-hidden="true" className={className}>
+    <path d={BRAND_PATH} fill={light ? '#FFFEFA' : '#294F43'} />
+    <path d={BRAND_FOLD} fill={light ? '#ACCEB7' : '#739482'} />
   </svg>;
 }
 export function DocSetuLogo({ className = '', size = 'md', showText = true, light = false }: LogoProps) {

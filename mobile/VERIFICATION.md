@@ -73,3 +73,9 @@ Release APK smoke passed on the Vivo with Metro stopped: native sign-in reached 
 - Exported 1024px icon, Android adaptive and monochrome layers, theme-specific splash images and favicon; Android foreground occupied radius 296px is within the 312px safe circle.
 - Mobile TypeScript and repository lint pass (six pre-existing lint warnings). Native preview release rebuilt with the updated resources.
 - Vivo was disconnected during this refresh. On-device launcher masking and cold-start light/dark transitions still require verification; the artwork board is a design preview, not a device capture.
+
+### Shared website identity and merge verification
+
+- Website navigation, login, loading and empty-state branding use the shared monogram. SVG favicon, legacy ICO and Apple touch icon regenerate from the same source as mobile.
+- Website production build and lint passed (six existing warnings). Production landing and login pages visually inspected in Chromium; favicon and Apple touch metadata confirmed.
+- Fresh signed ARM64 preview APK assembled successfully. Backend remains the local production Next.js server through the existing HTTPS tunnel; the APK is not a standalone hosted backend deployment.

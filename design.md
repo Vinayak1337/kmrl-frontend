@@ -215,3 +215,7 @@ These are examples of hierarchy and composition, not pixel templates to force on
 ## 13. Native mobile extension
 
 The Expo application in `mobile/` follows [mobile/design.md](mobile/design.md), locked against reviewed image mock-ups. It shares the warm paper/forest identity and document/evidence semantics while using native touch geometry, four bottom tabs, system typography, light/dark semantic tokens, and platform pickers. These intentional native adaptations do not change the website's layout rules.
+
+## Shared launch and website identity
+
+The folded-paper / bridge D monogram replaces the generic document glyph in brand surfaces. Its bridge-shaped opening references Setu; the forest, ivory, and sage palette remains unchanged. `mobile/src/brand.ts` is the vector source. Run `cd mobile && npm run assets` to regenerate native assets, website `components/brand/mark.ts`, SVG favicon, legacy ICO, and Apple touch icon. Do not edit generated paths independently. `DocSetuSymbol` applies the shared mark to navigation, authentication, loading and empty states. The mobile splash uses the same symbol; website loading keeps its existing accessible status text and behavior.
