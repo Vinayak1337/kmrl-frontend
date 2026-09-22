@@ -19,7 +19,7 @@ Open in a compatible Expo Go client, Android emulator, iOS simulator, or develop
 - `npm run android` / `npm run ios`: launch Expo Go on an available device/simulator.
 - `npm run android:build -- --device I2207`: build and install the native Android debug app. Use Java 17 and an installed Android SDK. This local debug build includes Expo Dev Client, needs Metro and is not a store-signed release. Start its server with `npx expo start --dev-client --localhost` when using USB port forwarding.
 - For a USB-connected Android phone, run `adb reverse tcp:8081 tcp:8081` and `adb reverse tcp:3100 tcp:3100`; use `http://127.0.0.1:3100` as the workspace address when the test backend runs on port 3100.
-- Set `EXPO_PUBLIC_API_URL` to an HTTPS deployment of **this branch's backend**. The production main branch does not yet contain `/api/mobile/auth`.
+- Set `EXPO_PUBLIC_API_URL` to the production backend at `https://trydocsetu.vercel.app`. Its `/api/mobile/auth` endpoint is deployed.
 - For local native development, point to the computer's LAN address (`http://192.168.x.x:3000`), not the phone's localhost. Android emulator can use `http://10.0.2.2:3000`. Plain HTTP is accepted only in development.
 - Sign in with an existing administrator-provisioned DocSetu account. No credentials or API keys ship in the application.
 - The web preview does not persist bearer tokens. Cross-origin live web use requires an explicit same-origin API proxy or a deployment-specific CORS configuration; native HTTP clients do not have browser CORS restrictions.
@@ -100,3 +100,23 @@ npm run test:ui
 `test:ui` builds the web bundle and starts a local static preview. Its HTTP test fixtures verify the real client's request/response handling, bearer transport, upload retry, citations and session expiry; they are **not** live database/AI-provider tests. `CHROMIUM_EXECUTABLE_PATH` may point to a compatible installed Chromium.
 
 See [VERIFICATION.md](VERIFICATION.md) for actual results and remaining device/release checks. Generated assets reuse the existing DocSetu vector mark. Run `npm run assets` to recreate icons, adaptive foreground, monochrome icon, favicons and light/dark splash assets.
+
+## Production Android APK
+
+The signed production APK is checked into `releases/android/` at the repository root and attached to the GitHub release. It uses `com.docsetu.mobile`, version 1.0.0, and supports ARM64 and ARMv7 phones. JavaScript is bundled; Metro is not required.
+
+To rebuild from `mobile/`, with Java 17, Android SDK and dependencies installed:
+
+```sh
+export JAVA_HOME=/path/to/jdk-17
+export ANDROID_HOME=/path/to/android-sdk
+export DOCSETU_KEYSTORE=/private/path/production.jks
+export DOCSETU_KEY_PASSWORD_FILE=/private/path/password
+npm run android:release
+```
+
+The keystore alias must be `docsetu-production`. Keep the key and password backed up privately: future APK updates require the same signing key. The build regenerates ignored Android sources, selects production signing, disables dotenv loading, and embeds only the public API URL `https://trydocsetu.vercel.app`. Database, AI and authentication secrets remain on the server. Output: `android/app/build/outputs/apk/release/app-release.apk`.
+
+This is a signed APK for direct installation, not a Google Play submission. A development app using the same package ID but a different signature must be removed before installation; removing it clears its local app data.
+
+Build-tool limitation: the script excludes the Worklets and Reanimated dependency `lintAnalyzeRelease` tasks because their Kotlin lint analyzer crashes (`Cannot find a KaModule for the VirtualFile`). App lint and release vital checks remain enabled. See `VERIFICATION.md` for release checks and device-test limits.

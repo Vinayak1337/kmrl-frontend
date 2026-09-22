@@ -59,7 +59,8 @@
     "test": "node --import tsx --test tests/*.test.ts",
     "assets": "tsx scripts/brand-assets.ts",
     "test:ui": "expo export --platform web && playwright test",
-    "android:build": "expo run:android"
+    "android:build": "expo run:android",
+    "android:release": "tsx scripts/build-production.ts"
   },
   "private": true
 }

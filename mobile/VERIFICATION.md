@@ -79,3 +79,14 @@ Release APK smoke passed on the Vivo with Metro stopped: native sign-in reached 
 - Website navigation, login, loading and empty-state branding use the shared monogram. SVG favicon, legacy ICO and Apple touch icon regenerate from the same source as mobile.
 - Website production build and lint passed (six existing warnings). Production landing and login pages visually inspected in Chromium; favicon and Apple touch metadata confirmed.
 - Fresh signed ARM64 preview APK assembled successfully. Backend remains the local production Next.js server through the existing HTTPS tunnel; the APK is not a standalone hosted backend deployment.
+
+## Production APK 1.0.0
+
+- Production backend `https://trydocsetu.vercel.app/api/mobile/auth` responds with the expected HTTP 400 validation response to an empty sign-in request.
+- APK package `com.docsetu.mobile`, version 1.0.0 (1), Android 7/API 24 minimum, ARM64 + ARMv7. Production API URL confirmed in the bundled JavaScript. No Metro required.
+- Dedicated production signing key is stored privately outside the repository; APK v2 signature verified. Manifest does not mark the application debuggable.
+- Mobile typecheck, four domain tests, four backend mobile-auth tests passed. Repository ESLint passed with six existing warnings.
+- Android release assembly and application lint run with `react-native-worklets:lintAnalyzeRelease` and `react-native-reanimated:lintAnalyzeRelease` excluded: both dependency analyzers crash inside Kotlin with `Cannot find a KaModule for the VirtualFile`. The reproducible build command documents these narrow exclusions; app lint and release vital checks remain enabled.
+- No Android device was connected for this production build, so installation, production account login and live AI flows were not re-tested. Earlier device checks used a different build/backend.
+
+Final Android assembly and app lint passed (0 errors, 43 warnings) with the two dependency analyzer exclusions above. The build script places the Android 13-only splash attribute in `values-v33` to fix the Expo-generated base-resource API error.
