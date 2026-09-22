@@ -1,4 +1,4 @@
-import { generateJsonWithMuseSpark } from '@/lib/ai/opencodeZen';
+import { generateJson } from '@/lib/ai/generate';
 import {
 	analyzeDocumentWithGemini,
 	type AgentPage
@@ -59,7 +59,7 @@ export async function processDocumentWithAI(
 	const input = `Document Content (raw text):\n${text.slice(0, 45000)}`;
 
 	try {
-		const parsed: any = await generateJsonWithMuseSpark({
+		const parsed: any = await generateJson({
 			instructions: prompt,
 			input
 		});

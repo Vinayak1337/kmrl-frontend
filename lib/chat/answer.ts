@@ -1,5 +1,6 @@
+import { sourceExtract } from './extract';
 import { CHAT_INSTRUCTIONS } from './prompt';
-import { generateWithMuseSpark } from '@/lib/ai/opencodeZen';
+import { generateText } from '@/lib/ai/generate';
 import { searchDocumentsAndChunks, type ChunkSearchResult } from '@/lib/search/searchService';
 import type { JwtUser } from '@/lib/auth';
 import type { ChatMessage } from './types';
@@ -54,7 +55,7 @@ ${query}
 
 Answer the question above and nothing more.`;
 
-    const museRes = await generateWithMuseSpark({
+    const museRes = await generateText({
       instructions: CHAT_INSTRUCTIONS,
       input: prompt,
       sessionId
@@ -62,13 +63,13 @@ Answer the question above and nothing more.`;
     reply = museRes.text;
     if (reply) generation = 'model';
   } catch (llmErr) {
-    console.warn('[chat] OpenCode Zen Muse Spark synthesis failed, falling back to summary', llmErr);
+    console.warn('[chat] AI synthesis failed, falling back to summary', llmErr);
   }
 
   if (!reply) {
     if (topChunks.length > 0) {
       const focus = topChunks[0];
-      reply = `The closest matching passage is in "${focus.documentTitle}" (${focus.title}) [#1]:\n\n${focus.nodeSummary || focus.content.slice(0, 300)}`;
+      reply = `The closest matching passage is in "${focus.documentTitle}" (${focus.title}) [#1]:\n\n${sourceExtract(focus.content, query)}`;
     } else {
       reply = 'I could not find anything in your documents that answers this question.';
     }

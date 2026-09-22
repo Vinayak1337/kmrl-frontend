@@ -19,6 +19,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run test:services
+      - run: npm run test:ai
       - run: npm run test:md
       - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:ui

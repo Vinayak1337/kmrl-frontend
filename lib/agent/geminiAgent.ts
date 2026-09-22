@@ -1,4 +1,4 @@
-import { generateWithMuseSpark } from '@/lib/ai/opencodeZen';
+import { generateText } from '@/lib/ai/generate';
 
 export type AgentImage = { base64: string; mimeType: string };
 export type AgentPage = { index: number; text: string; images: AgentImage[] };
@@ -79,7 +79,7 @@ CRITICAL:
 		.join('\n\n');
 
 	try {
-		const res = await generateWithMuseSpark({
+		const res = await generateText({
 			instructions: systemInstruction,
 			input: `Total pages: ${pages.length}\n\nDocument Content:\n${pagesContext}`
 		});
