@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       ? await answerQuestion({ query, session, docId, topK, mergedMessages, sessionId })
       : { reply: directReply(intent, Boolean(docId)), citations: [], generation: 'direct' };
     const { reply, citations, generation } = result;
-    await saveChatTurn({ sessionId, userId: session.sub, docId, messages: [...mergedMessages, { role: 'assistant', content: reply }], citations });
+    await saveChatTurn({ sessionId, userId: session.sub, docId, messages: [...mergedMessages, { role: 'assistant', content: reply, generation, citations }], citations });
 
     return NextResponse.json({ reply, citations, sessionId, generation });
   } catch (e) {

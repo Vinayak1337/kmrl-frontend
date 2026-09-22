@@ -1,6 +1,11 @@
 import type { ObjectId } from 'mongodb';
 
-export type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string };
+export type ChatMessage = {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  generation?: string;
+  citations?: ChatHistoryRecord['citations'];
+};
 export type ChatHistoryRecord = {
   _id?: ObjectId;
   sessionId: string;

@@ -22,6 +22,10 @@ async function run() {
     }
     const scoped = await request(`/api/chat?sessionId=${sessionId}&docId=${docId}`);
     assert.equal(scoped.data.messages.length, 4, 'Repeated user turns must be retained exactly once');
+    for (const message of scoped.data.messages.filter((m: { role: string }) => m.role === 'assistant')) {
+      assert.equal(message.generation, 'direct', 'Generation status must survive history reload');
+      assert.deepEqual(message.citations, [], 'Each answer retains its own citations');
+    }
     const global = await request('/api/chat', { sessionId, messages: [{ role: 'user', content: 'hello' }] });
     assert.equal(global.status, 200);
     const globalHistory = await request(`/api/chat?sessionId=${sessionId}`);
