@@ -90,3 +90,26 @@ Release APK smoke passed on the Vivo with Metro stopped: native sign-in reached 
 - No Android device was connected for this production build, so installation, production account login and live AI flows were not re-tested. Earlier device checks used a different build/backend.
 
 Final Android assembly and app lint passed (0 errors, 43 warnings) with the two dependency analyzer exclusions above. The build script places the Android 13-only splash attribute in `values-v33` to fix the Expo-generated base-resource API error.
+
+## Vivo production-backed preview — 22 September 2026
+
+Signed `com.docsetu.mobile.preview` APK installed on the USB-connected Vivo I2207, Android 15. The previous DocSetu install was removed; only this preview remains. Backend: `https://trydocsetu.vercel.app`. Tested using the administrator account supplied by the user; credentials and signing keys are not committed.
+
+Completed physical-device checks:
+- Native login, live document list, text-file picker and upload, persisted reader, bookmark, question composer with keyboard, follow-up and exact citation navigation.
+- Source copying, native link sharing and original-file sharing sheets (nothing sent externally).
+- Camera permission denial/error, permission grant, camera launch and cancellation (no photo captured/uploaded).
+- Paste draft protection: Cancel retained the draft; Discard removed it.
+- Dark theme, access screen, people listing, temporary manager creation and grant editing.
+- Real production AI answer returned the fixture inspection date/time and budget with its correct citation after the provider fix.
+
+Additional live API checks passed: administrator session/documents/actions/people/audit; no-grant manager rejected for document read/upload/delete and people listing; invalid bearer rejected; grant edits persisted; model-backed answer; exact cited source; per-answer generation and citations persisted; Hindi translation retained the year and amount. Temporary manager, uploaded fixture and its conversations were removed. Audit records remain as the normal record of those actions.
+
+Fixes deployed to main:
+- `15712ab`: use configured server-side Gemini, and select relevant verbatim fallback sentences. The previous key-free OpenCode endpoint returned HTTP 403 restricting use to OpenCode.
+- `e38b508`: persist each assistant answer's generation mode and citations.
+- `bbb1302`: route translation and document enrichment through the configured provider too.
+
+Automated checks: mobile typecheck/four tests/three Playwright workflows; root typecheck/lint (six existing warnings), four service tests, four mobile-auth tests, two new AI regression tests; production build; live Gemini answer/citation checks. Android release assembly and app lint passed with the already documented two dependency analyzer exclusions.
+
+The user ended testing before the remaining matrix. Offline/reconnection, large text/accessibility, PDF and image capture uploads, sustained performance, complete on-device activity/action flows and session-expiry scenarios were not completed in this run. Do not interpret this as exhaustive coverage. Screenshots and credential-bearing test state stayed outside the public repository.

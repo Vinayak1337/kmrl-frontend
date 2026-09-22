@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
+const profile = process.env.DOCSETU_BUILD_PROFILE || "production";
+if (profile !== "production" && profile !== "preview") throw new Error("Unknown build profile");
 // Signing material is supplied outside the repository and never bundled.
 const keystore = process.env.DOCSETU_KEYSTORE;
 const passwordFile = process.env.DOCSETU_KEY_PASSWORD_FILE;
@@ -12,7 +14,8 @@ const env: NodeJS.ProcessEnv = {
   ...process.env,
   NODE_ENV: "production",
   EXPO_NO_DOTENV: "1",
-  DOCSETU_BUILD_PROFILE: "production",
+  DOCSETU_BUILD_PROFILE: profile,
+  DOCSETU_KEY_ALIAS: `docsetu-${profile}`,
   EXPO_PUBLIC_API_URL: "https://trydocsetu.vercel.app",
   DOCSETU_KEYSTORE: resolve(keystore),
   DOCSETU_KEY_PASSWORD: readFileSync(passwordFile, "utf8").trim(),
@@ -44,7 +47,7 @@ gradle = gradle.replace("signingConfigs {", `signingConfigs {
         production {
             storeFile file(System.getenv("DOCSETU_KEYSTORE"))
             storePassword System.getenv("DOCSETU_KEY_PASSWORD")
-            keyAlias "docsetu-production"
+            keyAlias System.getenv("DOCSETU_KEY_ALIAS")
             keyPassword System.getenv("DOCSETU_KEY_PASSWORD")
         }`);
 gradle = gradle.replace(/(release \{[\s\S]*?signingConfig )signingConfigs\.debug/, "$1signingConfigs.production");

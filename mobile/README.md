@@ -120,3 +120,9 @@ The keystore alias must be `docsetu-production`. Keep the key and password backe
 This is a signed APK for direct installation, not a Google Play submission. A development app using the same package ID but a different signature must be removed before installation; removing it clears its local app data.
 
 Build-tool limitation: the script excludes the Worklets and Reanimated dependency `lintAnalyzeRelease` tasks because their Kotlin lint analyzer crashes (`Cannot find a KaModule for the VirtualFile`). App lint and release vital checks remain enabled. See `VERIFICATION.md` for release checks and device-test limits.
+
+## Tested preview APK
+
+`releases/android/docsetu-preview-1.0.0.apk` uses the production backend and the separate package `com.docsetu.mobile.preview`. Build it with `npm run android:preview`, setting `DOCSETU_KEYSTORE` and `DOCSETU_KEY_PASSWORD_FILE` to a private preview keystore/password file. Its alias is `docsetu-preview`. Production builds continue using `docsetu-production`.
+
+The September 22 Vivo verification found and fixed server-side AI generation, translation/enrichment provider routing, source fallback selection, and per-answer history evidence persistence. These deployed backend fixes also apply to the existing production APK without reinstalling it. See `VERIFICATION.md` for checks actually completed.
