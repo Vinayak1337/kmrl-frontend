@@ -8,7 +8,7 @@ import { chunkDocument } from '@/lib/ingest/chunker';
 import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, ChunkEnrichmentData } from '@/lib/ingest/builder';
 import { buildManagerMdPrompt, ManagerAnalysisJSON } from '@/lib/prompt';
-import { generateJsonWithMuseSpark } from '@/lib/ai/opencodeZen';
+import { generateJson } from '@/lib/ai/generate';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 async function runMuseSparkEnrichment(
@@ -19,7 +19,7 @@ async function runMuseSparkEnrichment(
 		const prompt = buildManagerMdPrompt(meta);
 		const input = `Document Content:\n${text.slice(0, 40000)}`;
 
-		const result = await generateJsonWithMuseSpark<ManagerAnalysisJSON>({
+		const result = await generateJson<ManagerAnalysisJSON>({
 			instructions: prompt,
 			input
 		});

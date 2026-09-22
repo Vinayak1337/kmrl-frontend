@@ -1,6 +1,6 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
-import { generateJsonWithMuseSpark } from '@/lib/ai/opencodeZen';
+import { generateJson } from '@/lib/ai/generate';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession, buildDocumentAccessFilter } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
 			'Do not include any commentary or code fences outside the JSON.'
 		].join('\n');
 
-		const translated = await generateJsonWithMuseSpark<{
+		const translated = await generateJson<{
 			summary?: string;
 			keyPoints?: string[];
 			actionableItems?: string[];

@@ -1,6 +1,6 @@
 export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from 'next/server';
-import { generateJsonWithMuseSpark } from '@/lib/ai/opencodeZen';
+import { generateJson } from '@/lib/ai/generate';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession, buildDocumentAccessFilter, isDocumentAccessible } from '@/lib/auth';
 import { getCollection, ensureDocumentIndexes, ensureNodeIndexes } from '@/lib/mongo';
@@ -64,7 +64,7 @@ async function runMuseSparkEnrichment(
 		const prompt = buildManagerMdPrompt(meta);
 		const input = `Document Content:\n${text.slice(0, 45000)}`;
 
-		const result = await generateJsonWithMuseSpark<ManagerAnalysisJSON>({
+		const result = await generateJson<ManagerAnalysisJSON>({
 			instructions: prompt,
 			input
 		});
