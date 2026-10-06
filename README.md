@@ -1,4 +1,4 @@
-# KMRL Frontend Application
+# DocSetu
 
 A modern, multilingual content delivery platform built with Next.js 13+, featuring AI-powered translation services, real-time content management, and a responsive user interface.
 
@@ -143,7 +143,7 @@ npm run seed:admin
 Key environment variables (see `.env.example` for full list):
 
 - `MONGODB_URI`, `MONGODB_DB_NAME`, `MONGODB_COLLECTION`
-- `GEMINI_API_KEY` (from `.env`)
+- `AI_BASE_URL`, `AI_API_KEY`, `AI_EFFORT` — OCI gateway for `gpt-6-luna` (see `FRONTEND.md`)
 - `AUTH_SECRET` (JWT for middleware)
 
 ## 📱 Pages Overview
@@ -246,7 +246,7 @@ This project is private and proprietary.
 
 ## 👥 Team
 
-Developed for the KMRL Project.
+Developed for the DocSetu Project.
 
 ---
 

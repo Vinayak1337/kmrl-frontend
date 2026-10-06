@@ -36,9 +36,9 @@ export function buildManagerFocusedPrompt(meta?: {
 	const dtype = meta?.documentType
 		? `Document Type: ${meta.documentType}`
 		: 'Document Type: (unspecified)';
-	return `You are a senior document analyst for Kochi Metro Rail Limited (KMRL).
+	return `You are a senior document analyst for DocSetu.
 
-Goal: Equip KMRL stakeholders with rapid, trustworthy, manager‑focused snapshots while preserving traceability to the source.
+Goal: Equip DocSetu stakeholders with rapid, trustworthy, manager‑focused snapshots while preserving traceability to the source.
 
 Context:\n- ${dept}\n- ${dtype}
 

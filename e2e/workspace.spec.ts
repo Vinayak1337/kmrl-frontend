@@ -25,7 +25,7 @@ async function fixtureApis(page: Page) {
 }
 
 test.beforeEach(async ({ context, page }) => {
-  await context.addCookies([{ name:'kmrl_session', value:jwt.sign(user,secret,{expiresIn:3600}), domain:'localhost', path:'/' }]);
+  await context.addCookies([{ name:'docsetu_session', value:jwt.sign(user,secret,{expiresIn:3600}), domain:'localhost', path:'/' }]);
   await fixtureApis(page);
 });
 
@@ -221,7 +221,7 @@ test('access request success preserves form contract without sending email',asyn
 });
 
 test('manager navigation and server redirects enforce administrator routes',async({page,context})=>{
-  await context.addCookies([{name:'kmrl_session',value:jwt.sign({...user,role:'MANAGER'},secret,{expiresIn:3600}),domain:'localhost',path:'/'}]);
+  await context.addCookies([{name:'docsetu_session',value:jwt.sign({...user,role:'MANAGER'},secret,{expiresIn:3600}),domain:'localhost',path:'/'}]);
   await page.route('**/api/auth/session',route=>route.fulfill({json:{user:{...user,role:'MANAGER'}}}));
   await page.goto('/people');
   await expect(page).toHaveURL(/\/home$/);

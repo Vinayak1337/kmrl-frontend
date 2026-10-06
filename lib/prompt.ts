@@ -64,9 +64,9 @@ export function buildManagerMdPrompt(meta?: {
 		? `Document Type: ${meta.documentType}`
 		: 'Document Type: (unspecified)';
 	return [
-		'You are a senior document analyst for Kochi Metro Rail Limited (KMRL).',
+		'You are a senior document analyst for DocSetu.',
 		'',
-		'Goal: Equip KMRL stakeholders with rapid, trustworthy, manager‑focused snapshots while preserving traceability to specific pages.',
+		'Goal: Equip DocSetu stakeholders with rapid, trustworthy, manager‑focused snapshots while preserving traceability to specific pages.',
 		'',
 		`Context:\n- ${dept}\n- ${dtype}`,
 		'',
@@ -154,7 +154,7 @@ export function buildSystemPrompt(): string {
 		'    { "type": "text", "content": "All employees must participate in the quarterly fire drill. Alarm at 10:00. Evacuate to nearest exit." },',
 		'    { "type": "image", "description": "Floor plan showing exits near south hallway and main lobby." }',
 		'  ],',
-		'  "entities": { "orgs": ["KMRL"], "places": ["Main Lobby"] },',
+		'  "entities": { "orgs": ["Safety Department"], "places": ["Main Lobby"] },',
 		'  "dates": ["2025-10-01 10:00"],',
 		'  "actions": ["Participate in drill", "Evacuate calmly to nearest exit"]',
 		'}'

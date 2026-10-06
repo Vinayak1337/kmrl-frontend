@@ -7,7 +7,7 @@ type MemDoc = Record<string, any>;
 type MemDB = { [name: string]: MemDoc[] };
 const MEM_ENABLED = process.env.TEST_INMEM_DB === '1';
 const g: any = globalThis as any;
-const memdb: MemDB = (g.__KMRL_MEMDB__ = g.__KMRL_MEMDB__ || {});
+const memdb: MemDB = (g.__DOCSETU_MEMDB__ = g.__DOCSETU_MEMDB__ || {});
 
 function pathGet(obj: any, path: string): any {
 	return path.split('.').reduce((acc, k) => (acc ? acc[k] : undefined), obj);
@@ -233,7 +233,7 @@ export async function getMongo(): Promise<{ client: MongoClient; db: Db }> {
 	}
 	// Connect (safe to call multiple times)
 	await client.connect();
-	const defaultDb = getDatabaseNameFromUri(uri) || 'kmrl';
+	const defaultDb = getDatabaseNameFromUri(uri) || 'docsetu';
 	const dbName = process.env.MONGODB_DB_NAME || defaultDb;
 	const db = client.db(dbName);
 	return { client, db };

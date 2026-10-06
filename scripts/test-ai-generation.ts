@@ -3,31 +3,61 @@ import { test } from 'node:test';
 import { generateText, generateJson } from '../lib/ai/generate';
 import { sourceExtract } from '../lib/chat/extract';
 
-test('configured Gemini preserves instructions, ignores thought parts and parses JSON', async () => {
+async function withGateway(effort: string | undefined, run: () => Promise<void>) {
   const fetch = globalThis.fetch;
-  const key = process.env.GEMINI_API_KEY;
-  process.env.GEMINI_API_KEY = 'test-private-key';
+  const saved = { url: process.env.AI_BASE_URL, key: process.env.AI_API_KEY, effort: process.env.AI_EFFORT };
+  process.env.AI_BASE_URL = 'https://gateway.test/v1/';
+  process.env.AI_API_KEY = 'test-gateway-key';
+  if (effort === undefined) delete process.env.AI_EFFORT;
+  else process.env.AI_EFFORT = effort;
+  try { await run(); } finally {
+    globalThis.fetch = fetch;
+    for (const [name, value] of [['AI_BASE_URL', saved.url], ['AI_API_KEY', saved.key], ['AI_EFFORT', saved.effort]] as const) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+}
+
+const completed = (text: string) => Response.json({ status: 'completed', model: 'gpt-6-luna', output: [{ type: 'message', content: [{ type: 'output_text', text }] }] });
+
+test('gateway call pins gpt-6-luna, sends only accepted fields and parses JSON', () => withGateway('xhigh', async () => {
   globalThis.fetch = async (input, init) => {
-    assert.ok(String(input).startsWith('https://generativelanguage.googleapis.com/v1beta/models/'));
-    assert.ok(!String(input).includes('test-private-key'));
-    assert.equal(new Headers(init?.headers).get('x-goog-api-key'), 'test-private-key');
+    assert.equal(String(input), 'https://gateway.test/v1/responses');
+    assert.equal(new Headers(init?.headers).get('authorization'), 'Bearer test-gateway-key');
     const body = JSON.parse(String(init?.body));
-    assert.match(body.systemInstruction.parts[0].text, /Only use evidence/);
-    assert.equal(body.contents[0].parts[0].text, 'source');
-    return Response.json({ candidates: [{ content: { parts: [
-      { thought: true, text: 'private reasoning' }, { text: '{"answer":42}' },
-    ] } }] });
+    assert.equal(body.model, 'gpt-6-luna');
+    assert.equal(body.reasoning.effort, 'xhigh');
+    assert.match(body.instructions, /Only use evidence/);
+    assert.equal(body.store, false);
+    assert.ok(!('temperature' in body) && !('max_output_tokens' in body));
+    return completed('```json\n{"answer":42}\n```');
   };
+  assert.deepEqual(await generateJson({ input: 'source', instructions: 'Only use evidence' }), { answer: 42 });
+  globalThis.fetch = async () => new Response('provider failure', { status: 403 });
+  await assert.rejects(generateText({ input: 'source' }), /HTTP 403/);
+  globalThis.fetch = async () => Response.json({ status: 'incomplete', output: [] });
+  await assert.rejects(generateText({ input: 'source' }), /incomplete/);
+}));
+
+test('effort below high is raised to high', () => withGateway('low', async () => {
+  globalThis.fetch = async (_input, init) => {
+    assert.equal(JSON.parse(String(init?.body)).reasoning.effort, 'high');
+    return completed('ok');
+  };
+  assert.equal((await generateText({ input: 'source' })).text, 'ok');
+}));
+
+test('no other provider is used when the gateway is not configured', async () => {
+  const saved = process.env.AI_BASE_URL;
+  delete process.env.AI_BASE_URL;
+  const fetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error('must not call any provider'); };
   try {
-    assert.deepEqual(await generateJson({ input: 'source', instructions: 'Only use evidence' }), { answer: 42 });
-    globalThis.fetch = async () => new Response('provider failure', { status: 403 });
-    await assert.rejects(generateText({ input: 'source' }), /HTTP 403/);
-    globalThis.fetch = async () => Response.json({ candidates: [] });
-    await assert.rejects(generateText({ input: 'source' }), /no answer/);
+    await assert.rejects(generateText({ input: 'source' }), /not configured/);
   } finally {
     globalThis.fetch = fetch;
-    if (key === undefined) delete process.env.GEMINI_API_KEY;
-    else process.env.GEMINI_API_KEY = key;
+    if (saved !== undefined) process.env.AI_BASE_URL = saved;
   }
 });
 

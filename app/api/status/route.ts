@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCollection } from '@/lib/mongo';
+import { AI_MODEL, aiConfigured, aiEffort } from '@/lib/ai/generate';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 export async function GET() {
@@ -46,7 +47,9 @@ export async function GET() {
             }
           },
           ai: {
-            gemini: process.env.GEMINI_API_KEY ? 'configured' : 'not configured'
+            gateway: aiConfigured() ? 'configured' : 'not configured',
+            model: AI_MODEL,
+            effort: aiEffort()
           },
           vectorDatabase: {
             type: 'MongoDB (keyword)',

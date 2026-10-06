@@ -31,7 +31,7 @@ Example:
 ```bash
 curl -X POST http://localhost:3000/api/upload \
   -H "Content-Type: application/json" \
-  --cookie "kmrl_session=..." \
+  --cookie "docsetu_session=..." \
   -d '{
     "documents": [
       {"type":"html","content":"<h1>Title</h1>","filename":"doc.html"},
@@ -67,7 +67,7 @@ Example (HTML):
 ```bash
 curl -X POST http://localhost:3000/api/documents/agent \
   -H "Content-Type: application/json" \
-  --cookie "kmrl_session=..." \
+  --cookie "docsetu_session=..." \
   -d '{
     "title": "Safety Circular",
     "html": "<h1>Safety</h1><p>Content...</p>\n<img src=\"data:image/png;base64,....\" />"

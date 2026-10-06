@@ -42,21 +42,21 @@ async function main() {
 		throw new Error(`Login failed (${loginRes.status}): ${err}`);
 	}
 
-	// Extract kmrl_session cookie from set-cookie
+	// Extract docsetu_session cookie from set-cookie
 	const setCookie = loginRes.headers.get('set-cookie') || '';
-	const match = setCookie.match(/kmrl_session=([^;]+)/);
+	const match = setCookie.match(/docsetu_session=([^;]+)/);
 	const sessionToken = match ? match[1] : '';
 
 	if (!sessionToken) {
-		throw new Error('Failed to extract kmrl_session cookie from login response.');
+		throw new Error('Failed to extract docsetu_session cookie from login response.');
 	}
 
 	console.log('✅ Login successful! Received authenticated session cookie:');
-	console.log(`   kmrl_session=${sessionToken.slice(0, 30)}...`);
+	console.log(`   docsetu_session=${sessionToken.slice(0, 30)}...`);
 
 	const authHeaders = {
 		'Content-Type': 'application/json',
-		Cookie: `kmrl_session=${sessionToken}`
+		Cookie: `docsetu_session=${sessionToken}`
 	};
 
 	// Verify session
@@ -94,7 +94,7 @@ async function main() {
 			title: 'Smart India Hackathon 2025 - Idea Presentation Format',
 			department: 'Administration',
 			documentType: 'Policy',
-			tags: ['SIH2025', 'SmartAutomation', 'KMRL', 'Innovation', 'Platform0'],
+			tags: ['SIH2025', 'SmartAutomation', 'DocSetu', 'Innovation', 'Platform0'],
 			documents: [
 				{
 					type: 'pdf',

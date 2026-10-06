@@ -2,9 +2,9 @@ import { DocSetuDocument, DocumentNode, DocumentAction } from '@/types/docsetu';
 
 export const MOCK_DOCUMENTS: DocSetuDocument[] = [
 	{
-		id: 'doc-kmrl-sop-402',
-		title: 'KMRL Track & Signaling Maintenance SOP 2026',
-		filename: 'KMRL-SOP-402-Signaling-Track.pdf',
+		id: 'doc-docsetu-sop-402',
+		title: 'DocSetu Track & Signaling Maintenance SOP 2026',
+		filename: 'DocSetu-SOP-402-Signaling-Track.pdf',
 		department: 'Operations',
 		team: 'Operations',
 		type: 'SOP',
@@ -28,9 +28,9 @@ export const MOCK_DOCUMENTS: DocSetuDocument[] = [
 		tags: ['Signaling', 'Track Safety', 'CBTC', 'Interlocks', 'Preventive Maintenance']
 	},
 	{
-		id: 'doc-kmrl-concession-eda',
+		id: 'doc-docsetu-concession-eda',
 		title: 'Commercial Retail Concession Agreement - Edapally Station',
-		filename: 'KMRL-CRE-Edapally-Concession-2024.pdf',
+		filename: 'DocSetu-CRE-Edapally-Concession-2024.pdf',
 		department: 'Legal',
 		team: 'Legal',
 		type: 'Contract',
@@ -54,9 +54,9 @@ export const MOCK_DOCUMENTS: DocSetuDocument[] = [
 		tags: ['Concession', 'Edapally', 'Lease', 'Revenue Share', 'Renewal']
 	},
 	{
-		id: 'doc-kmrl-procure-fy26',
+		id: 'doc-docsetu-procure-fy26',
 		title: 'Procurement Policy & Financial Delegation Matrix FY26',
-		filename: 'KMRL-Procurement-Policy-Matrix-FY26.pdf',
+		filename: 'DocSetu-Procurement-Policy-Matrix-FY26.pdf',
 		department: 'Procurement',
 		team: 'Procurement',
 		type: 'Policy',
@@ -80,9 +80,9 @@ export const MOCK_DOCUMENTS: DocSetuDocument[] = [
 		tags: ['Tenders', 'Financial Limits', 'Approvals', 'Vendor Vetting', 'Compliance']
 	},
 	{
-		id: 'doc-kmrl-cmrs-audit',
+		id: 'doc-docsetu-cmrs-audit',
 		title: 'CMRS Safety Inspection & Statutory Compliance Circular',
-		filename: 'CMRS-KMRL-Phase1-Inspection-Circular.pdf',
+		filename: 'CMRS-DocSetu-Phase1-Inspection-Circular.pdf',
 		department: 'Safety',
 		team: 'Safety',
 		type: 'Circular',
@@ -106,9 +106,9 @@ export const MOCK_DOCUMENTS: DocSetuDocument[] = [
 		tags: ['CMRS', 'Statutory', 'Fire Safety', 'Third Rail', 'Evacuation Drill']
 	},
 	{
-		id: 'doc-kmrl-hvac-overhaul',
+		id: 'doc-docsetu-hvac-overhaul',
 		title: 'Rolling Stock HVAC & Saloon Environmental Maintenance Guide',
-		filename: 'KMRL-RollingStock-HVAC-Manual-Rev3.pdf',
+		filename: 'DocSetu-RollingStock-HVAC-Manual-Rev3.pdf',
 		department: 'Engineering',
 		team: 'Engineering',
 		type: 'Manual',
@@ -132,9 +132,9 @@ export const MOCK_DOCUMENTS: DocSetuDocument[] = [
 		tags: ['Rolling Stock', 'HVAC', 'Refrigerant', 'Overhaul', 'Air Quality']
 	},
 	{
-		id: 'doc-kmrl-substation-backup',
+		id: 'doc-docsetu-substation-backup',
 		title: 'Traction Substation Emergency Power Synchronization Protocol',
-		filename: 'KMRL-TSS-Power-Sync-Protocol.pdf',
+		filename: 'DocSetu-TSS-Power-Sync-Protocol.pdf',
 		department: 'Electrical',
 		team: 'Engineering',
 		type: 'SOP',
@@ -160,10 +160,10 @@ export const MOCK_DOCUMENTS: DocSetuDocument[] = [
 ];
 
 export const MOCK_NODES: Record<string, DocumentNode[]> = {
-	'doc-kmrl-sop-402': [
+	'doc-docsetu-sop-402': [
 		{
 			id: 'node-sop-1',
-			docId: 'doc-kmrl-sop-402',
+			docId: 'doc-docsetu-sop-402',
 			order: 1,
 			title: 'Section 1: Daily Track Patrol & Point Machine Verification',
 			pageRange: { start: 1, end: 4 },
@@ -185,7 +185,7 @@ export const MOCK_NODES: Record<string, DocumentNode[]> = {
 		},
 		{
 			id: 'node-sop-2',
-			docId: 'doc-kmrl-sop-402',
+			docId: 'doc-docsetu-sop-402',
 			order: 2,
 			title: 'Section 2: Wayside CBTC Transponder & Balise Inspection',
 			pageRange: { start: 5, end: 9 },
@@ -206,15 +206,15 @@ export const MOCK_NODES: Record<string, DocumentNode[]> = {
 			dueDate: new Date('2026-09-22T18:00:00Z')
 		}
 	],
-	'doc-kmrl-procure-fy26': [
+	'doc-docsetu-procure-fy26': [
 		{
 			id: 'node-procure-1',
-			docId: 'doc-kmrl-procure-fy26',
+			docId: 'doc-docsetu-procure-fy26',
 			order: 1,
 			title: 'Section 1: Financial Delegation Matrix & Approving Authority',
 			pageRange: { start: 1, end: 6 },
 			content:
-				'Delegation of financial powers across KMRL departments: Unit Managers can approve operational requisitions up to ₹2.5 Lakhs. Department Heads (General Managers) hold authority up to ₹10 Lakhs. Operational expenditure between ₹10 Lakhs and ₹25 Lakhs requires joint CFO sign-off. Any capital expenditure exceeding ₹25 Lakhs requires Managing Director sanction and Board audit notification.',
+				'Delegation of financial powers across DocSetu departments: Unit Managers can approve operational requisitions up to ₹2.5 Lakhs. Department Heads (General Managers) hold authority up to ₹10 Lakhs. Operational expenditure between ₹10 Lakhs and ₹25 Lakhs requires joint CFO sign-off. Any capital expenditure exceeding ₹25 Lakhs requires Managing Director sanction and Board audit notification.',
 			summary:
 				'Sets the four-tier financial approval framework: Unit Managers (₹2.5L), GMs (₹10L), Joint CFO (₹25L), and Board/MD (> ₹25L).',
 			keyPoints: [
@@ -230,15 +230,15 @@ export const MOCK_NODES: Record<string, DocumentNode[]> = {
 			isUrgent: false
 		}
 	],
-	'doc-kmrl-concession-eda': [
+	'doc-docsetu-concession-eda': [
 		{
 			id: 'node-concession-1',
-			docId: 'doc-kmrl-concession-eda',
+			docId: 'doc-docsetu-concession-eda',
 			order: 1,
 			title: 'Clause 4: Lease Term, Escalation & Renewal Notice',
 			pageRange: { start: 6, end: 8 },
 			content:
-				'The initial concession term expires on 15 November 2026. A 5% annual escalation applies to minimum guaranteed monthly royalty. To prevent automatic termination or forfeiture of preferential negotiation rights, the concessionaire or KMRL must issue formal written renewal notice at least 60 days prior to expiry (no later than 18 September 2026).',
+				'The initial concession term expires on 15 November 2026. A 5% annual escalation applies to minimum guaranteed monthly royalty. To prevent automatic termination or forfeiture of preferential negotiation rights, the concessionaire or DocSetu must issue formal written renewal notice at least 60 days prior to expiry (no later than 18 September 2026).',
 			summary:
 				'Defines expiry date (15 November 2026) and the critical 60-day renewal notification window closing on 18 September 2026.',
 			keyPoints: [
@@ -260,9 +260,9 @@ export const MOCK_NODES: Record<string, DocumentNode[]> = {
 export const MOCK_ACTIONS: DocumentAction[] = [
 	{
 		id: 'act-001',
-		documentId: 'doc-kmrl-concession-eda',
+		documentId: 'doc-docsetu-concession-eda',
 		documentTitle: 'Commercial Retail Concession Agreement - Edapally Station',
-		docId: 'doc-kmrl-concession-eda',
+		docId: 'doc-docsetu-concession-eda',
 		docTitle: 'Commercial Retail Concession Agreement - Edapally Station',
 		action: 'Issue formal written lease extension / renewal notice to retail concessionaire',
 		team: 'Legal',
@@ -275,9 +275,9 @@ export const MOCK_ACTIONS: DocumentAction[] = [
 	},
 	{
 		id: 'act-002',
-		documentId: 'doc-kmrl-procure-fy26',
+		documentId: 'doc-docsetu-procure-fy26',
 		documentTitle: 'Procurement Policy & Financial Delegation Matrix FY26',
-		docId: 'doc-kmrl-procure-fy26',
+		docId: 'doc-docsetu-procure-fy26',
 		docTitle: 'Procurement Policy & Financial Delegation Matrix FY26',
 		action: 'Verify ERP approval limits for Capex requisitions exceeding ₹25 Lakhs threshold',
 		team: 'Finance',
@@ -290,9 +290,9 @@ export const MOCK_ACTIONS: DocumentAction[] = [
 	},
 	{
 		id: 'act-003',
-		documentId: 'doc-kmrl-cmrs-audit',
+		documentId: 'doc-docsetu-cmrs-audit',
 		documentTitle: 'CMRS Safety Inspection & Statutory Compliance Circular',
-		docId: 'doc-kmrl-cmrs-audit',
+		docId: 'doc-docsetu-cmrs-audit',
 		docTitle: 'CMRS Safety Inspection & Statutory Compliance Circular',
 		action: 'Submit verified Q3 fire suppression and third rail earthing certification',
 		team: 'Safety',
@@ -305,10 +305,10 @@ export const MOCK_ACTIONS: DocumentAction[] = [
 	},
 	{
 		id: 'act-004',
-		documentId: 'doc-kmrl-sop-402',
-		documentTitle: 'KMRL Track & Signaling Maintenance SOP 2026',
-		docId: 'doc-kmrl-sop-402',
-		docTitle: 'KMRL Track & Signaling Maintenance SOP 2026',
+		documentId: 'doc-docsetu-sop-402',
+		documentTitle: 'DocSetu Track & Signaling Maintenance SOP 2026',
+		docId: 'doc-docsetu-sop-402',
+		docTitle: 'DocSetu Track & Signaling Maintenance SOP 2026',
 		action: 'Complete Aluva–Muttom CBTC balise impedance sweep and bracket torque audit',
 		team: 'Operations',
 		owner: 'Signaling Wing',
@@ -320,9 +320,9 @@ export const MOCK_ACTIONS: DocumentAction[] = [
 	},
 	{
 		id: 'act-005',
-		documentId: 'doc-kmrl-substation-backup',
+		documentId: 'doc-docsetu-substation-backup',
 		documentTitle: 'Traction Substation Emergency Power Synchronization Protocol',
-		docId: 'doc-kmrl-substation-backup',
+		docId: 'doc-docsetu-substation-backup',
 		docTitle: 'Traction Substation Emergency Power Synchronization Protocol',
 		action: 'Conduct bi-monthly diesel generator 12-second synchronization test',
 		team: 'Engineering',
@@ -340,7 +340,7 @@ export const MOCK_AUDIT_LOGS = [
 		id: 'aud-101',
 		action: 'DOCUMENT_INGESTED',
 		user: 'K. R. Nair (General Manager, Ops)',
-		details: 'Ingested KMRL Track & Signaling Maintenance SOP 2026 (24 pages, 6 nodes indexed)',
+		details: 'Ingested DocSetu Track & Signaling Maintenance SOP 2026 (24 pages, 6 nodes indexed)',
 		timestamp: '2026-09-06T14:32:00Z',
 		ipAddress: '10.20.4.11'
 	},

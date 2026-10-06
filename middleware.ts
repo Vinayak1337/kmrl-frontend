@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthSecret } from './lib/authSecret';
 
-const AUTH_COOKIE = 'kmrl_session';
+const AUTH_COOKIE = 'docsetu_session';
 
 /**
  * Edge-runtime safe JWT HS256 verifier using W3C Web Cryptography API.

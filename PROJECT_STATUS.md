@@ -1,4 +1,4 @@
-# KMRL Frontend — Project Status (Phase 1–3)
+# DocSetu — Project Status (Phase 1–3)
 
 This document tracks what’s done and what’s next across the current effort. It also recommends how to consolidate existing docs so everything stays accurate and easy to maintain.
 
@@ -71,7 +71,7 @@ Summary of current docs and recommended actions:
 - WARP.md — Optional: fold "Common Development Commands" into README
   - Rationale: Avoid duplication. Keep WARP.md if your team likes a terminal-focused quickref.
 
-- KMRL_PROBLEM_STATEMENT.md — Keep
+- PROBLEM_STATEMENT.md — Keep
   - Purpose: Context/background. Link it from FRONTEND.md.
 
 - API_TESTING_GUIDE.md — Keep
@@ -85,7 +85,7 @@ Summary of current docs and recommended actions:
 - README.md (quickstart)
 - FRONTEND.md (roadmap/architecture)
 - INGESTION_AND_AGENT.md (merged guide for upload, agent, persistence, search)
-- KMRL_PROBLEM_STATEMENT.md (background)
+- PROBLEM_STATEMENT.md (background)
 - API_TESTING_GUIDE.md (testing tips)
 - docs/archive/ (old deep-dive material, if you want to keep historical docs)
 

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import nextEnv from '@next/env';
+import { loadEnvConfig } from '@next/env';
 import { generateText } from '../lib/ai/generate';
 
-nextEnv.loadEnvConfig(process.cwd());
+loadEnvConfig(process.cwd());
 async function run() {
   const result = await generateText({
     instructions: 'Use only the supplied facts. Cite [#1].',

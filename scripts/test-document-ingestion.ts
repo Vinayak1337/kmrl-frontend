@@ -17,12 +17,12 @@ const testCases = [
         {
           type: 'html' as const,
           content: `
-            <h1>KMRL Safety Circular - Fire Drill Procedures</h1>
+            <h1>DocSetu Safety Circular - Fire Drill Procedures</h1>
             <p><strong>Date:</strong> December 22, 2024</p>
             <p><strong>To:</strong> All Station Controllers and Operations Staff</p>
             
             <h2>1. Purpose</h2>
-            <p>This circular outlines the mandatory fire drill procedures to be conducted quarterly at all KMRL stations and depots.</p>
+            <p>This circular outlines the mandatory fire drill procedures to be conducted quarterly at all DocSetu stations and depots.</p>
             
             <h2>2. Drill Schedule</h2>
             <ul>
@@ -63,7 +63,7 @@ const testCases = [
         {
           type: 'text' as const,
           content: `
-KMRL TECHNICAL SPECIFICATION DOCUMENT
+DocSetu TECHNICAL SPECIFICATION DOCUMENT
 Document ID: TS-2024-12-001
 Date: December 22, 2024
 
@@ -72,7 +72,7 @@ PAGE 1
 SECTION 1: ROLLING STOCK MAINTENANCE REQUIREMENTS
 
 1.1 Overview
-This document specifies the maintenance requirements for KMRL's Alstom Metropolis train fleet. 
+This document specifies the maintenance requirements for DocSetu's Alstom Metropolis train fleet. 
 All maintenance activities must comply with EN 13306 and EN 50126 standards.
 
 1.2 Daily Inspection Checklist
@@ -127,7 +127,7 @@ SECTION 3: COMPLIANCE AND REPORTING
 All maintenance activities must be reported to:
 - Commissioner of Metro Rail Safety (CMRS) - Monthly
 - Ministry of Housing and Urban Affairs - Quarterly
-- KMRL Board - Monthly
+- DocSetu Board - Monthly
 
 3.2 Key Performance Indicators
 - Fleet availability: Target >95%
@@ -157,7 +157,7 @@ END OF DOCUMENT
           type: 'text' as const,
           content: `
 PURCHASE ORDER
-PO Number: KMRL/PROC/2024/1578
+PO Number: DocSetu/PROC/2024/1578
 Date: December 20, 2024
 
 Vendor: ABC Railway Systems Pvt Ltd
@@ -171,7 +171,7 @@ ITEMS ORDERED:
 Total Order Value: INR 22,40,000 (Including 18% GST)
 
 DELIVERY TERMS:
-- Delivery Location: KMRL Depot, Muttom
+- Delivery Location: DocSetu Depot, Muttom
 - Delivery Date: By January 31, 2025
 - Late delivery penalty: 1% per week
 
@@ -188,7 +188,7 @@ IMPORTANT: Engineering department must verify compatibility with existing system
 
 Approved by:
 Chief Procurement Officer
-KMRL
+DocSetu
           `,
           filename: 'purchase-order-spare-parts.txt'
         }

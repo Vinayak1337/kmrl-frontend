@@ -33,8 +33,8 @@ test('access and server errors are surfaced instead of sample data', async () =>
     await assert.rejects(listAllActions());
     await assert.rejects(listPeople());
     await assert.rejects(listAuditEntries());
-    await assert.rejects(getDocument('doc-kmrl-test'));
-    await assert.rejects(getDocumentSections('doc-kmrl-test'));
+    await assert.rejects(getDocument('doc-docsetu-test'));
+    await assert.rejects(getDocumentSections('doc-docsetu-test'));
   }
 });
 

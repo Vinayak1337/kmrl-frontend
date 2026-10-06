@@ -5,7 +5,7 @@ This script verifies that ingestion + agent produce structured, manager‑friend
 ## Requirements
 
 - Node.js runtime for `tsx`
-- Optional: running app with a valid `kmrl_session` cookie for live validation
+- Optional: running app with a valid `docsetu_session` cookie for live validation
 
 ## Commands
 
@@ -20,7 +20,7 @@ Live mode (hits your running server + real LLM):
 ```
 TEST_LIVE=1 \
 SERVER_URL=http://localhost:3000 \
-SESSION="<kmrl_session JWT>" \
+SESSION="<docsetu_session JWT>" \
 npm run test:md
 ```
 

@@ -1,7 +1,7 @@
 ﻿# Repository Guidelines
 
 ## Project Structure & Module Organization
-KMRL Frontend uses Next.js 15 App Router with TypeScript. Route logic lives in `app/`, with `(auth)` for grouped auth pages and `(workspace)` for protected views; `/dashboard/*` URLs are compatibility redirects. Shared UI sits in `components/` while global styles are in `styles/globals.css`. Static assets belong in `public/`. Keep configuration updates in `next.config.ts`, `tsconfig.json`, and `eslint.config.mjs`. Use `FRONTEND.md` for deep roadmap context, but treat `app/` as source of truth for live routes.
+DocSetu uses Next.js 15 App Router with TypeScript. Route logic lives in `app/`, with `(auth)` for grouped auth pages and `(workspace)` for protected views; `/dashboard/*` URLs are compatibility redirects. Shared UI sits in `components/` while global styles are in `styles/globals.css`. Static assets belong in `public/`. Keep configuration updates in `next.config.ts`, `tsconfig.json`, and `eslint.config.mjs`. Use `FRONTEND.md` for deep roadmap context, but treat `app/` as source of truth for live routes.
 
 ## Build, Test, and Development Commands
 - `npm install` – install dependencies; run after pulling package updates.

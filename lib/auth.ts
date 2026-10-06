@@ -1,7 +1,7 @@
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import { getAuthSecret } from './authSecret';
 
-export const AUTH_COOKIE = 'kmrl_session';
+export const AUTH_COOKIE = 'docsetu_session';
 
 export type JwtUser = {
   sub: string;

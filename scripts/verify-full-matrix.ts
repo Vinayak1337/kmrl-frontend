@@ -229,7 +229,7 @@ PROCUREMENT CIRCULAR: HIGH SPEED RAIL TENDER FY26
 		assert(managerUsersRes.status === 403, 'Manager forbidden from accessing /api/users', `status=${managerUsersRes.status}`);
 
 		// 3.3 Admin creates new user
-		const testEmail = `operator-${Date.now()}@kmrl.local`;
+		const testEmail = `operator-${Date.now()}@docsetu.local`;
 		const createRes = await fetch(`${API_URL}/api/users`, {
 			method: 'POST',
 			headers: adminHeaders,
@@ -292,7 +292,7 @@ PROCUREMENT CIRCULAR: HIGH SPEED RAIL TENDER FY26
 			body: JSON.stringify({
 				organizationName: 'Kochi Metro Operations',
 				contactName: 'Rohan Varma',
-				contactEmail: 'rohan.varma@kmrl.local',
+				contactEmail: 'rohan.varma@docsetu.local',
 				contactPhone: '+91 98470 12345',
 				role: 'Chief Engineer',
 				message: 'Requesting staging deployment of DocSetu for station operations testing.'

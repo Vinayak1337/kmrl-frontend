@@ -1,6 +1,6 @@
 /** Log in through the same endpoint as the UI; Node fetch has no browser cookie jar. */
 export async function testAuthCookie(apiUrl: string): Promise<string> {
-  if (process.env.TEST_SESSION) return `kmrl_session=${process.env.TEST_SESSION}`;
+  if (process.env.TEST_SESSION) return `docsetu_session=${process.env.TEST_SESSION}`;
   const response = await fetch(`${apiUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -198,7 +198,7 @@ async function liveMode(html: string) {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
-			Cookie: `kmrl_session=${SESSION}`
+			Cookie: `docsetu_session=${SESSION}`
 		},
 		body: JSON.stringify(body)
 	});
@@ -217,7 +217,7 @@ async function liveMode(html: string) {
 	const getRes = await fetch(
 		`${SERVER_URL}/api/documents/ingest?id=${created.documentId}`,
 		{
-			headers: { Cookie: `kmrl_session=${SESSION}` }
+			headers: { Cookie: `docsetu_session=${SESSION}` }
 		}
 	);
 	const doc = (await getRes.json()) as DocLike;
@@ -254,7 +254,7 @@ async function liveMode(html: string) {
 					firstTitled.title
 				)}&firstOnly=true`,
 				{
-					headers: { Cookie: `kmrl_session=${SESSION}` }
+					headers: { Cookie: `docsetu_session=${SESSION}` }
 				}
 			).catch(() => null);
 			if (q1 && q1.ok) {
@@ -273,7 +273,7 @@ async function liveMode(html: string) {
 					doc.id || created.documentId || ''
 				)}&firstOnly=true`,
 				{
-					headers: { Cookie: `kmrl_session=${SESSION}` }
+					headers: { Cookie: `docsetu_session=${SESSION}` }
 				}
 			).catch(() => null);
 			if (q2 && q2.ok) {
