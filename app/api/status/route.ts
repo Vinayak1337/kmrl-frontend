@@ -46,6 +46,7 @@ export async function GET() {
             }
           },
           ai: {
+            gateway: process.env.AI_BASE_URL ? 'configured' : 'not configured',
             gemini: process.env.GEMINI_API_KEY ? 'configured' : 'not configured'
           },
           vectorDatabase: {
