@@ -67,7 +67,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   const handleTranslate = async () => {
     if (!doc) return;
     setTranslating(true); setTranslationError(''); setTranslation(null);
-    try { const content = (tab === 'sections' || split) && activeSection ? activeSection : doc; setTranslation(await translateContent({ language, summary: content.summary, keyPoints: content.keyPoints })); }
+    try { const content = (tab === 'sections' || split) && activeSection ? activeSection : doc; setTranslation(await translateContent({ language, summary: ('briefMd' in content && content.briefMd) || content.summary, keyPoints: content.keyPoints })); }
     catch { setTranslationError('Translation is unavailable right now. Please try again.'); }
     finally { setTranslating(false); }
   };

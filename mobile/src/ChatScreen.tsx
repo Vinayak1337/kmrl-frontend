@@ -1,3 +1,5 @@
+import { useContext } from "react";
+import { HeaderHeightContext } from "expo-router/react-navigation";
 import { Markdown } from "./Markdown";
 import { useRef, useState } from "react";
 import {
@@ -81,6 +83,7 @@ export function ChatScreen({
     ask.mutate(text);
   }
   const messages: Message[] = history.data?.messages || [];
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
   return (
     <KeyboardAvoidingView
       style={{
@@ -88,8 +91,8 @@ export function ChatScreen({
         backgroundColor: colors.canvas,
         paddingTop: docId ? 0 : insets.top,
       }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={docId ? insets.top + 44 : 0}
+      behavior="padding"
+      keyboardVerticalOffset={docId ? headerHeight || insets.top + 44 : 0}
     >
       <ScrollView
         ref={list}

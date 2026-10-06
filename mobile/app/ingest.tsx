@@ -93,6 +93,7 @@ export default function IngestScreen() {
       success();
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
       void queryClient.invalidateQueries({ queryKey: ["actions"] });
+      void queryClient.invalidateQueries({ queryKey: ["alerts"] });
       setTimeout(
         () =>
           router.replace({

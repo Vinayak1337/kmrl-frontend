@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { api } from "../../src/api";
 import { useApp } from "../../src/store";
-import { useTheme } from "../../src/theme";
+import { useTheme, useTierColor } from "../../src/theme";
 import {
   daysLabel,
   tierLabel,
@@ -37,18 +37,6 @@ const formatDate = (iso: string) =>
     month: "short",
     year: "numeric",
   });
-
-export function useTierColor() {
-  const { colors } = useTheme();
-  return (tier: DeadlineTier) =>
-    tier === "overdue" || tier === "within5"
-      ? colors.danger
-      : tier === "within15"
-        ? colors.warning
-        : tier === "within30"
-          ? colors.info
-          : colors.success;
-}
 
 export default function Actions() {
   const router = useRouter();
@@ -255,9 +243,6 @@ export default function Actions() {
             <Text size="title" accessibilityRole="header">
               Actions
             </Text>
-            <Text tone="secondary">
-              Deadlines and follow-ups from your documents.
-            </Text>
             <Chips
               value={filter}
               onChange={setFilter}
@@ -284,7 +269,7 @@ export default function Actions() {
                         style={{
                           width: 9,
                           height: 9,
-                          borderRadius: 5,
+                          borderRadius: tier === "overdue" ? 1 : 5,
                           backgroundColor: tierColor(tier),
                         }}
                       />

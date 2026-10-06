@@ -260,3 +260,4 @@ table { font-variant-numeric: tabular-nums; }
 .notify-result .notice { text-align: left; }
 .notify-result .modal-actions { justify-content: center; }
 .notify-form { margin: 0; padding-top: 0; border-top: 0; }
+.desk-search { display: block; padding: 0; background: none; border-left: 0; margin: -8px 0 40px; }

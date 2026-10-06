@@ -52,6 +52,7 @@ export default function Reader() {
       queryClient.removeQueries({ queryKey: ["document", id] });
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
       void queryClient.invalidateQueries({ queryKey: ["actions"] });
+      void queryClient.invalidateQueries({ queryKey: ["alerts"] });
       if (saved)
         void useApp
           .getState()

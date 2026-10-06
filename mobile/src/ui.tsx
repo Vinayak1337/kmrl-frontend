@@ -1,3 +1,5 @@
+import { useContext } from "react";
+import { HeaderHeightContext } from "expo-router/react-navigation";
 import { useReducedMotion } from "react-native-reanimated";
 import React, { useState } from "react";
 import {
@@ -353,6 +355,8 @@ export function Screen({
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  // Edge-to-edge Android no longer resizes the window, so offset by the stack header like iOS.
+  const headerHeight = useContext(HeaderHeightContext) ?? 0;
   return (
     <KeyboardAvoidingView
       style={{
@@ -360,8 +364,8 @@ export function Screen({
         backgroundColor: colors.canvas,
         paddingTop: safeTop ? insets.top : 0,
       }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 44 : 0}
+      behavior="padding"
+      keyboardVerticalOffset={headerHeight || (Platform.OS === "ios" ? insets.top + 44 : 0)}
     >
       {scroll ? (
         <ScrollView

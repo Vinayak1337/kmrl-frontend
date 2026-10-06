@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Search, Plus, LayoutGrid, List, Trash2, MessageSquare } from 'lucide-react';
+import { ArrowUpRight, Search, LayoutGrid, List, Trash2, MessageSquare } from 'lucide-react';
 import { DocSetuDocument } from '@/types/docsetu';
 import { listDocuments, deleteDocument } from '@/services/documents';
 import { VALID_TEAMS, VALID_DOC_TYPES } from '@/adapters/documentAdapter';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
-import { DocumentIngestModal } from '@/components/documents/DocumentIngestModal';
 import { DocSetuEmptyState } from '@/components/brand/DocSetuBrand';
 import { Modal } from '@/components/workspace/Modal';
 
@@ -19,7 +18,6 @@ export default function DocumentsPage() {
   const [type, setType] = useState('All');
   const [language, setLanguage] = useState('All');
   const [view, setView] = useState<'list' | 'grid'>('list');
-  const [ingest, setIngest] = useState(false);
   const [remove, setRemove] = useState<DocSetuDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -75,7 +73,7 @@ export default function DocumentsPage() {
   const filtered = documents;
   const reset = () => { setQuery(''); setTeam('All'); setType('All'); setLanguage('All'); setPage(0); };
   return <div className="desk-page collection-page">
-    <header className="page-heading"><div><p className="eyebrow">The collection</p><h1>Documents</h1><p>Source files, summaries, and the work they contain.</p></div><button className="button button-primary" onClick={() => setIngest(true)}><Plus size={16} />Add document</button></header>
+    <header className="page-heading"><div><h1>Documents</h1></div></header>
     <div className="collection-toolbar"><label className="collection-search"><Search size={17} /><span className="sr-only">Search documents</span><input value={query} onChange={e => { setQuery(e.target.value); setPage(0); }} placeholder="Search title, team, or content…" name="document-search" autoComplete="off" /></label><div className="view-switch" aria-label="Document view"><button className="icon-button" aria-label="List view" aria-pressed={view === 'list'} onClick={() => setView('list')}><List size={18} /></button><button className="icon-button" aria-label="Grid view" aria-pressed={view === 'grid'} onClick={() => setView('grid')}><LayoutGrid size={17} /></button></div></div>
     <div className="collection-filters"><label>Team<select value={team} onChange={e => { setTeam(e.target.value); setPage(0); }}><option value="All">All teams</option>{VALID_TEAMS.map(t => <option key={t}>{t}</option>)}</select></label><label>Type<select value={type} onChange={e => { setType(e.target.value); setPage(0); }}><option value="All">All types</option>{VALID_DOC_TYPES.map(t => <option key={t}>{t}</option>)}</select></label><label>Language<select value={language} onChange={e => { setLanguage(e.target.value); setPage(0); }}><option value="All">All languages</option>{SUPPORTED_LANGUAGES.map(l => <option key={l.name} value={l.name}>{l.name} ({l.nativeName})</option>)}</select></label>{(query || team !== 'All' || type !== 'All' || language !== 'All') && <button className="text-link" onClick={reset}>Clear filters</button>}<span className="result-count" role="status">{loading ? 'Loading…' : `${filtered.length} documents shown`}</span></div>
     {error && <div className="notice error" role="alert">{error} <button className="text-link" onClick={loadData}>Try again</button></div>}{notice && <p className="notice" role="status">{notice}</p>}
@@ -84,7 +82,6 @@ export default function DocumentsPage() {
       <div className="record-actions"><button className="text-link" onClick={() => window.dispatchEvent(new CustomEvent('open-docsetu-ai', { detail: { question: `What are the key requirements and deadlines in ${doc.title}?`, docId: doc.id } }))}><MessageSquare size={15} />Ask</button><button className="icon-button" aria-label={`Remove ${doc.title}`} onClick={() => { setError(''); setRemove(doc); }}><Trash2 size={15} /></button></div>
     </article>)}</div>}
     {total > 50 && <nav className="pagination" aria-label="Document pages"><button className="button" disabled={page === 0 || loading} onClick={() => setPage(p => p - 1)}>Previous</button><span>Page {page + 1}</span><button className="button" disabled={(page + 1) * 50 >= total || loading} onClick={() => setPage(p => p + 1)}>Next</button></nav>}
-    <DocumentIngestModal isOpen={ingest} onClose={() => setIngest(false)} onSuccess={() => { setIngest(false); void loadData(); }} />
     <Modal open={!!remove} onClose={() => setRemove(null)} title="Remove document?" busy={deleting}><p>This removes <strong>{remove?.title}</strong> from the workspace. This cannot be undone.</p>{error && <p className="notice error" role="alert">{error}</p>}<div className="modal-actions"><button className="button" disabled={deleting} onClick={() => setRemove(null)}>Keep document</button><button className="button button-danger" disabled={deleting} onClick={handleDelete}>{deleting ? 'Removing…' : 'Remove document'}</button></div></Modal>
   </div>;
 }

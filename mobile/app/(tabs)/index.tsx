@@ -4,10 +4,11 @@ import { Pressable, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { FlashList } from "@shopify/flash-list";
-import { useInfiniteQuery, useQueries } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
 import { api, queryClient } from "../../src/api";
 import { useApp } from "../../src/store";
 import {
+  daysLabel,
   departmentOf,
   humanize,
   typeOf,
@@ -38,6 +39,14 @@ export default function Documents() {
   const [type, setType] = useState("");
   const [mode, setMode] = useState("recent");
   const [localError, setLocalError] = useState<unknown>(null);
+  const alertsQuery = useQuery({
+    queryKey: ["alerts"],
+    queryFn: ({ signal }) => api.alerts(signal),
+  });
+  const alerts = (alertsQuery.data?.alerts || []).filter(
+    (a) => a.daysLeft >= 0,
+  );
+  const next = alerts[0];
   useEffect(() => {
     const timer = setTimeout(() => setSearch(text.trim()), 250);
     return () => clearTimeout(timer);
@@ -131,97 +140,52 @@ export default function Documents() {
                 </Text>
               </Pressable>
             </View>
-            <Text size="title" accessibilityRole="header">
-              Documents
-            </Text>
-            {!text && !type && mode === "recent" && (
-              <View
-                style={{
+            {!text && !type && mode === "recent" && next && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${alerts.length} upcoming deadlines. Next: ${next.requirement}, ${daysLabel(next.daysLeft)}. Open deadlines.`}
+                onPress={() => router.navigate("/actions")}
+                style={({ pressed }) => ({
                   backgroundColor: colors.hero,
                   borderRadius: 16,
                   borderCurve: "continuous",
                   padding: 16,
                   gap: 8,
-                }}
+                  opacity: pressed ? 0.85 : 1,
+                })}
               >
                 <View
                   style={{
                     flexDirection: "row",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 16,
                   }}
                 >
-                  <Text
-                    style={{
-                      flex: 1,
-                      fontSize: 23,
-                      lineHeight: 29,
-                      letterSpacing: -0.6,
-                      fontWeight: "600",
-                      color: colors.onHero,
-                    }}
-                  >
-                    Your workspace, in focus.
+                  <Text size="label" style={{ color: colors.heroMuted }}>
+                    Next deadline · {daysLabel(next.daysLeft)}
                   </Text>
                   <Icon
-                    name="documents-outline"
-                    size={36}
+                    name="calendar-outline"
+                    size={20}
                     color={colors.heroMuted}
                   />
                 </View>
-                <View
+                <Text
+                  numberOfLines={2}
                   style={{
-                    flexDirection: "row",
-                    borderTopWidth: 1,
-                    borderTopColor: "#567465",
-                    paddingTop: 4,
+                    fontSize: 18,
+                    lineHeight: 24,
+                    fontWeight: "600",
+                    color: colors.onHero,
                   }}
                 >
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Ask your documents"
-                    onPress={() => router.navigate("/ask")}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      minHeight: 48,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                      opacity: pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <Text size="label" style={{ color: colors.onHero }}>
-                      Ask your documents
-                    </Text>
-                    <Icon
-                      name="arrow-up-right-box-outline"
-                      size={18}
-                      color={colors.onHero}
-                    />
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="View saved documents"
-                    onPress={() => setMode("saved")}
-                    style={({ pressed }) => ({
-                      minHeight: 48,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                      opacity: pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <Icon
-                      name="bookmark-outline"
-                      size={18}
-                      color={colors.heroMuted}
-                    />
-                    <Text size="label" style={{ color: colors.onHero }}>
-                      {saved.length}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
+                  {next.requirement}
+                </Text>
+                <Text size="small" style={{ color: colors.heroMuted }}>
+                  {alerts.length} upcoming{" "}
+                  {alerts.length === 1 ? "deadline" : "deadlines"} · View all ›
+                </Text>
+              </Pressable>
             )}
             <View
               style={{

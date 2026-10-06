@@ -2,6 +2,7 @@ import { Platform, Linking } from "react-native";
 import * as Sharing from "expo-sharing";
 import * as FileSystem from "expo-file-system/legacy";
 import type { Document } from "./domain";
+import { api } from "./api";
 
 export function imageMime(content: string) {
   const bytes = content.replace(/^data:[^,]+,/, "");
@@ -19,7 +20,9 @@ export async function openOriginal(doc: Document) {
     await Linking.openURL(url.toString());
     return;
   }
-  const content = doc.raw?.content || doc.raw?.text;
+  const full =
+    doc.raw && !doc.raw.content && !doc.raw.text ? await api.original(doc.id) : doc;
+  const content = full.raw?.content || full.raw?.text;
   if (!content)
     throw new Error(
       "The original file is not available. Read the extracted source below.",

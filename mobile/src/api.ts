@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { useApp } from "./store";
-import { demoDocs, demoActions, demoAnswer } from "./demo";
+import { demoDocs, demoActions, demoAlerts, demoAnswer } from "./demo";
 import type {
   Action,
   Audit,
@@ -45,9 +45,14 @@ export async function request<T>(
   const onAbort = () => controller.abort();
   options.signal?.addEventListener("abort", onAbort, { once: true });
   if (options.signal?.aborted) controller.abort();
+  // Ingestion runs AI enrichment server-side; allow longer than the server's AI deadline.
   const timeout = setTimeout(
     onAbort,
-    options.method === "POST" ? 150_000 : 25_000,
+    path.startsWith("/api/documents/ingest") && options.method === "POST"
+      ? 240_000
+      : options.method === "POST"
+        ? 150_000
+        : 25_000,
   );
   try {
     const headers = new Headers(options.headers);
@@ -60,7 +65,7 @@ export async function request<T>(
     );
     const data = await response.json().catch(() => ({}));
     if (response.status === 401 && !anonymous) {
-      if (useApp.getState().session === session) {
+      if (useApp.getState().session?.token === session?.token) {
         queryClient.clear();
         await useApp.getState().signOut("Your session expired. Sign in again.");
       }
@@ -75,7 +80,7 @@ export async function request<T>(
             : "Could not complete the request. Try again."),
         response.status,
       );
-    if (!anonymous && useApp.getState().session !== session) {
+    if (!anonymous && useApp.getState().session?.token !== session?.token) {
       throw new ApiError("The account changed. Please try again.", 401);
     }
     return data as T;
@@ -147,6 +152,8 @@ export const api = {
       signal,
     });
   },
+  original: (id: string): Promise<Document> =>
+    request(`/api/documents/ingest?id=${encodeURIComponent(id)}&original=1`),
   section: async (
     uid: string,
     signal?: AbortSignal,
@@ -168,7 +175,7 @@ export const api = {
     signal?: AbortSignal,
   ): Promise<{ alerts: DeadlineAlert[]; documents: number }> =>
     isDemo()
-      ? { alerts: [], documents: 0 }
+      ? { alerts: demoAlerts(), documents: 4 }
       : request("/api/alerts", { signal }),
   notify: (alertId: string, recipients: string[], note: string) =>
     request<{ recorded: string[]; duplicates: string[]; delivery: string }>(

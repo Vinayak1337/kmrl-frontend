@@ -1,5 +1,5 @@
 import "react-native-gesture-handler";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { AppState, Platform, View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -48,20 +48,26 @@ export default function Layout() {
       if (Platform.OS !== "web") focusManager.setFocused(state === "active");
     });
     const netSub = NetInfo.addEventListener((state) =>
-      onlineManager.setOnline(
-        state.isConnected !== false && state.isInternetReachable !== false,
-      ),
+      // Reachability probes can report false at startup on Android; only a missing
+      // connection should pause queries, otherwise lists stay on their loading state.
+      onlineManager.setOnline(state.isConnected !== false),
     );
     return () => {
       appSub.remove();
       netSub();
     };
   }, []);
+  const account = session ? `${session.user.sub}@${session.baseUrl}` : null;
+  const previousAccount = useRef<string | null>(null);
   useEffect(() => {
     // Never allow another account to inherit queries or an in-flight mutation's UI.
-    queryClient.clear();
+    // Restoring or signing in must not clear: screens have already started their queries.
+    if (previousAccount.current && previousAccount.current !== account)
+      queryClient.clear();
+    previousAccount.current = account;
     if (session && !session.demo) void api.session().catch(() => {});
-  }, [session?.user.sub, session?.baseUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per account change
+  }, [account]);
   if (!ready)
     return <View style={{ flex: 1, backgroundColor: colors.canvas }} />;
   return (

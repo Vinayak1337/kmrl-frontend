@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import { useState } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
@@ -73,12 +74,14 @@ export default function Workspace() {
         }
       />
       <View>
-        <Row
-          icon="shield-checkmark-outline"
-          title="My access"
-          subtitle="Teams and document permissions"
-          onPress={() => router.push("/access")}
-        />
+        {session?.user.role !== "ADMIN" && (
+          <Row
+            icon="shield-checkmark-outline"
+            title="My access"
+            subtitle="Teams and document permissions"
+            onPress={() => router.push("/access")}
+          />
+        )}
         {session?.user.role === "ADMIN" && (
           <>
             <Row
@@ -96,10 +99,6 @@ export default function Workspace() {
           </>
         )}
       </View>
-      <Text size="small" tone="secondary">
-        Saved documents and action checkmarks stay on this device. Document
-        contents require a connection.
-      </Text>
       {!!error && <ErrorState error={error} />}
       <Button
         kind="secondary"
@@ -109,7 +108,7 @@ export default function Workspace() {
         onPress={() => void logout()}
       />
       <Text size="small" tone="secondary">
-        DocSetu · 1.0.0
+        DocSetu · {Constants.expoConfig?.version}
       </Text>
     </Screen>
   );

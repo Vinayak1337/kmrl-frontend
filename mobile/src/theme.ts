@@ -43,3 +43,16 @@ export function useTheme() {
     preference === "dark" || (preference === "system" && system === "dark");
   return { colors: isDark ? dark : light, isDark };
 }
+
+/** Deadline tier colour; always paired with a text label in the UI. */
+export function useTierColor() {
+  const { colors } = useTheme();
+  return (tier: "overdue" | "within5" | "within15" | "within30" | "later") =>
+    tier === "overdue" || tier === "within5"
+      ? colors.danger
+      : tier === "within15"
+        ? colors.warning
+        : tier === "within30"
+          ? colors.info
+          : colors.success;
+}

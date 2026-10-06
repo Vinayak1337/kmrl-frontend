@@ -1,4 +1,4 @@
-import type { Action, Document, History, User } from "./domain";
+import type { Action, DeadlineAlert, Document, History, User } from "./domain";
 export const demoUser: User = {
   sub: "demo",
   name: "Vinayak",
@@ -170,4 +170,87 @@ export function demoAnswer(
       },
     ],
   };
+}
+
+/** Sample deadlines, dated relative to today so every tier is shown. */
+export function demoAlerts(): DeadlineAlert[] {
+  const day = (offset: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().slice(0, 10);
+  };
+  const tier = (days: number): DeadlineAlert["tier"] =>
+    days < 0
+      ? "overdue"
+      : days <= 5
+        ? "within5"
+        : days <= 15
+          ? "within15"
+          : days <= 30
+            ? "within30"
+            : "later";
+  const rows: [
+    string,
+    string,
+    string,
+    number,
+    string,
+    { email: string; label?: string }[],
+  ][] = [
+    [
+      "sample-facility",
+      "node-1",
+      "Facility management agreement",
+      4,
+      "Send the renewal notice to the facility vendor.",
+      [{ email: "facilities.head@example.org", label: "Facilities Head" }],
+    ],
+    [
+      "sample-security",
+      "node-1",
+      "Information security SOP",
+      12,
+      "Complete the quarterly access review for all shared drives.",
+      [{ email: "it.security@example.org", label: "IT Security Lead" }],
+    ],
+    [
+      "sample-procurement",
+      "node-2",
+      "Procurement policy FY26",
+      26,
+      "Submit revised approval thresholds to Finance.",
+      [],
+    ],
+    [
+      "sample-operations",
+      "node-1",
+      "Operations weekly report",
+      45,
+      "Close all open findings from the weekly review.",
+      [{ email: "ops.manager@example.org", label: "Operations Manager" }],
+    ],
+  ];
+  return rows.map(
+    ([
+      documentId,
+      sectionId,
+      documentTitle,
+      days,
+      requirement,
+      authorities,
+    ]) => ({
+      id: `${documentId}~${sectionId}~${day(days)}`,
+      documentId,
+      documentTitle,
+      sectionId,
+      sectionTitle: documentTitle,
+      date: day(days),
+      requirement,
+      excerpt: requirement,
+      daysLeft: days,
+      tier: tier(days),
+      authorities,
+      notifications: [],
+    }),
+  );
 }

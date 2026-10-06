@@ -3,8 +3,8 @@ import { Pressable, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api, queryClient } from "../src/api";
-import { daysLabel, isEmail, tierLabel } from "../src/domain";
-import { useTheme } from "../src/theme";
+import { daysLabel, isEmail } from "../src/domain";
+import { useTheme, useTierColor } from "../src/theme";
 import {
   Button,
   Empty,
@@ -22,6 +22,7 @@ export default function Notify() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { colors } = useTheme();
+  const tierColor = useTierColor();
   const query = useQuery({
     queryKey: ["alerts"],
     queryFn: ({ signal }) => api.alerts(signal),
@@ -41,6 +42,24 @@ export default function Notify() {
       void queryClient.invalidateQueries({ queryKey: ["alerts"] });
     },
   });
+
+  if (mutation.isSuccess)
+    return (
+      <Screen>
+        <Text size="heading">
+          {mutation.data.recorded.length
+            ? `Notification recorded for ${mutation.data.recorded.length} ${mutation.data.recorded.length === 1 ? "person" : "people"}`
+            : "Everyone selected was already informed"}
+        </Text>
+        {mutation.data.duplicates.length > 0 && (
+          <Text tone="secondary">
+            Already informed: {mutation.data.duplicates.join(", ")}
+          </Text>
+        )}
+        <Notice message="Saved and linked to this deadline. Email delivery will start once the mail server is connected." />
+        <Button label="Done" onPress={() => router.back()} />
+      </Screen>
+    );
 
   if (query.isPending) return <Loading />;
   if (query.error)
@@ -105,10 +124,7 @@ export default function Notify() {
           backgroundColor: colors.surface,
         }}
       >
-        <Icon
-          name={on ? "checkbox" : "square-outline"}
-          color={colors.accent}
-        />
+        <Icon name={on ? "checkbox" : "square-outline"} color={colors.accent} />
         <View style={{ flex: 1 }}>
           <Text style={{ fontWeight: "600" }}>{label || email}</Text>
           {label && (
@@ -126,36 +142,18 @@ export default function Notify() {
     );
   };
 
-  if (mutation.isSuccess)
-    return (
-      <Screen>
-        <Text size="heading">
-          {mutation.data.recorded.length
-            ? `Notification recorded for ${mutation.data.recorded.length} ${mutation.data.recorded.length === 1 ? "person" : "people"}`
-            : "Everyone selected was already informed"}
-        </Text>
-        {mutation.data.duplicates.length > 0 && (
-          <Text tone="secondary">
-            Already informed: {mutation.data.duplicates.join(", ")}
-          </Text>
-        )}
-        <Notice message="Email delivery is still being set up (SMTP is not connected yet). The request is saved and linked to this deadline." />
-        <Button label="Done" onPress={() => router.back()} />
-      </Screen>
-    );
-
   return (
     <Screen>
       <View
         style={{
           borderLeftWidth: 3,
-          borderLeftColor: colors.warning,
+          borderLeftColor: tierColor(alert.tier),
           paddingLeft: 14,
           gap: 6,
         }}
       >
         <Text size="small" style={{ fontWeight: "700" }}>
-          {tierLabel[alert.tier]} · {daysLabel(alert.daysLeft)}
+          {daysLabel(alert.daysLeft)}
         </Text>
         <Text>{alert.requirement}</Text>
         <Text size="small" tone="secondary">
@@ -189,7 +187,12 @@ export default function Notify() {
         returnKeyType="done"
       />
       {draft.trim() !== "" && (
-        <Button label="Add recipient" kind="secondary" icon="add" onPress={add} />
+        <Button
+          label="Add recipient"
+          kind="secondary"
+          icon="add"
+          onPress={add}
+        />
       )}
       {inputError !== "" && (
         <Text size="small" tone="danger">
