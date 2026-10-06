@@ -1,3 +1,4 @@
+import { LogBox } from "react-native";
 import { useRef, useState } from "react";
 import { Platform, View } from "react-native";
 import { Image } from "expo-image";
@@ -6,7 +7,6 @@ import { usePreventRemove } from "expo-router/react-navigation";
 import { useMutation } from "@tanstack/react-query";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system/legacy";
 import { api, queryClient } from "../src/api";
 import { useApp } from "../src/store";
 import {
@@ -30,6 +30,9 @@ import {
   Text,
   success,
 } from "../src/ui";
+
+// Reading a picked file as a Blob is intentional; the dev-only performance hint covers the Add button.
+LogBox.ignoreLogs(["Response.blob() is using React Native"]);
 
 export default function IngestScreen() {
   const router = useRouter();
@@ -140,24 +143,24 @@ export default function IngestScreen() {
               /\.(png|jpe?g)$/i.test(file.name)
             ? "image"
             : "text";
-      let content: string;
-      if (Platform.OS === "web") {
-        const blob = file.file || (await (await fetch(file.uri)).blob());
-        if (kind === "text") content = await blob.text();
-        else
-          content = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onerror = reject;
-            reader.onload = () => resolve(String(reader.result).split(",")[1]);
-            reader.readAsDataURL(blob);
-          });
-      } else
-        content = await FileSystem.readAsStringAsync(file.uri, {
-          encoding:
+      // fetch + FileReader reads picker URIs in standalone builds, Expo Go and web alike;
+      // the legacy file API refuses the picker cache inside Expo Go's sandbox.
+      const blob =
+        Platform.OS === "web" && file.file
+          ? file.file
+          : await (await fetch(file.uri)).blob();
+      const content = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error("Could not read the file."));
+        reader.onload = () =>
+          resolve(
             kind === "text"
-              ? FileSystem.EncodingType.UTF8
-              : FileSystem.EncodingType.Base64,
-        });
+              ? String(reader.result)
+              : String(reader.result).split(",")[1] || "",
+          );
+        if (kind === "text") reader.readAsText(blob);
+        else reader.readAsDataURL(blob);
+      });
       if (content.length > 3_500_000)
         throw new Error("Choose a file smaller than 2.5 MB.");
       setSource({ type: kind, content, filename: file.name });

@@ -1,7 +1,7 @@
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 import { NextRequest, NextResponse } from 'next/server';
-import { enrichChunks, aiNodeFor } from '@/lib/ingest/enrich';
+import { enrichChunks, aiNodeFor, aiNodeTitle } from '@/lib/ingest/enrich';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession, buildDocumentAccessFilter, isDocumentAccessible } from '@/lib/auth';
 import { getCollection, ensureDocumentIndexes, ensureNodeIndexes } from '@/lib/mongo';
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
 				const aiNode = aiNodeFor(aiNodes, chunk, idx, rawChunks.length);
 
 				const enrichment: ChunkEnrichmentData = {
-					title: aiNode?.content ? undefined : `Section ${chunk.order}`,
+					title: aiNodeTitle(aiNode) || (aiNode ? undefined : `Section ${chunk.order}`),
 					summary: aiNode?.summaryMd
 						? aiNode.summaryMd.replace(/[#*_`]+/g, ' ').replace(/\s+/g, ' ').trim()
 						: sentenceSummary(chunk.text),

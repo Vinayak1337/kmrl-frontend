@@ -9,7 +9,7 @@ import { chunkDocument } from '@/lib/ingest/chunker';
 import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, ChunkEnrichmentData } from '@/lib/ingest/builder';
 import type { ManagerAnalysisJSON } from '@/lib/prompt';
-import { aiNodeFor, enrichChunks } from '@/lib/ingest/enrich';
+import { aiNodeFor, aiNodeTitle, enrichChunks } from '@/lib/ingest/enrich';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 export async function POST(
@@ -89,7 +89,7 @@ export async function POST(
 					const aiNode = aiNodeFor(aiNodes, chunk, idx, rawChunks.length);
 
 					const enrichment: ChunkEnrichmentData = {
-						title: aiNode?.content ? undefined : `Section ${chunk.order}`,
+						title: aiNodeTitle(aiNode) || (aiNode ? undefined : `Section ${chunk.order}`),
 						summary: aiNode?.summaryMd
 							? aiNode.summaryMd.replace(/[#*_`]+/g, ' ').replace(/\s+/g, ' ').trim()
 							: chunk.text.slice(0, 300),
