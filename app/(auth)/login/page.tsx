@@ -101,7 +101,7 @@ export default function LoginPage() {
         {errors.password && <p id="password-error" className="field-error">{errors.password}</p>}
         <button type="submit" disabled={isLoading} className="button button-primary">{isLoading && <Loader2 size={16} className="animate-spin" />}{isLoading ? 'Signing in…' : 'Sign in to workspace'}</button>
       </form>
-      <div className="demo-access"><h3>Take a look around</h3><p>Choose a demo account to fill the sign-in details.</p><div><button className="button" onClick={() => setFormData({ email: 'admin@example.com', password: 'admin123' })}>Demo administrator</button><button className="button" onClick={() => setFormData({ email: 'vin@gmail.com', password: 'admin123' })}>Demo manager</button></div></div>
+      <div className="demo-access"><h3>Take a look around</h3><p>Choose a demo account to fill the sign-in details.</p><div><button className="button" onClick={() => setFormData({ email: 'admin@example.com', password: 'admin123' })}>Demo administrator</button><button className="button" onClick={() => setFormData({ email: 'manager@example.com', password: 'manager123' })}>Demo manager</button></div></div>
       <Link href="/request-deployment" className="text-link">Need workspace access? →</Link>
     </section>
   </main>;
