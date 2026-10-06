@@ -101,9 +101,13 @@ npm run test:ui
 
 See [VERIFICATION.md](VERIFICATION.md) for actual results and remaining device/release checks. Generated assets reuse the existing DocSetu vector mark. Run `npm run assets` to recreate icons, adaptive foreground, monochrome icon, favicons and light/dark splash assets.
 
+## Deadline alerts
+
+The Actions tab opens on **Deadlines**: dated requirements from `/api/alerts`, nearest first, coloured by time left (red ≤5 days or overdue, amber ≤15, blue ≤30, green 30+) with a text label. *Inform authorities* opens `app/notify.tsx`, preselects the nearest email found in the document, lets the user add others and records the request through `/api/alerts/notify`. Email delivery is pending SMTP and the app says so.
+
 ## Production Android APK
 
-The signed production APK is checked into `releases/android/` at the repository root and attached to the GitHub release. It uses `com.docsetu.mobile`, version 1.0.0, and supports ARM64 and ARMv7 phones. JavaScript is bundled; Metro is not required.
+The signed production APK is checked into `releases/android/` at the repository root and attached to the GitHub release. It uses `com.docsetu.mobile`, version 1.1.0, and supports ARM64 and ARMv7 phones. JavaScript is bundled; Metro is not required.
 
 To rebuild from `mobile/`, with Java 17, Android SDK and dependencies installed:
 
