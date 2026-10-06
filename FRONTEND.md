@@ -173,7 +173,7 @@ Ingestion enforces department/type `ingest` grants. Feedback enforces document a
 
 ## Alert system (Module 5)
 
-`lib/alerts/deadlines.ts` scans each document's chunks for dated requirements: a source sentence with a deadline cue (by, before, due, no later than, expires, scheduled…) or an enrichment action item that carries a date. Issue dates (issued, dated, approved…) are ignored. Indian (DD/MM/YYYY), ISO and written dates are read. Each deadline keeps its document, section and page, and the enrichment wording when one matches the date. Overdue items stay visible for 30 days.
+`lib/alerts/deadlines.ts` scans each document's chunks for dated requirements: a source sentence with a deadline cue (by, before, due, no later than, expires, scheduled…) or an enrichment action item that carries a date. Issue dates (issued, dated, approved…) are ignored. Indian (DD/MM/YYYY), ISO and written dates are read. Each deadline keeps its document, section and page, and the enrichment wording when one matches the date. Overdue items stay visible for 30 days. Days left are counted in `ALERT_TIMEZONE` (optional, default `Asia/Kolkata`), because Vercel functions run in UTC.
 
 Concerned authorities are email addresses in the fed text, labelled with the words before them (for example "Chief Safety Officer") and ranked by proximity to the deadline; the nearest is preselected. Users can add any address.
 
@@ -181,3 +181,11 @@ Concerned authorities are email addresses in the fed text, labelled with the wor
 - `POST /api/alerts/notify` — `{ alertId, recipients[], note? }`. Recipients already informed about the same deadline are reported as duplicates. Records go to the `alert_notifications` collection and the `NOTIFY_DEADLINE` audit action.
 
 Email delivery is not connected yet: notifications are stored with `delivery: 'email-pending'` and the UI says so. The web dashboard shows deadlines in its right sidebar; the mobile app shows them in the Actions tab with an Inform authorities screen. No new environment variables.
+
+## Ingestion formats
+
+PDFs use their text layer; pages without one are transcribed from the rendered page image by the same gateway model (vision), up to 12 pages, when `canvas` rendering is available. Images (PNG/JPEG) are transcribed in their original script (Malayalam, Hindi, Assamese and others). `.docx` text is read with mammoth; legacy `.doc` is rejected. A document with no readable text is rejected with HTTP 422 instead of being summarised. Enrichment labels each chunk (`[Chunk N | pages a-b]`) so the model's nodes map back to the right section. Web uploads are limited to 3.2 MB because base64 JSON must stay under Vercel's 4.5 MB request limit.
+
+The documents text index uses `language_override: 'textLanguage'`, so the display `language` field (for example "Hindi") is not read as a MongoDB stemming language. Existing databases need `npx tsx scripts/migrate-text-index.ts` once.
+
+`test-samples/real-data/` holds the public evaluation samples (KMRL/Kerala tenders, annual reports, RTI documents, RVL-CDIP, DocVQA, FUNSD, IIIT-AR-13K, IndicDLP, Mozhi) with sources in its `MANIFEST.md`.

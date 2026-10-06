@@ -65,7 +65,7 @@ export function buildDocumentAccessFilter(
 
   for (const g of readGrants) {
     const deptVariants = Array.from(new Set([g.dept, g.dept.toLowerCase(), toTitle(g.dept), g.dept.toUpperCase()]));
-    const typeVariants = Array.from(new Set([g.type, g.type.toLowerCase(), g.type.toUpperCase()]));
+    const typeVariants = Array.from(new Set([g.type, g.type.toLowerCase(), toTitle(g.type), g.type.toUpperCase()]));
     for (const dv of deptVariants) {
       for (const tv of typeVariants) {
         or.push({

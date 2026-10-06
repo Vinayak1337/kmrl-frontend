@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const maxDuration = 300;
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { answerQuestion } from '@/lib/chat/answer';

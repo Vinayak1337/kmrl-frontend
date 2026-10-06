@@ -28,6 +28,20 @@ interface PageSlice {
 /**
  * Deterministic, page-aware, paragraph-aware, size-bounded document chunker.
  */
+function splitLongText(text: string, max: number): string[] {
+	if (text.length <= max) return [text];
+	const parts: string[] = [];
+	let rest = text;
+	while (rest.length > max) {
+		const cut = rest.lastIndexOf(' ', max);
+		const at = cut > max / 2 ? cut : max;
+		parts.push(rest.slice(0, at).trim());
+		rest = rest.slice(at).trim();
+	}
+	if (rest) parts.push(rest);
+	return parts;
+}
+
 export function chunkDocument(doc: NormalizedDocument, documentId?: string): DocumentChunk[] {
 	// 1. Prepare page slices by breaking each page into paragraphs
 	const validPages: PageSlice[] = [];
@@ -96,7 +110,11 @@ export function chunkDocument(doc: NormalizedDocument, documentId?: string): Doc
 				}
 
 				// Split huge paragraph by sentences
-				const sentences = para.split(/(?<=[.!?])\s+/).filter(Boolean);
+				// Devanagari danda ends Hindi sentences; very long runs without punctuation split on words.
+				const sentences = para
+					.split(/(?<=[.!?।])\s+/)
+					.filter(Boolean)
+					.flatMap(sentence => splitLongText(sentence, TARGET_MAX_CHARS));
 				let sBuffer = '';
 				for (const s of sentences) {
 					if ((sBuffer + ' ' + s).length > TARGET_MAX_CHARS && sBuffer) {

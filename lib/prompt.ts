@@ -15,6 +15,8 @@ export type AiAnalysis = {
 
 // Unified manager-focused JSON schema (LLM returns JSON only)
 export type ManagerNodeJSON = {
+	/** Number of the input chunk this node describes. */
+	chunk?: number;
 	pageRange?: { start: number; end: number };
 	// Representative snippet (plain text)
 	content?: string;
@@ -80,6 +82,7 @@ export function buildManagerMdPrompt(meta?: {
 		'Return JSON ONLY (no prose, no code fences). JSON schema:',
 		'{',
 		'  "nodes": [{',
+		'    "chunk": 1,',
 		'    "pageRange": { "start": 1, "end": 1 },',
 		'    "content": "short representative snippet (plain text, from these pages)",',
 		'    "summaryMd": "### Section title\nSummary in 2–5 sentences (actionable, no fluff)",',
@@ -100,8 +103,10 @@ export function buildManagerMdPrompt(meta?: {
 		'Rules:',
 		'- Output MUST be valid JSON parseable by JSON.parse.',
 		'- No commentary, no Markdown outside JSON fields.',
-		'- Group consecutive pages that discuss the same topic into a single node (set pageRange accordingly).',
-		'- Do NOT summarise the entire document in every node—each node must be local to its pageRange.',
+		'- The input is split into numbered chunks marked [Chunk N | pages a-b]. Return exactly one node per chunk, in order, with "chunk" set to N and pageRange copied from the marker.',
+		'- Do NOT summarise the entire document in every node—each node must describe only its own chunk.',
+		'- Keep every date exactly as written in the source and include it in the matching action (e.g. "Due: 14 November 2026").',
+		'- If the source is not in English, still write the summaries in English but keep names, numbers and dates unchanged.',
 		'- Always include at least 3 bullet points in keyPointsMd and at least 1 action in actionsMd when applicable.',
 		'- Choose documentType strictly from the allowed set; if unclear, use "other".',
 		'- Use departments from the provided list only; pick the primary owner if multiple are mentioned.'

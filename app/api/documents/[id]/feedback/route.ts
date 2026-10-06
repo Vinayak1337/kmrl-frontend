@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const maxDuration = 300;
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession, isDocumentAccessible } from '@/lib/auth';
@@ -7,29 +8,9 @@ import { normalizeExtractedContent } from '@/lib/ingest/normalization';
 import { chunkDocument } from '@/lib/ingest/chunker';
 import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, ChunkEnrichmentData } from '@/lib/ingest/builder';
-import { buildManagerMdPrompt, ManagerAnalysisJSON } from '@/lib/prompt';
-import { generateJson } from '@/lib/ai/generate';
+import type { ManagerAnalysisJSON } from '@/lib/prompt';
+import { aiNodeFor, enrichChunks } from '@/lib/ingest/enrich';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
-
-async function runMuseSparkEnrichment(
-	text: string,
-	meta?: { department?: string; documentType?: string }
-): Promise<ManagerAnalysisJSON | null> {
-	try {
-		const prompt = buildManagerMdPrompt(meta);
-		const input = `Document Content:\n${text.slice(0, 40000)}`;
-
-		const result = await generateJson<ManagerAnalysisJSON>({
-			instructions: prompt,
-			input
-		});
-
-		return result;
-	} catch (err) {
-		console.warn('[feedback] OpenCode Zen Muse Spark reprocessing failed, using heuristic fallback', err);
-		return null;
-	}
-}
 
 export async function POST(
 	req: NextRequest,
@@ -97,24 +78,15 @@ export async function POST(
 				}
 
 				// 3. AI Enrichment
-				let aiAnalysis: ManagerAnalysisJSON | null = null;
-				if (normalized.fullText.trim().length > 0) {
-					aiAnalysis = await runMuseSparkEnrichment(normalized.fullText, {
-						department: doc.metadata?.department,
-						documentType: doc.metadata?.documentType
-					});
-				}
+				const aiAnalysis: ManagerAnalysisJSON | null = await enrichChunks(rawChunks, {
+					department: doc.metadata?.department,
+					documentType: doc.metadata?.documentType
+				}, 'feedback');
 
 				// 4. Build canonical persisted chunks
 				const aiNodes = aiAnalysis?.nodes || [];
 				const newChunks: DocumentNodeRecord[] = rawChunks.map((chunk, idx) => {
-					const aiNode =
-						aiNodes.find(
-							n =>
-								n.pageRange &&
-								n.pageRange.start <= chunk.pageEnd &&
-								n.pageRange.end >= chunk.pageStart
-						) || aiNodes[idx];
+					const aiNode = aiNodeFor(aiNodes, chunk, idx, rawChunks.length);
 
 					const enrichment: ChunkEnrichmentData = {
 						title: aiNode?.content ? undefined : `Section ${chunk.order}`,

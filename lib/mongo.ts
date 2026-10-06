@@ -281,7 +281,9 @@ export async function ensureDocumentIndexes(): Promise<void> {
 					'nodes.actionableItems': 3,
 					'metadata.tags': 4
 				},
-				default_language: 'english'
+				default_language: 'english',
+				// Documents store a display language such as "Hindi"; MongoDB must not read it as a stemming language.
+				language_override: 'textLanguage'
 			},
 			{ key: { id: 1 }, name: 'id_1', unique: true },
 			{ key: { 'metadata.department': 1 }, name: 'department_1' },

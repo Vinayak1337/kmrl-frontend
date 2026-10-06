@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
 			const nodeActions = Array.isArray(node.actionableItems) ? node.actionableItems : [];
 
 			nodeActions.forEach((actText, idx) => {
-				const text = String(actText || '').trim();
+				const text = String(actText || '').trim().replace(/^owner:\s*/i, '');
 				if (!text) return;
 
 				const dueDate = extractDueDates(text);

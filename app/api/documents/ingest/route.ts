@@ -1,16 +1,18 @@
 export const runtime = 'nodejs';
+export const maxDuration = 300;
 import { NextRequest, NextResponse } from 'next/server';
-import { generateJson } from '@/lib/ai/generate';
+import { enrichChunks, aiNodeFor } from '@/lib/ingest/enrich';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession, buildDocumentAccessFilter, isDocumentAccessible } from '@/lib/auth';
 import { getCollection, ensureDocumentIndexes, ensureNodeIndexes } from '@/lib/mongo';
 import { prisma } from '@/lib/prisma';
-import { normalizeExtractedContent, RawDocumentInput } from '@/lib/ingest/normalization';
+import { ExtractionError, normalizeExtractedContent, RawDocumentInput } from '@/lib/ingest/normalization';
 import { chunkDocument } from '@/lib/ingest/chunker';
 import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, buildPersistedDocument, ChunkEnrichmentData } from '@/lib/ingest/builder';
-import { buildManagerMdPrompt, ManagerAnalysisJSON } from '@/lib/prompt';
+import type { ManagerAnalysisJSON } from '@/lib/prompt';
 import { VALID_LANGUAGES } from '@/lib/languages';
+import { stripSummaryHeading } from '@/adapters/documentAdapter';
 import { canIngestDocument } from '@/lib/documentPermissions';
 import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
@@ -54,26 +56,6 @@ function extractActionsHeuristic(text: string): string[] {
 	const actionRegex = /\b(ensure|must|shall|review|submit|approve|notify|inspect|verify|audit|implement|update|dispatch|complete)\b/i;
 	const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim());
 	return sentences.filter(s => actionRegex.test(s) && s.length >= 20 && s.length <= 200).slice(0, 5);
-}
-
-async function runMuseSparkEnrichment(
-	text: string,
-	meta?: { department?: string; documentType?: string }
-): Promise<ManagerAnalysisJSON | null> {
-	try {
-		const prompt = buildManagerMdPrompt(meta);
-		const input = `Document Content:\n${text.slice(0, 45000)}`;
-
-		const result = await generateJson<ManagerAnalysisJSON>({
-			instructions: prompt,
-			input
-		});
-
-		return result;
-	} catch (err) {
-		console.warn('[ingest] OpenCode Zen Muse Spark enrichment failed, using heuristic extraction', err);
-		return null;
-	}
 }
 
 export async function POST(request: NextRequest) {
@@ -131,12 +113,20 @@ export async function POST(request: NextRequest) {
 
 			// 2. EXTRACTION
 			console.log(`[ingest] EXTRACTION_STARTED | docId=${docId}`);
-			const normalized = await normalizeExtractedContent({
-				type: rawDoc.type,
-				content: rawDoc.content,
-				filename,
-				title
-			});
+			let normalized;
+			try {
+				normalized = await normalizeExtractedContent({
+					type: rawDoc.type,
+					content: rawDoc.content,
+					filename,
+					title
+				});
+			} catch (err) {
+				if (err instanceof ExtractionError) {
+					return NextResponse.json({ error: err.message, stage: 'EXTRACTION' }, { status: 422 });
+				}
+				throw err;
+			}
 			console.log(
 				`[ingest] EXTRACTION_COMPLETED | docId=${docId} | pages=${normalized.pageCount} | chars=${normalized.fullText.length}`
 			);
@@ -167,13 +157,7 @@ export async function POST(request: NextRequest) {
 
 			// 4. AI ENRICHMENT
 			console.log(`[ingest] AI_STARTED | docId=${docId}`);
-			let aiAnalysis: ManagerAnalysisJSON | null = null;
-			if (normalized.fullText.trim().length > 0) {
-				aiAnalysis = await runMuseSparkEnrichment(
-					normalized.fullText,
-					{ department, documentType }
-				);
-			}
+			const aiAnalysis: ManagerAnalysisJSON | null = await enrichChunks(rawChunks, { department, documentType });
 			console.log(
 				`[ingest] AI_COMPLETED | docId=${docId} | status=${aiAnalysis ? 'enriched' : 'heuristic'}`
 			);
@@ -182,13 +166,7 @@ export async function POST(request: NextRequest) {
 			const aiNodes = aiAnalysis?.nodes || [];
 			const persistedChunks: DocumentNodeRecord[] = rawChunks.map((chunk, idx) => {
 				// Match chunk with AI node by page range or index
-				const aiNode =
-					aiNodes.find(
-						n =>
-							n.pageRange &&
-							n.pageRange.start <= chunk.pageEnd &&
-							n.pageRange.end >= chunk.pageStart
-					) || aiNodes[idx];
+				const aiNode = aiNodeFor(aiNodes, chunk, idx, rawChunks.length);
 
 				const enrichment: ChunkEnrichmentData = {
 					title: aiNode?.content ? undefined : `Section ${chunk.order}`,
@@ -214,7 +192,7 @@ export async function POST(request: NextRequest) {
 			// 6. BUILD PERSISTED DOCUMENT
 			const overallSummary =
 				(aiAnalysis?.overallMd
-					? aiAnalysis.overallMd.replace(/[#*_`]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600)
+					? stripSummaryHeading(aiAnalysis.overallMd).replace(/[#*_`]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600)
 					: null) ||
 				persistedChunks.map(c => c.summary).slice(0, 2).join(' ') ||
 				sentenceSummary(normalized.fullText, 400);
@@ -245,12 +223,12 @@ export async function POST(request: NextRequest) {
 			// 7. PERSISTENCE WITH COMPENSATING CLEANUP
 			console.log(`[ingest] PERSIST_STARTED | docId=${docId}`);
 			try {
+				await docsCollection.insertOne(persistedDoc);
+				console.log(`[ingest] DOCUMENT_WRITTEN | docId=${docId}`);
 				if (persistedChunks.length > 0) {
 					await nodesCollection.insertMany(persistedChunks);
 					console.log(`[ingest] CHUNKS_WRITTEN | docId=${docId} | count=${persistedChunks.length}`);
 				}
-				await docsCollection.insertOne(persistedDoc);
-				console.log(`[ingest] DOCUMENT_WRITTEN | docId=${docId}`);
 			} catch (persistErr) {
 				console.error(`[ingest] PERSIST_FAILED | docId=${docId} - executing rollback`, persistErr);
 				await nodesCollection.deleteMany({ docId });
@@ -352,7 +330,12 @@ export async function GET(request: NextRequest) {
 
 		// 1. Single Document Retrieval
 		if (documentId) {
-			const document = await docsCollection.findOne({ id: documentId });
+			// The base64 original can be several MB; send it only when the client asks to open it.
+			const withOriginal = searchParams.get('original') === '1';
+			const document = await docsCollection.findOne(
+				{ id: documentId },
+				withOriginal ? {} : { projection: { 'raw.content': 0, 'raw.text': 0 } }
+			);
 			if (!document) {
 				return NextResponse.json({ error: 'Document not found' }, { status: 404 });
 			}
@@ -398,7 +381,7 @@ export async function GET(request: NextRequest) {
 		const skip = Math.max(0, page) * Math.max(1, effectivePageSize);
 
 		const documents = await docsCollection
-			.find(filter)
+			.find(filter, { projection: { raw: 0, nodes: 0, searchableText: 0, overallMd: 0 } })
 			.sort({ 'metadata.createdAt': -1 })
 			.skip(skip)
 			.limit(effectivePageSize)
@@ -407,7 +390,7 @@ export async function GET(request: NextRequest) {
 		const summaries = documents.map(doc => ({
 			id: doc.id,
 			title: doc.title || 'Untitled',
-			summary: doc.fullSummary || '',
+			summary: stripSummaryHeading(doc.fullSummary || ''),
 			language: doc.language,
 			totalPages: doc.totalPages,
 			nodeCount: doc.nodeCount || (Array.isArray(doc.nodes) ? doc.nodes.length : 0),

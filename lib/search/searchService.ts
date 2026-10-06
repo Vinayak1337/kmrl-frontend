@@ -152,7 +152,7 @@ export async function searchDocumentsAndChunks(options: SearchOptions): Promise<
 		if (type && type !== 'All') filter.documentType = type.toLowerCase();
 
 		// Fetch candidates matching filters
-		const candidates = await nodesColl.find(filter).limit(500).toArray();
+		const candidates = await nodesColl.find(filter, { projection: { images: 0 } }).sort({ createdAt: -1 }).limit(1000).toArray();
 
 		// Build quick document title map
 		const docsColl = await getCollection<DocumentRecord>();
@@ -161,7 +161,7 @@ export async function searchDocumentsAndChunks(options: SearchOptions): Promise<
 
 		if (docIds.length > 0) {
 			const matchedDocs = await docsColl
-				.find({ id: { $in: docIds } })
+				.find({ id: { $in: docIds } }, { projection: { id: 1, title: 1 } })
 				.toArray();
 			for (const d of matchedDocs) {
 				docTitles.set(d.id, d.title);

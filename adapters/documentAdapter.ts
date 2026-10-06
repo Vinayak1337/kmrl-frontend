@@ -176,6 +176,11 @@ export function mapDocTypeToTaxonomy(type?: string | null): DocSetuDocumentType 
 /**
  * Extract due dates from unstructured action item text
  */
+/** Drops a leading "Executive Summary" heading that flattened AI briefs carry. */
+export function stripSummaryHeading(text: string): string {
+	return text.replace(/^\s*(?:#+\s*)?(?:executive\s+summary|summary)\s*[:\-–—]?\s*/i, '').trim();
+}
+
 export function extractDueDates(text: string): string | undefined {
 	const rx =
 		/\b(?:\d{1,2}\s*(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*\d{1,2},?\s*\d{2,4}|\b\d{4}-\d{2}-\d{2}|\b\d{1,2}\/\d{1,2}\/\d{2,4}|\b(?:by|before)\s+(?:EOD|\w+day|\d{1,2}\s+\w+)\b/i;
@@ -272,7 +277,7 @@ export function mapBackendDocToDocSetu(
 	const type = mapDocTypeToTaxonomy(String(meta.documentType || rawDoc.documentType || ''));
 	const rawLanguage = String(rawDoc.language || 'English');
 	const language = CODE_TO_LANGUAGE_MAP[rawLanguage.toLowerCase()] || CODE_TO_LANGUAGE_MAP[rawLanguage] || rawLanguage;
-	const summary = String(rawDoc.fullSummary || rawDoc.summary || '');
+	const summary = stripSummaryHeading(String(rawDoc.fullSummary || rawDoc.summary || ''));
 	const briefMd = String(rawDoc.overallMd || rawDoc.summaryMd || summary);
 	const pageCount = Number(rawDoc.totalPages) || 1;
 	const tags = Array.isArray(meta.tags)

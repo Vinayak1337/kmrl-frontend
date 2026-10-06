@@ -121,9 +121,10 @@ export function tierFor(daysLeft: number): DeadlineTier {
   return 'later';
 }
 
-export function daysUntil(date: string, now = new Date()): number {
-  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((Date.parse(`${date}T00:00:00Z`) - today) / DAY_MS);
+/** Days from today in the organisation's time zone (Vercel runs in UTC; deadlines are local). */
+export function daysUntil(date: string, now = new Date(), timeZone = process.env.ALERT_TIMEZONE || 'Asia/Kolkata'): number {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  return Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / DAY_MS);
 }
 
 export function deadlineId(docId: string, nodeId: string, date: string, requirement: string) {

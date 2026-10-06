@@ -35,6 +35,9 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
 			);
 			await nodes.deleteMany({ docId: id });
 		} catch {}
+		try {
+			await (await getCollection('alert_notifications')).deleteMany({ documentId: id });
+		} catch {}
 
 		// Cascade: delete associated chat sessions
 		try {

@@ -1,6 +1,6 @@
 import { Person } from '@/types/docsetu';
 import { mapBackendUserToPerson } from '@/adapters/userAdapter';
-import { mapTeamToDepartment } from '@/adapters/documentAdapter';
+import { mapTeamToDepartment, VALID_DOC_TYPES } from '@/adapters/documentAdapter';
 
 export interface CreatePersonPayload {
 	name: string;
@@ -22,9 +22,11 @@ export async function createPerson(payload: CreatePersonPayload): Promise<{ id: 
 	const body = {
 		name: payload.name,
 		email: payload.email,
-		password: payload.password || 'DocSetuPass123!',
+		password: payload.password,
 		role: payload.role === 'ADMIN' ? 'ADMIN' : 'MANAGER',
-		department: mapTeamToDepartment(payload.team)
+		department: mapTeamToDepartment(payload.team),
+		// Managers read and add every document type in their own team.
+		grants: payload.role === 'ADMIN' ? [] : VALID_DOC_TYPES.map(type => ({ dept: payload.team, type, actions: ['read', 'ingest'] }))
 	};
 
 	const res = await fetch('/api/users', {

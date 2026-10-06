@@ -17,7 +17,7 @@ export async function GET() {
       documentCount = await collection.countDocuments();
       
       // Get sample document structure
-      const sampleDoc = await collection.findOne({});
+      const sampleDoc = await collection.findOne({}, { projection: { raw: 0, nodes: 0, searchableText: 0 } });
       
       // Count total nodes across all documents (node collection)
       const nodeCollection = await getCollection<DocumentNodeRecord>(process.env.MONGODB_NODES_COLLECTION || 'document_nodes');

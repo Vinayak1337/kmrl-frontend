@@ -196,9 +196,13 @@ test('people form validates and sends supported role',async({page})=>{
   const dialog=page.getByRole('dialog',{name:'Add team member'});
   await dialog.getByRole('textbox',{name:'Name',exact:true}).fill('Review colleague');
   await dialog.getByRole('textbox',{name:'Work email'}).fill('colleague@example.test');
+  await dialog.getByLabel('Temporary password').fill('review-pass-1');
   await page.route('**/api/users',async route=>{
     if(route.request().method()==='GET') return route.fulfill({json:{users:[]}});
-    expect(route.request().postDataJSON().role).toBe('MANAGER');
+    const body=route.request().postDataJSON();
+    expect(body.role).toBe('MANAGER');
+    expect(body.password).toBe('review-pass-1');
+    expect(body.grants.length).toBeGreaterThan(0);
     await route.fulfill({status:201,json:{id:'test-person',name:'Review colleague'}});
   });
   await dialog.getByRole('button',{name:'Add team member',exact:true}).click();

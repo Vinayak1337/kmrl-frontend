@@ -1,5 +1,11 @@
 import { extractPdfPagesFromBase64, extractPdfPagesWithImagesFromBase64 } from '@/lib/pdf';
 import { parseHtmlForIngestion } from '@/lib/html';
+import { imageMimeType, transcribeImage } from './ocr';
+
+/** Pages without a text layer are transcribed from their rendered image, up to this many. */
+const MAX_OCR_PAGES = 12;
+
+export class ExtractionError extends Error {}
 
 export type NormalizedPage = {
 	pageNumber: number; // 1-based
@@ -104,6 +110,19 @@ export async function normalizeExtractedContent(
 				}
 			}
 
+			let ocrPages = 0;
+			for (const page of pages) {
+				if (page.text.replace(/\s+/g, '').length >= 20 || !page.images?.[0] || ocrPages >= MAX_OCR_PAGES) continue;
+				ocrPages++;
+				try {
+					page.text = await transcribeImage(page.images[0].base64, page.images[0].mimeType);
+				} catch (err) {
+					console.warn(`[normalize] OCR failed for ${filename} page ${page.pageNumber}:`, err);
+				}
+			}
+			if (!pages.some(p => p.text.trim())) {
+				throw new ExtractionError('No readable text was found in this PDF. If it is a scan, upload the pages as images so they can be transcribed.');
+			}
 			fullText = pages
 				.map(p => `[Page ${p.pageNumber}]\n${p.text}`)
 				.join('\n\n')
@@ -112,39 +131,33 @@ export async function normalizeExtractedContent(
 		}
 
 		case 'image': {
-			mimeType = 'image/png';
-			// Image without OCR: store as page 1 with inline image
-			pages = [
-				{
-					pageNumber: 1,
-					text: '',
-					images: [{ base64: rawContent, mimeType: 'image/png' }]
-				}
-			];
+			mimeType = imageMimeType(rawContent);
+			let text = '';
+			try {
+				text = await transcribeImage(rawContent, mimeType);
+			} catch (err) {
+				console.warn(`[normalize] OCR failed for ${filename}:`, err);
+				throw new ExtractionError('The image could not be transcribed right now. Try again in a moment.');
+			}
+			if (!text.trim()) throw new ExtractionError('No readable text was found in this image.');
+			pages = [{ pageNumber: 1, text, images: [{ base64: rawContent, mimeType }] }];
 			pageCount = 1;
-			fullText = '';
+			fullText = text;
 			break;
 		}
 
 		case 'doc': {
-			mimeType = 'application/msword';
-			let decodedText = rawContent;
+			mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 			try {
-				const buf = Buffer.from(rawContent, 'base64');
-				const asciiCheck = buf.toString('utf-8');
-				if (/^[\x20-\x7E\r\n\t]+$/.test(asciiCheck.slice(0, 100))) {
-					decodedText = asciiCheck;
-				}
-			} catch {}
-
-			fullText = decodedText.trim();
-			pages = [
-				{
-					pageNumber: 1,
-					text: fullText,
-					images: []
-				}
-			];
+				const mammoth = await import('mammoth');
+				const { value } = await mammoth.extractRawText({ buffer: Buffer.from(rawContent, 'base64') });
+				fullText = value.replace(/\n{3,}/g, '\n\n').trim();
+			} catch (err) {
+				console.warn(`[normalize] Word extraction failed for ${filename}:`, err);
+				fullText = '';
+			}
+			if (!fullText) throw new ExtractionError('Only .docx Word files can be read. Save older .doc files as .docx or PDF.');
+			pages = [{ pageNumber: 1, text: fullText, images: [] }];
 			pageCount = 1;
 			break;
 		}

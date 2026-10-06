@@ -1,4 +1,5 @@
 export const runtime = 'nodejs';
+export const maxDuration = 300;
 import { NextRequest, NextResponse } from 'next/server';
 import { generateJson } from '@/lib/ai/generate';
 import { cookies } from 'next/headers';
