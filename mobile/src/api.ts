@@ -4,6 +4,7 @@ import { demoDocs, demoActions, demoAnswer } from "./demo";
 import type {
   Action,
   Audit,
+  DeadlineAlert,
   Document,
   History,
   Ingest,
@@ -163,6 +164,20 @@ export const api = {
     isDemo()
       ? { actions: demoActions }
       : request("/api/actions?limit=200", { signal }),
+  alerts: async (
+    signal?: AbortSignal,
+  ): Promise<{ alerts: DeadlineAlert[]; documents: number }> =>
+    isDemo()
+      ? { alerts: [], documents: 0 }
+      : request("/api/alerts", { signal }),
+  notify: (alertId: string, recipients: string[], note: string) =>
+    request<{ recorded: string[]; duplicates: string[]; delivery: string }>(
+      "/api/alerts/notify",
+      {
+        method: "POST",
+        body: JSON.stringify({ alertId, recipients, note }),
+      },
+    ),
   history: async (docId?: string, signal?: AbortSignal): Promise<History> =>
     isDemo()
       ? { messages: [], sessionId: null }

@@ -1,5 +1,5 @@
 {
-  "name": "kmrl-frontend",
+  "name": "docsetu",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -18,7 +18,7 @@
     "upload:pdf": "node scripts/upload-pdf-to-cloudinary.js",
     "typecheck": "tsc --noEmit",
     "test:ui": "playwright test",
-    "test:services": "node --import tsx --test services/*.test.ts",
+    "test:services": "node --import tsx --test services/*.test.ts lib/alerts/*.test.ts",
     "test:provider": "tsx scripts/test-configured-provider.ts",
     "test:mobile:pipeline": "tsx scripts/test-mobile-pipeline.ts",
     "test:ai": "node --import tsx --test scripts/test-ai-generation.ts"

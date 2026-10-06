@@ -15,6 +15,8 @@ export const light = {
   border: "#D7DBD1",
   danger: "#B13C30",
   warning: "#91621A",
+  info: "#35577A",
+  success: "#356244",
 };
 export const dark: typeof light = {
   hero: "#203E32",
@@ -31,6 +33,8 @@ export const dark: typeof light = {
   border: "#3A493E",
   danger: "#FFB4A7",
   warning: "#E7C580",
+  info: "#A9C4E4",
+  success: "#9FD3AE",
 };
 export function useTheme() {
   const preference = useApp((s) => s.theme);

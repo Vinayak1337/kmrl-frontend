@@ -73,6 +73,43 @@ export type Action = {
   sectionTitle?: string;
   type?: string;
 };
+export type DeadlineTier =
+  | "overdue"
+  | "within5"
+  | "within15"
+  | "within30"
+  | "later";
+export type DeadlineAlert = {
+  id: string;
+  documentId: string;
+  documentTitle: string;
+  sectionId: string;
+  sectionTitle: string;
+  pageStart?: number;
+  pageEnd?: number;
+  date: string;
+  requirement: string;
+  excerpt: string;
+  daysLeft: number;
+  tier: DeadlineTier;
+  authorities: { email: string; label?: string }[];
+  notifications: { recipients: string[]; createdAt: string; sentBy: string }[];
+};
+export const tierLabel: Record<DeadlineTier, string> = {
+  overdue: "Overdue",
+  within5: "Within 5 days",
+  within15: "Within 15 days",
+  within30: "Within 30 days",
+  later: "30+ days",
+};
+export function daysLabel(days: number) {
+  if (days < 0) return `${-days} ${days === -1 ? "day" : "days"} overdue`;
+  if (days === 0) return "Due today";
+  if (days === 1) return "Due tomorrow";
+  return `${days} days left`;
+}
+export const isEmail = (value: string) =>
+  /^[^\s@<>()[\],;:"]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(value);
 export type Person = {
   id: string;
   name: string;

@@ -5,7 +5,7 @@
   --text-primary: #252c28; --text-secondary: #515a52; --text-tertiary: #687168;
   --border-color: #d7dbd1; --border-subtle: #e6e8df; --border-strong: #a9b3a6;
   --accent: #294f43; --accent-hover: #1e3d33; --accent-subtle: #e5ebe1;
-  --success: #356244; --warning: #91621a; --danger: #b13c30;
+  --success: #356244; --warning: #91621a; --danger: #b13c30; --info: #35577a;
 }
 @theme inline {
   --color-background: var(--background); --color-foreground: var(--foreground);
@@ -213,3 +213,50 @@ table { font-variant-numeric: tabular-nums; }
 .demo-page .collection-toolbar { flex-wrap: wrap; gap: 20px; }
 .demo-page select { padding: 10px; border: 1px solid var(--border-color); background: var(--surface); border-radius: 4px; }
 .demo-page .button[aria-pressed=true] { background: var(--surface-muted); border-color: var(--border-strong); }
+/* Deadline alerts: color marks time left, always paired with a text label. */
+.deadline-column { --tier: var(--text-tertiary); }
+.tier-overdue, .tier-within5 { --tier: var(--danger); }
+.tier-within15 { --tier: var(--warning); }
+.tier-within30 { --tier: var(--info); }
+.tier-later { --tier: var(--success); }
+.deadline-summary { margin: 14px 0 10px; font-size: 13px; color: var(--text-secondary); }
+.deadline-summary strong { color: var(--text-primary); font-family: var(--font-mono); }
+.tier-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle); font-size: 11px; color: var(--text-secondary); list-style: none; }
+.tier-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.tier-legend span { width: 8px; height: 8px; border-radius: 50%; background: var(--tier); }
+.deadline-list { list-style: none; }
+.deadline-item { position: relative; padding: 16px 0 16px 14px; border-bottom: 1px solid var(--border-color); }
+.deadline-item::before { content: ''; position: absolute; left: 0; top: 18px; bottom: 18px; width: 3px; border-radius: 2px; background: var(--tier); }
+.deadline-when { display: flex; justify-content: space-between; gap: 10px; font-family: var(--font-mono); font-size: 11px; }
+.deadline-when time { color: var(--text-primary); font-weight: 600; }
+.deadline-when span { color: var(--tier); font-weight: 600; }
+.deadline-item.tier-overdue .deadline-when span { background: var(--danger); color: var(--surface); padding: 0 6px; border-radius: 3px; }
+.deadline-requirement { margin: 7px 0 6px; font-size: 13px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.deadline-source { display: block; font-size: 11px; color: var(--accent); overflow-wrap: anywhere; }
+.deadline-source:hover { text-decoration: underline; }
+.deadline-authorities { margin-top: 6px; font-size: 11px; color: var(--text-tertiary); overflow-wrap: anywhere; }
+.deadline-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.deadline-actions .text-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; min-height: 32px; }
+.deadline-informed { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--success); }
+.deadline-more { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-size: 12px; }
+.notify-deadline { border-left: 3px solid var(--warning); background: var(--canvas); padding: 12px 14px; font-size: 13px; }
+.notify-deadline time { font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+.notify-deadline p { margin: 4px 0; }
+.notify-deadline cite { font-style: normal; font-size: 11px; color: var(--text-tertiary); }
+.recipient-list { border: 0; display: flex; flex-direction: column; gap: 2px; }
+.recipient-list legend { font-size: 12px; font-weight: 550; margin-bottom: 8px; }
+.form-stack .recipient-option { flex-direction: row; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--border-subtle); border-radius: 4px; font-weight: 400; cursor: pointer; }
+.form-stack .recipient-option input { width: 16px; height: 16px; flex: none; }
+.recipient-option span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.recipient-option strong { font-weight: 550; font-size: 13px; }
+.recipient-option small { color: var(--text-tertiary); font-size: 11px; }
+.recipient-option em { margin-left: auto; font-style: normal; font-size: 10px; color: var(--success); white-space: nowrap; }
+.add-recipient { display: flex; gap: 8px; }
+.add-recipient .button { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+.notify-result { text-align: center; padding: 8px 0; }
+.notify-result>svg { margin: auto; color: var(--success); }
+.notify-result h3 { font-size: 19px; margin: 12px 0 8px; letter-spacing: -.02em; }
+.notify-result p { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; overflow-wrap: anywhere; }
+.notify-result .notice { text-align: left; }
+.notify-result .modal-actions { justify-content: center; }
+.notify-form { margin: 0; padding-top: 0; border-top: 0; }

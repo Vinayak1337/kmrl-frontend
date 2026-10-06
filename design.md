@@ -57,6 +57,7 @@ Use `var(--token)` in shared CSS or the matching Tailwind semantic utility. Do n
 | `--success` | `#356244` | Verified successful state |
 | `--warning` | `#91621a` | Review or deadline attention |
 | `--danger` | `#b13c30` | Errors and destructive meaning |
+| `--info` | `#35577a` | Deadline tier: within 30 days |
 
 Tailwind examples: `bg-canvas`, `bg-surface`, `text-text-primary`, `text-text-secondary`, `border-border-default`, `text-accent`. The CSS mapping is in `@theme inline`.
 
@@ -219,3 +220,8 @@ The Expo application in `mobile/` follows [mobile/design.md](mobile/design.md), 
 ## Shared launch and website identity
 
 The folded-paper / bridge D monogram replaces the generic document glyph in brand surfaces. Its bridge-shaped opening references Setu; the forest, ivory, and sage palette remains unchanged. `mobile/src/brand.ts` is the vector source. Run `cd mobile && npm run assets` to regenerate native assets, website `components/brand/mark.ts`, SVG favicon, legacy ICO, and Apple touch icon. Do not edit generated paths independently. `DocSetuSymbol` applies the shared mark to navigation, authentication, loading and empty states. The mobile splash uses the same symbol; website loading keeps its existing accessible status text and behavior.
+
+
+## Deadline alerts
+
+`components/alerts/DeadlineSidebar.tsx` lists document deadlines from `/api/alerts`, nearest first. Tiers map to tokens and always show a text label: overdue and within 5 days use `--danger`, within 15 days `--warning`, within 30 days `--info`, 30+ days `--success`. *Inform authorities* records the request through `/api/alerts/notify`; until SMTP is connected, the UI states that email delivery is pending.
