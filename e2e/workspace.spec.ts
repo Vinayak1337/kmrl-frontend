@@ -238,12 +238,12 @@ test('manager navigation and server redirects enforce administrator routes',asyn
 
 test('reviewers can apply an AI suggestion and see the correction history', async ({ page }) => {
   let effective = { department: 'OPERATIONS', documentType: 'sop', tags: ['Review'] };
-  const suggestion = { department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier'], source: 'oci' };
+  const suggestion = { department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier, ltd'], source: 'oci' };
   const history: Array<{ by: string; at: string; before: typeof effective; after: typeof effective }> = [];
   await page.route(`**/api/documents/${documentId}/classification`, async route => {
     if (route.request().method() === 'PATCH') {
       const after = route.request().postDataJSON();
-      expect(after).toEqual({ department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier', 'verified'] });
+      expect(after).toEqual({ department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier, ltd', 'verified'] });
       history.push({ by: user.sub, at: '2026-11-18T10:00:00.000Z', before: effective, after });
       effective = after;
     }
@@ -255,7 +255,7 @@ test('reviewers can apply an AI suggestion and see the correction history', asyn
   const dialog = page.getByRole('dialog', { name: 'Document classification' });
   await dialog.getByRole('button', { name: 'Use suggestion' }).click();
   await expect(dialog.getByRole('combobox', { name: 'Team' })).toHaveValue('PROCUREMENT');
-  await dialog.getByRole('textbox', { name: 'Tags' }).fill('supplier, verified');
+  await dialog.getByRole('textbox', { name: 'Tags' }).fill('supplier, ltd\nverified');
   await dialog.getByRole('button', { name: 'Save classification' }).click();
   await expect(dialog.getByRole('status')).toHaveText('Classification saved.');
   await expect(dialog.getByText('Correction history')).toBeVisible();

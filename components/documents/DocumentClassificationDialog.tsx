@@ -34,7 +34,7 @@ export function DocumentClassificationDialog({ id, open, close, onSaved }: {
     getDocumentClassification(id, controller.signal).then(result => {
       setRecord(result);
       setDraft(result.effective);
-      setTags(result.effective.tags.join(', '));
+      setTags(result.effective.tags.join('\n'));
     }).catch(() => {
       if (!controller.signal.aborted) setError('Could not load classification. Close and reopen this dialog to retry.');
     });
@@ -57,11 +57,11 @@ export function DocumentClassificationDialog({ id, open, close, onSaved }: {
     setError('');
     try {
       const result = await saveDocumentClassification(id, {
-        ...draft, tags: tags.split(',').map(tag => tag.trim()).filter(Boolean),
+        ...draft, tags: tags.split('\n').map(tag => tag.trim()).filter(Boolean),
       });
       setRecord(result);
       setDraft(result.effective);
-      setTags(result.effective.tags.join(', '));
+      setTags(result.effective.tags.join('\n'));
       setSaved(true);
       onSaved();
     } catch (failure) {
@@ -87,7 +87,7 @@ export function DocumentClassificationDialog({ id, open, close, onSaved }: {
             documentType: suggestion.documentType ?? draft.documentType,
             tags: suggestion.tags.length ? suggestion.tags : draft.tags,
           });
-          if (suggestion.tags.length) setTags(suggestion.tags.join(', '));
+          if (suggestion.tags.length) setTags(suggestion.tags.join('\n'));
           setSaved(false);
         }}>Use suggestion</button>}
       </section>
@@ -108,8 +108,8 @@ export function DocumentClassificationDialog({ id, open, close, onSaved }: {
               {options(CLASSIFICATION_TYPES.map(classificationTypeValue), draft.documentType, record.effective.documentType).map(value => <option key={value} value={value}>{label(value)}</option>)}
             </select></label>
           </div>
-          <label>Tags<input value={tags} disabled={busy} onChange={event => { setTags(event.target.value); setSaved(false); }} />
-            <span className="field-help">Separate tags with commas.</span>
+          <label>Tags<textarea rows={4} value={tags} disabled={busy} onChange={event => { setTags(event.target.value); setSaved(false); }} />
+            <span className="field-help">Enter one tag per line.</span>
           </label>
           <div className="modal-actions"><button type="submit" className="button button-primary" disabled={busy}>{busy ? 'Saving…' : 'Save classification'}</button></div>
         </form>
