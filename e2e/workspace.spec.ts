@@ -171,6 +171,7 @@ test('file ingestion reads text and supports draft discard', async ({ page }) =>
   await page.keyboard.press('Escape');
   await expect(dialog.getByRole('heading',{name:'Discard this draft?'})).toBeVisible();
   await dialog.getByRole('button',{name:'Keep editing'}).click();
+  await dialog.getByRole('checkbox',{name:'Process in background'}).uncheck();
   await page.route('**/api/documents/ingest',async route=>{
     expect(route.request().postDataJSON().documents[0].content).toBe('First, second, and third requirements.');
     await route.fulfill({status:201,json:{documentId}});
@@ -302,7 +303,7 @@ test('a background upload resumes on reopen and retries the same job', async ({ 
   await dialog.locator('input[type=file]').setInputFiles({
     name: 'background.txt', mimeType: 'text/plain', buffer: Buffer.from('Document for background processing.'),
   });
-  await dialog.getByRole('checkbox', { name: 'Process in background' }).check();
+  await expect(dialog.getByRole('checkbox', { name: 'Process in background' })).toBeChecked();
   await dialog.getByRole('button', { name: 'Add document', exact: true }).click();
   for (const status of ['Reading the source…', 'Organizing sections…', 'Analyzing and summarizing…', 'Saving and indexing…']) {
     await expect(dialog.getByRole('status')).toHaveText(status);
