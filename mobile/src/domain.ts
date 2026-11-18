@@ -149,7 +149,8 @@ const ingestStageLabels: Record<IngestStage, string> = {
 };
 type AnalysisProgress = {
   ranges: Array<{ start: number; end: number }>;
-  totalPages: number;
+  totalPages?: number;
+  totalSections?: number;
   summarizing?: boolean;
 };
 
@@ -158,8 +159,9 @@ export function ingestStageLabel(stage: IngestStage, analysis?: AnalysisProgress
   if (!analysis.ranges.length) return analysis.summarizing ? "Writing the document summary…" : ingestStageLabels[stage];
 
   const ranges = analysis.ranges.map(({ start, end }) => start === end ? String(start) : `${start}–${end}`);
-  const unit = analysis.ranges.length === 1 && analysis.ranges[0].start === analysis.ranges[0].end ? "page" : "pages";
-  return `Analyzing ${unit} ${ranges.join(", ")} of ${analysis.totalPages}…`;
+  const count = analysis.totalPages ?? analysis.totalSections;
+  const unit = analysis.totalPages ? "page" : "section";
+  return `Analyzing ${unit}${ranges.length === 1 && analysis.ranges[0].start === analysis.ranges[0].end ? "" : "s"} ${ranges.join(", ")} of ${count}…`;
 }
 
 export type IngestJob = {

@@ -44,10 +44,12 @@ async function overallSummary(chunks: DocumentChunk[], meta: EnrichmentContext, 
   return typeof result.overallMd === 'string' ? result.overallMd : '';
 }
 
-type AnalysisUpdate = Omit<AnalysisProgress, 'totalPages'>;
+type AnalysisUpdate = Omit<AnalysisProgress, 'totalPages' | 'totalSections'>;
 
-function pagesForBatch(batch: DocumentChunk[]) {
-  return { start: batch[0].pageStart, end: batch[batch.length - 1].pageEnd };
+function batchRange(batch: DocumentChunk[], sections: boolean) {
+  const first = batch[0];
+  const last = batch[batch.length - 1];
+  return sections ? { start: first.order, end: last.order } : { start: first.pageStart, end: last.pageEnd };
 }
 
 /** Returns null when generation fails so callers use heuristics. */
@@ -57,11 +59,12 @@ export async function enrichChunks(
   log = 'ingest',
   deadline?: number,
   onProgress?: (progress: AnalysisUpdate) => Promise<void>,
+  reportSections = false,
 ): Promise<ManagerAnalysisJSON | null> {
   if (!chunks.some(c => c.text.trim())) return null;
   try {
     if (chunks.length <= BATCH_SIZE && chunks.reduce((size, chunk) => size + chunk.text.length + 48, 0) <= INPUT_BUDGET) {
-      await onProgress?.({ ranges: [pagesForBatch(chunks)] });
+      await onProgress?.({ ranges: [batchRange(chunks, reportSections)] });
       try {
         const result = await enrichBatch(chunks, meta, chunks.length, deadline);
         return result && Array.isArray(result.nodes) ? result : null;
@@ -90,7 +93,7 @@ export async function enrichChunks(
     let published = Promise.resolve();
     const report = () => {
       if (!onProgress) return;
-      const ranges = [...activeBatches].sort((a, b) => a - b).map(index => pagesForBatch(batches[index]));
+      const ranges = [...activeBatches].sort((a, b) => a - b).map(index => batchRange(batches[index], reportSections));
       const update = { ranges, summarizing };
       // Serialize snapshots from the parallel workers so older ranges cannot overwrite newer ones.
       published = published.then(() => onProgress(update));

@@ -67,7 +67,11 @@ function splitLongText(text: string, max: number): string[] {
 	return parts;
 }
 
-/** Keeps PDF pages intact and uses topic boundaries for non-paginated sources. */
+export function hasPageBoundaries(doc: NormalizedDocument) {
+	return doc.format === 'pdf' || (doc.format === 'doc' && doc.pages.length > 1);
+}
+
+/** Keeps whole pages together when the source supplies page boundaries. */
 export function chunkDocument(doc: NormalizedDocument, documentId?: string): DocumentChunk[] {
 	const chunks: RawChunk[] = [];
 	let current: RawChunk = { text: '', pages: [], images: [] };
@@ -84,7 +88,7 @@ export function chunkDocument(doc: NormalizedDocument, documentId?: string): Doc
 		}
 	};
 
-	const paged = doc.format === 'pdf';
+	const paged = hasPageBoundaries(doc);
 	for (const page of doc.pages) {
 		let images = (page.images || []).map(image => ({ ...image, page: page.pageNumber }));
 		const imageSize = images.reduce((size, image) => size + image.base64.length, 0);

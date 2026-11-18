@@ -25,7 +25,8 @@ export type DocumentMetadata = {
 
 export type AnalysisProgress = {
   ranges: Array<{ start: number; end: number }>;
-  totalPages: number;
+  totalPages?: number;
+  totalSections?: number;
   summarizing?: boolean;
 };
 

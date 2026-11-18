@@ -201,7 +201,7 @@ The ingestion model proposes a team, document type and tags when evidence suppor
 `npm run test:services` includes document structure, classification and job-validation cases. `npm run test:ui` includes the reviewer dialog and resume/retry flow with browser fixtures. Verify hosted delivery in a Vercel preview and check the configured AI gateway before releasing the live AI and OCR flows.
 
 
-PDF sections preserve whole pages, grouping short neighboring pages when they fit. Background file uploads report the active server stage while reading the source, organizing sections, analyzing content, and saving the document and search data. During PDF analysis, the upload and correction dialogs show the pages in each active model batch.
+PDF sections preserve whole pages, grouping short neighboring pages when they fit. Background file uploads report the active server stage while reading the source, organizing sections, analyzing content, and saving the document and search data. During analysis, the upload and correction dialogs show the pages in each active model batch for PDF and Word files with saved or manual page breaks. Word files without page boundaries report active section numbers.
 
 ### Reviewer corrections
 

@@ -6,7 +6,7 @@ import type { JwtUser } from '@/lib/auth';
 import { getCollection, getMongo, ensureDocumentIndexes, ensureNodeIndexes } from '@/lib/mongo';
 import { prisma } from '@/lib/prisma';
 import { ExtractionError, normalizeExtractedContent, RawDocumentInput } from '@/lib/ingest/normalization';
-import { chunkDocument, sourceSectionTitle } from '@/lib/ingest/chunker';
+import { chunkDocument, hasPageBoundaries, sourceSectionTitle } from '@/lib/ingest/chunker';
 import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, buildPersistedDocument, ChunkEnrichmentData } from '@/lib/ingest/builder';
 import { classificationSuggestion } from '@/lib/ingest/classification';
@@ -167,12 +167,15 @@ export async function ingestDocuments(session: JwtUser, body: IngestPayload, opt
 			console.log(`[ingest] AI_STARTED | docId=${docId}`);
 			const context: EnrichmentContext = { department, documentType };
 			if (options?.correction) context.correction = { tags, note: options.correction.note };
-			const reportPages = normalized.format === 'pdf' ? options?.onStage : undefined;
+			const paginated = hasPageBoundaries(normalized);
+			const reportAnalysis = paginated || normalized.format === 'doc' ? options?.onStage : undefined;
+			const total = paginated ? { totalPages: normalized.pageCount } : { totalSections: rawChunks.length };
 			const aiAnalysis: ManagerAnalysisJSON | null = await enrichChunks(
 				rawChunks, context, options?.correction ? 'correction' : 'ingest',
 				options?.correction ? startTime + 270_000 : undefined,
-				reportPages && (progress => reportPages('analyzing', { ...progress, totalPages: normalized.pageCount })
-					.catch(error => { console.warn('[ingest] could not publish page progress', error); })),
+				reportAnalysis && (progress => reportAnalysis('analyzing', { ...progress, ...total })
+					.catch(error => { console.warn('[ingest] could not publish analysis progress', error); })),
+				!paginated,
 			);
 			if (options?.correction && (!aiAnalysis?.overallMd || !rawChunks.every((chunk, index) => aiNodeFor(aiAnalysis.nodes, chunk, index, rawChunks.length)?.summaryMd))) {
 				return NextResponse.json({ error: 'The model did not rebuild every section. Please retry the correction.' }, { status: 422 });

@@ -5,7 +5,8 @@ import { extractPdfPagesWithImagesFromBase64 } from '../../pdf';
 import { chunkDocument } from '../chunker';
 import { validateChunkCoverage } from '../validation';
 import { buildPersistedChunk } from '../builder';
-import { docxHtmlToText } from '../docx';
+import JSZip from 'jszip';
+import { docxHtmlToText, extractWordPages } from '../docx';
 import type { NormalizedDocument } from '../normalization';
 
 function document(pages: NormalizedDocument['pages']): NormalizedDocument {
@@ -72,4 +73,29 @@ test('PDF headings never split a page, and short neighboring pages share a secti
 test('a model result with no actions stays empty', () => {
   const [chunk] = chunkDocument(document([{ pageNumber: 1, text: 'The authors review access in this research paper.' }]));
   assert.deepEqual(buildPersistedChunk(chunk, 'test', 1, {}, { actionableItems: [] }).actionableItems, []);
+});
+
+test('Word manual and saved page markers preserve distinct pages and avoid duplicate breaks', async () => {
+  const archive = new JSZip();
+  archive.file('[Content_Types].xml', `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+    <Default Extension="xml" ContentType="application/xml"/>
+  </Types>`);
+  archive.file('word/document.xml', `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+    <w:body>
+      <w:p><w:r><w:t>First page.</w:t><w:br w:type="page"/><w:lastRenderedPageBreak/><w:t>Second page.</w:t></w:r></w:p>
+      <w:p><w:pPr><w:pageBreakBefore/></w:pPr><w:r><w:t>Third page.</w:t></w:r></w:p>
+      <w:p><w:r><w:lastRenderedPageBreak/><w:t>Fourth page.</w:t></w:r></w:p>
+    </w:body>
+  </w:document>`);
+  const pages = await extractWordPages(await archive.generateAsync({ type: 'nodebuffer' }));
+  assert.deepEqual(pages.map(page => page.text), ['First page.', 'Second page.', 'Third page.', 'Fourth page.']);
+  const normalized = { ...document(pages), format: 'doc' as const };
+  const chunks = chunkDocument(normalized);
+  assert.deepEqual(chunks.flatMap(chunk => chunk.sourcePages), [1, 2, 3, 4]);
+  assert.ok(validateChunkCoverage(normalized, chunks).valid);
+
+  archive.file('docProps/app.xml', '<Properties><Pages>8</Pages></Properties>');
+  const incompletePages = await extractWordPages(await archive.generateAsync({ type: 'nodebuffer' }));
+  assert.equal(incompletePages.length, 1);
+  assert.match(incompletePages[0].text, /First page.[\s\S]*Fourth page./);
 });

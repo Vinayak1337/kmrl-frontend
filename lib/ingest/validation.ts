@@ -1,5 +1,5 @@
 import { NormalizedDocument } from './normalization';
-import { DocumentChunk } from './chunker';
+import { type DocumentChunk, hasPageBoundaries } from './chunker';
 
 export interface ChunkValidationResult {
 	valid: boolean;
@@ -26,6 +26,7 @@ export function validateChunkCoverage(
 	chunks: DocumentChunk[]
 ): ChunkValidationResult {
 	const errors: string[] = [];
+	const paginated = hasPageBoundaries(normalized);
 	const docTextLength = (normalized.fullText || '').trim().length;
 
 	// 1. Check chunk count for non-empty documents
@@ -105,7 +106,7 @@ export function validateChunkCoverage(
 
 		// 6. Check hard max character bounds
 		const len = (chunk.text || '').length;
-		if (len > HARD_MAX_CHARS && normalized.format !== 'pdf') {
+		if (len > HARD_MAX_CHARS && !paginated) {
 			errors.push(
 				`Chunk ${chunk.chunkId} exceeds hard max size: ${len} chars (max allowed: ${HARD_MAX_CHARS}).`
 			);
@@ -123,7 +124,7 @@ export function validateChunkCoverage(
 		if (len < minChunkSize) minChunkSize = len;
 
 		// 8. Check overlap bounds with previous chunk
-		if (i > 0 && normalized.format !== 'pdf') {
+		if (i > 0 && !paginated) {
 			const prevText = chunks[i - 1].text || '';
 			// Measure overlapping tail of prevText with head of chunkText
 			let overlapLen = 0;
@@ -144,10 +145,10 @@ export function validateChunkCoverage(
 		}
 	}
 
-	if (normalized.format === 'pdf') {
+	if (paginated) {
 		const pages = chunks.flatMap(chunk => chunk.sourcePages);
 		if (pages.length !== normalized.pages.length || pages.some((page, index) => page !== normalized.pages[index].pageNumber)) {
-			errors.push('PDF sections must include every source page exactly once, in order.');
+			errors.push('Paginated sections must include every source page exactly once, in order.');
 		}
 	}
 
