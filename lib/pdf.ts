@@ -30,21 +30,7 @@ export async function extractPdfPagesFromBase64(
 	const bytes = Buffer.from(base64, 'base64');
 	const uint8Array = new Uint8Array(bytes);
 
-	// Filter extremely noisy TrueType warnings (e.g., "TT: undefined function: 32")
-	const originalWarn = console.warn;
-	console.warn = (...args: unknown[]) => {
-		const first = args[0];
-		const msg =
-			typeof first === 'string'
-				? first
-				: first instanceof Error
-				? first.message
-				: String(first ?? '');
-		if (/^TT: undefined function/i.test(msg)) return; // ignore font TT interpreter noise
-		originalWarn(...(args as [unknown, ...unknown[]]));
-	};
-
-	const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+	const loadingTask = pdfjsLib.getDocument({ data: uint8Array, verbosity: 0, isEvalSupported: false });
 	const pdf = await loadingTask.promise;
 	const pageCount = pdf.numPages;
 
@@ -53,11 +39,12 @@ export async function extractPdfPagesFromBase64(
 		for (let i = 1; i <= pageCount; i++) {
 			const page = await pdf.getPage(i);
 			const textContent = await page.getTextContent();
-			const items = textContent.items as Array<{ str?: string }>;
+			const items = textContent.items as Array<{ str?: string; hasEOL?: boolean }>;
 			const text = items
-				.map(it => (typeof it.str === 'string' ? it.str : ''))
-				.join(' ')
-				.replace(/\s+/g, ' ')
+				.map(it => `${typeof it.str === 'string' ? it.str : ''}${it.hasEOL ? '\n' : ' '}`)
+				.join('')
+				.replace(/[^\S\n]+/g, ' ')
+				.replace(/ *\n */g, '\n')
 				.trim();
 			pages.push({ index: i, text });
 		}
@@ -65,8 +52,6 @@ export async function extractPdfPagesFromBase64(
 		try {
 			await pdf.destroy();
 		} catch {}
-		// restore console.warn
-		console.warn = originalWarn;
 	}
 	return { pages, pageCount };
 }
@@ -143,33 +128,7 @@ export async function extractPdfPagesWithImagesFromBase64(
 		);
 	}
 
-	// Scoped filter for noisy TT warnings
-	const originalWarn = console.warn;
-	const originalErr = console.error;
-	console.warn = (...args: unknown[]) => {
-		const first = args[0];
-		const msg =
-			typeof first === 'string'
-				? first
-				: first instanceof Error
-				? first.message
-				: String(first ?? '');
-		if (/^TT: undefined function/i.test(msg)) return;
-		originalWarn(...(args as [unknown, ...unknown[]]));
-	};
-	console.error = (...args: unknown[]) => {
-		const first = args[0];
-		const msg =
-			typeof first === 'string'
-				? first
-				: first instanceof Error
-				? first.message
-				: String(first ?? '');
-		if (/^TT: undefined function/i.test(msg)) return;
-		originalErr(...(args as [unknown, ...unknown[]]));
-	};
-
-	const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+	const loadingTask = pdfjsLib.getDocument({ data: uint8Array, verbosity: 0, isEvalSupported: false });
 	const pdf = await loadingTask.promise;
 	const pageCount = pdf.numPages;
 
@@ -181,23 +140,25 @@ export async function extractPdfPagesWithImagesFromBase64(
 		for (let i = 1; i <= pageCount; i++) {
 			const page = await pdf.getPage(i);
 			const textContent = await page.getTextContent();
-			const items = textContent.items as Array<{ str?: string }>;
+			const items = textContent.items as Array<{ str?: string; hasEOL?: boolean }>;
 			const text = items
-				.map(it => (typeof it.str === 'string' ? it.str : ''))
-				.join(' ')
-				.replace(/\s+/g, ' ')
+				.map(it => `${typeof it.str === 'string' ? it.str : ''}${it.hasEOL ? '\n' : ' '}`)
+				.join('')
+				.replace(/[^\S\n]+/g, ' ')
+				.replace(/ *\n */g, '\n')
 				.trim();
 
 			const images: PageImage[] = [];
 			if (nodeCanvas) {
 				try {
-					const vp = page.getViewport({ scale });
+					const fullViewport = page.getViewport({ scale });
+					const maxSide = Math.max(fullViewport.width, fullViewport.height);
+					const vp = maxSide > 2400 ? page.getViewport({ scale: scale * 2400 / maxSide }) : fullViewport;
 					const factory = new NodeCanvasFactory(nodeCanvas.createCanvas);
 					const { canvas, context } = factory.create(vp.width, vp.height);
 					await page.render({ canvasContext: context, viewport: vp }).promise;
 					const buf: Buffer = canvas.toBuffer('image/png');
-					const base64png = buf.toString('base64');
-					images.push({ base64: base64png, mimeType: 'image/png' });
+					if (buf.length <= 2 * 1024 * 1024) images.push({ base64: buf.toString('base64'), mimeType: 'image/png' });
 					factory.destroy({ canvas, context });
 				} catch {
 					// ignore render errors per page; continue
@@ -210,8 +171,6 @@ export async function extractPdfPagesWithImagesFromBase64(
 		try {
 			await pdf.destroy();
 		} catch {}
-		console.warn = originalWarn;
-		console.error = originalErr;
 	}
 	return { pages, pageCount };
 }

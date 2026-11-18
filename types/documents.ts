@@ -23,7 +23,13 @@ export type DocumentMetadata = {
 	updatedAt?: Date;
 };
 
+export type ClassificationValues = { department: string | null; documentType: string | null; tags: string[] };
+export type ClassificationSuggestion = ClassificationValues & { source: 'oci' };
+export type ClassificationHistoryEntry = { by: string; at: Date; before: ClassificationValues; after: ClassificationValues };
+
 export type DocumentRecord = {
+ classificationSuggestion?: ClassificationSuggestion | null;
+ classificationHistory?: ClassificationHistoryEntry[];
 	id: string; // stable external id e.g. doc-...
 	title: string;
 	originalFormat: 'html' | 'text' | 'image' | 'pdf' | 'doc' | string;

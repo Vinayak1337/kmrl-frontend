@@ -18,7 +18,7 @@
     "upload:pdf": "node scripts/upload-pdf-to-cloudinary.js",
     "typecheck": "tsc --noEmit",
     "test:ui": "playwright test",
-    "test:services": "node --import tsx --test services/*.test.ts lib/alerts/*.test.ts",
+    "test:services": "node --import tsx --test services/*.test.ts lib/alerts/*.test.ts lib/ingest/__tests__/*.test.ts",
     "test:provider": "tsx scripts/test-configured-provider.ts",
     "test:mobile:pipeline": "tsx scripts/test-mobile-pipeline.ts",
     "test:ai": "node --import tsx --test scripts/test-ai-generation.ts"
@@ -31,6 +31,7 @@
     "@langchain/mongodb": "^0.1.0",
     "@langchain/openai": "^0.6.13",
     "@prisma/client": "^5.20.0",
+    "@vercel/queue": "^0.11.0",
     "bcryptjs": "^2.4.3",
     "ckeditor5": "^46.1.1",
     "ckeditor5-premium-features": "^46.1.1",

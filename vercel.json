@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "app/api/queues/ingest/route.ts": {
+      "experimentalTriggers": [{ "type": "queue/v2beta", "topic": "document-ingest" }]
+    }
+  }
+}

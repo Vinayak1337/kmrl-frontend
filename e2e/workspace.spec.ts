@@ -159,7 +159,7 @@ test('demo credentials and password visibility remain available',async({page,con
   await page.getByRole('button',{name:'Show password'}).click();
   await expect(page.getByLabel('Password',{exact:true})).toHaveAttribute('type','text');
   await page.getByRole('button',{name:'Demo manager'}).click();
-  await expect(page.getByLabel('Work email',{exact:true})).toHaveValue('vin@gmail.com');
+  await expect(page.getByLabel('Work email',{exact:true})).toHaveValue('manager@example.com');
 });
 
 test('file ingestion reads text and supports draft discard', async ({ page }) => {
@@ -234,4 +234,67 @@ test('manager navigation and server redirects enforce administrator routes',asyn
   await expect(page).toHaveURL(/\/home$/);
   await page.goto('/dashboard/documents');
   await expect(page).toHaveURL(/\/documents$/);
+});
+
+test('reviewers can apply an AI suggestion and see the correction history', async ({ page }) => {
+  let effective = { department: 'OPERATIONS', documentType: 'sop', tags: ['Review'] };
+  const suggestion = { department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier'], source: 'oci' };
+  const history: Array<{ by: string; at: string; before: typeof effective; after: typeof effective }> = [];
+  await page.route(`**/api/documents/${documentId}/classification`, async route => {
+    if (route.request().method() === 'PATCH') {
+      const after = route.request().postDataJSON();
+      expect(after).toEqual({ department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier', 'verified'] });
+      history.push({ by: user.sub, at: '2026-11-18T10:00:00.000Z', before: effective, after });
+      effective = after;
+    }
+    await route.fulfill({ json: { effective, suggestion, history, canEdit: true } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/documents/${documentId}`);
+  await page.getByRole('button', { name: 'Classification', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Document classification' });
+  await dialog.getByRole('button', { name: 'Use suggestion' }).click();
+  await expect(dialog.getByRole('combobox', { name: 'Team' })).toHaveValue('PROCUREMENT');
+  await dialog.getByRole('textbox', { name: 'Tags' }).fill('supplier, verified');
+  await dialog.getByRole('button', { name: 'Save classification' }).click();
+  await expect(dialog.getByRole('status')).toHaveText('Classification saved.');
+  await expect(dialog.getByText('Correction history')).toBeVisible();
+  await expect(dialog.getByText(/Operations.*Procurement/)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Classification', exact: true })).toBeFocused();
+});
+
+test('a background upload resumes on reopen and retries the same job', async ({ page }) => {
+  let created = 0;
+  let retries = 0;
+  const jobId = 'fixture-job';
+  await page.route('**/api/documents/ingest/jobs', async route => {
+    created++;
+    expect(route.request().postDataJSON().documents[0].content).toBe('Document for background processing.');
+    await route.fulfill({ status: 202, json: { id: jobId } });
+  });
+  await page.route(`**/api/documents/ingest/jobs/${jobId}`, async route => {
+    if (route.request().method() === 'POST') {
+      retries++;
+      return route.fulfill({ status: 202, json: { id: jobId } });
+    }
+    await route.fulfill({ json: retries
+      ? { id: jobId, status: 'completed', documentId }
+      : { id: jobId, status: 'failed', error: 'Temporary processing error.' } });
+  });
+  await page.goto('/home');
+  await page.getByRole('button', { name: 'Add document', exact: true }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Add document' });
+  await dialog.locator('input[type=file]').setInputFiles({
+    name: 'background.txt', mimeType: 'text/plain', buffer: Buffer.from('Document for background processing.'),
+  });
+  await dialog.getByRole('checkbox', { name: 'Process in background' }).check();
+  await dialog.getByRole('button', { name: 'Add document', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toHaveText('Temporary processing error.');
+  await page.reload();
+  await page.getByRole('button', { name: 'Add document', exact: true }).first().click();
+  await dialog.getByRole('button', { name: 'Try again' }).click();
+  await expect(dialog.getByRole('heading', { name: 'Document added' })).toBeVisible();
+  expect(created).toBe(1);
+  expect(retries).toBe(1);
 });

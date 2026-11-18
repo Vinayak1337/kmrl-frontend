@@ -140,6 +140,7 @@ export function mapDocTypeToTaxonomy(type?: string | null): DocSetuDocumentType 
 		case 'quarterly_report':
 			return 'Report';
 		case 'invoice':
+		case 'vendor_invoice':
 		case 'bill':
 		case 'voucher':
 			return 'Invoice';
@@ -165,6 +166,10 @@ export function mapDocTypeToTaxonomy(type?: string | null): DocSetuDocumentType 
 		case 'spec':
 		case 'technical_document':
 			return 'Technical Document';
+		case 'maintenance':
+			return 'Manual';
+		case 'other':
+			return 'Other';
 		case 'policy':
 		case 'rules':
 		case 'regulation':

@@ -1,3 +1,4 @@
+import { CLASSIFICATION_DEPARTMENTS, CLASSIFICATION_TYPES } from '@/lib/ingest/classification';
 export type Partition =
 	| { type: 'text'; content: string; summary?: string }
 	| { type: 'image'; description?: string; ocrText?: string };
@@ -52,6 +53,7 @@ export type ManagerAnalysisJSON = {
 	documentType?: string; // e.g., safety_circular | procurement | hr_policy | technical_specification | other
 	urgencyLevel?: 'high' | 'medium' | 'low';
 	departments?: string[];
+	tags?: string[];
 };
 
 // Centralized manager-focused prompt asking for Markdown fields inside JSON
@@ -60,10 +62,10 @@ export function buildManagerMdPrompt(meta?: {
 	documentType?: string;
 }): string {
 	const dept = meta?.department
-		? `Department: ${meta.department}`
+		? `Uploader’s department: ${meta.department}`
 		: 'Department: (unspecified)';
 	const dtype = meta?.documentType
-		? `Document Type: ${meta.documentType}`
+		? `Uploader’s document type: ${meta.documentType}`
 		: 'Document Type: (unspecified)';
 	return [
 		'You are a senior document analyst for DocSetu.',
@@ -95,9 +97,10 @@ export function buildManagerMdPrompt(meta?: {
 		'    "needsImage": false',
 		'  }],',
 		'  "overallMd": "## Executive Summary\nMain decisions, deadlines, risks, and impacted departments (1–2 short paragraphs).",',
-		'  "documentType": "safety_circular | procurement | hr_policy | technical_specification | other",',
+		`  "documentType": "${CLASSIFICATION_TYPES.join(' | ')}",`,
 		'  "urgencyLevel": "high | medium | low",',
-		'  "departments": ["Engineering", "Operations", "Safety", "Procurement", "HR", "Finance"]',
+		`  "departments": ${JSON.stringify(CLASSIFICATION_DEPARTMENTS)},`,
+		'  "tags": ["short topic", "..."]',
 		'}',
 		'',
 		'Rules:',
@@ -108,8 +111,8 @@ export function buildManagerMdPrompt(meta?: {
 		'- Keep every date exactly as written in the source and include it in the matching action (e.g. "Due: 14 November 2026").',
 		'- If the source is not in English, still write the summaries in English but keep names, numbers and dates unchanged.',
 		'- Always include at least 3 bullet points in keyPointsMd and at least 1 action in actionsMd when applicable.',
-		'- Choose documentType strictly from the allowed set; if unclear, use "other".',
-		'- Use departments from the provided list only; pick the primary owner if multiple are mentioned.'
+		'- Infer documentType from the source, using only the allowed set. Omit it if unclear. Do not copy upload metadata as evidence.',
+		'- Use departments from the provided list only; put the primary owner first; omit if unclear.'
 	].join('\n');
 }
 

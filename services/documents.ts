@@ -1,5 +1,5 @@
 import { DocSetuDocument, DocumentSection } from '@/types/docsetu';
-import type { DocumentNodeRecord } from '@/types/documents';
+import type { ClassificationHistoryEntry, ClassificationSuggestion, ClassificationValues, DocumentNodeRecord } from '@/types/documents';
 import {
 	mapBackendDocToDocSetu,
 	mapBackendNodeToSection,
@@ -82,7 +82,7 @@ export async function getDocumentSections(id: string, page = 0, limit = 20): Pro
 /**
  * Ingest / Upload a new document into DocSetu
  */
-export async function uploadDocument(payload: IngestDocumentPayload): Promise<{ id: string }> {
+function ingestBody(payload: IngestDocumentPayload) {
 	const content = payload.fileContent || payload.text || '';
 	const format = payload.format || (payload.fileContent ? 'pdf' : 'text');
 
@@ -101,6 +101,11 @@ export async function uploadDocument(payload: IngestDocumentPayload): Promise<{ 
 		]
 	};
 
+	return body;
+}
+
+export async function uploadDocument(payload: IngestDocumentPayload): Promise<{ id: string }> {
+	const body = ingestBody(payload);
 	const res = await fetch('/api/documents/ingest', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -119,6 +124,24 @@ export async function uploadDocument(payload: IngestDocumentPayload): Promise<{ 
 	return { id };
 }
 
+export type IngestJobStatus = { id: string; status: 'queued' | 'processing' | 'failed' | 'completed'; documentId?: string; error?: string };
+
+export async function startIngestJob(payload: IngestDocumentPayload): Promise<{ id: string }> {
+  const response = await fetch('/api/documents/ingest/jobs', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ingestBody(payload)) });
+  if (!response.ok) { const data = await response.json().catch(() => ({})); throw new Error(data.error || 'Could not start processing.'); }
+  return response.json();
+}
+export async function getIngestJob(id: string, signal?: AbortSignal): Promise<IngestJobStatus | null> {
+  const response = await fetch(`/api/documents/ingest/jobs/${encodeURIComponent(id)}`, { credentials: 'include', cache: 'no-store', signal });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error('Could not check processing status.');
+  return response.json();
+}
+export async function retryIngestJob(id: string): Promise<void> {
+  const response = await fetch(`/api/documents/ingest/jobs/${encodeURIComponent(id)}`, { method: 'POST', credentials: 'include' });
+  if (!response.ok) throw new Error('Could not retry processing.');
+}
+
 /**
  * Delete a document from DocSetu
  */
@@ -133,4 +156,34 @@ export async function deleteDocument(id: string): Promise<boolean> {
 	}
 
 	return true;
+}
+
+export type DocumentClassification = {
+  canEdit: boolean;
+  effective: ClassificationValues;
+  suggestion: ClassificationSuggestion | null;
+  history: Array<Omit<ClassificationHistoryEntry, 'at'> & { at: string }>;
+};
+
+export async function getDocumentClassification(
+  id: string,
+  signal?: AbortSignal,
+): Promise<DocumentClassification> {
+  const response = await fetch(`/api/documents/${encodeURIComponent(id)}/classification`, { signal });
+  if (!response.ok) throw new Error('Could not load classification.');
+  return response.json();
+}
+
+export async function saveDocumentClassification(
+  id: string,
+  values: DocumentClassification['effective'],
+): Promise<DocumentClassification> {
+  const response = await fetch(`/api/documents/${encodeURIComponent(id)}/classification`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(values),
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result) throw new Error(result?.error || 'Could not save classification.');
+  return result;
 }

@@ -56,6 +56,8 @@ async function verifyJwtEdge(token: string): Promise<Record<string, unknown> | n
 export default async function middleware(req: NextRequest) {
 	const { pathname } = req.nextUrl;
 	const token = req.cookies.get(AUTH_COOKIE)?.value;
+	// The callback validates a server-signed job message in place of a user session.
+	if (pathname === '/api/queues/ingest') return NextResponse.next();
 
 	// Native requests use SecureStore-backed bearer tokens. Only verified API tokens
 	// are bridged to the existing cookie readers, so every route retains its RBAC.

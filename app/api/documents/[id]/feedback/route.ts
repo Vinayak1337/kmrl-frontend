@@ -3,9 +3,10 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession, isDocumentAccessible } from '@/lib/auth';
-import { getCollection } from '@/lib/mongo';
+import { getCollection, getMongo } from '@/lib/mongo';
 import { normalizeExtractedContent } from '@/lib/ingest/normalization';
-import { chunkDocument } from '@/lib/ingest/chunker';
+import { classificationSuggestion } from '@/lib/ingest/classification';
+import { chunkDocument, sourceSectionTitle } from '@/lib/ingest/chunker';
 import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, ChunkEnrichmentData } from '@/lib/ingest/builder';
 import type { ManagerAnalysisJSON } from '@/lib/prompt';
@@ -89,7 +90,7 @@ export async function POST(
 					const aiNode = aiNodeFor(aiNodes, chunk, idx, rawChunks.length);
 
 					const enrichment: ChunkEnrichmentData = {
-						title: aiNodeTitle(aiNode) || (aiNode ? undefined : `Section ${chunk.order}`),
+						title: aiNodeTitle(aiNode) || sourceSectionTitle(chunk.text),
 						summary: aiNode?.summaryMd
 							? aiNode.summaryMd.replace(/[#*_`]+/g, ' ').replace(/\s+/g, ' ').trim()
 							: chunk.text.slice(0, 300),
@@ -124,11 +125,6 @@ export async function POST(
 					process.env.MONGODB_NODES_COLLECTION || 'document_nodes'
 				);
 
-				if (newChunks.length > 0) {
-					await nodesColl.deleteMany({ docId: id });
-					await nodesColl.insertMany(newChunks);
-				}
-
 				// 6. Update document record
 				const overallSummary =
 					(aiAnalysis?.overallMd
@@ -139,27 +135,42 @@ export async function POST(
 
 				const overallMd = aiAnalysis?.overallMd || doc.overallMd;
 
-				await docsColl.updateOne(
-					{ id },
-					{
-						$set: {
-							nodeCount: newChunks.length,
-							fullSummary: overallSummary,
-							overallMd,
-							'metadata.updatedAt': new Date()
-						},
-						$push: {
-							feedback: feedback as any,
-							history: {
-								id: `ev-${Date.now()}`,
-								type: 'reprocessed',
-								by: session.sub,
-								at: new Date(),
-								feedbackId: feedback.id
-							} as any
+				// Reprocessing and classification corrections must serialize on the
+				// document record; otherwise old node grants could be written back.
+				const { client } = await getMongo();
+				const mongoSession = client.startSession();
+				try {
+					await mongoSession.withTransaction(async () => {
+						const current = await docsColl.findOne({ id }, { session: mongoSession });
+						if (!current || JSON.stringify([current.metadata?.department, current.metadata?.documentType, current.metadata?.tags || []]) !== JSON.stringify([doc.metadata?.department, doc.metadata?.documentType, doc.metadata?.tags || []])) throw new Error('Classification changed during reprocessing');
+						if (newChunks.length) {
+							await nodesColl.bulkWrite(newChunks.map(chunk => ({
+								replaceOne: { filter: { docId: id, uid: chunk.uid }, replacement: chunk, upsert: true },
+							})), { session: mongoSession });
 						}
-					}
-				);
+						await nodesColl.deleteMany({ docId: id, uid: { $nin: newChunks.map(chunk => chunk.uid) } }, { session: mongoSession });
+						const suggestion = classificationSuggestion(aiAnalysis);
+						await docsColl.updateOne({ id }, {
+							$set: {
+								nodeCount: newChunks.length,
+								fullSummary: overallSummary,
+								overallMd,
+								...(suggestion ? { classificationSuggestion: suggestion } : {}),
+								'metadata.updatedAt': new Date(),
+							},
+							$push: {
+								feedback: feedback as any,
+								history: {
+									id: `ev-${Date.now()}`,
+									type: 'reprocessed',
+									by: session.sub,
+									at: new Date(),
+									feedbackId: feedback.id,
+								} as any,
+							},
+						}, { session: mongoSession });
+					});
+				} finally { await mongoSession.endSession(); }
 
 				console.log(`[feedback] REPROCESS_COMPLETED | docId=${id} | newChunks=${newChunks.length}`);
 				return NextResponse.json({ ok: true, reprocessed: true, nodeCount: newChunks.length });
@@ -173,7 +184,7 @@ export async function POST(
 		await docsColl.updateOne(
 			{ id },
 			{
-				$push: { feedback: feedback as any }
+				$push: { feedback: { ...feedback, status: 'recorded' } as any }
 			}
 		);
 

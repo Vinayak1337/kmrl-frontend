@@ -138,7 +138,7 @@ export function buildPersistedChunk(
 		images: (chunk.images || []).map(im => ({
 			base64: im.base64,
 			mimeType: im.mimeType,
-			page: chunk.pageStart
+			page: im.page ?? chunk.pageStart
 		})),
 		summary,
 		summaryMd: enrichment?.summaryMd || summary,

@@ -189,3 +189,13 @@ PDFs use their text layer; pages without one are transcribed from the rendered p
 The documents text index uses `language_override: 'textLanguage'`, so the display `language` field (for example "Hindi") is not read as a MongoDB stemming language. Existing databases need `npx tsx scripts/migrate-text-index.ts` once.
 
 `test-samples/real-data/` holds the public evaluation samples (KMRL/Kerala tenders, annual reports, RTI documents, RVL-CDIP, DocVQA, FUNSD, IIIT-AR-13K, IndicDLP, Mozhi) with sources in its `MANIFEST.md`.
+
+### Document structure, background uploads and classification
+
+New ingestion groups text around detectable headings while keeping bounded chunks and source-page links. PDF extraction keeps the lines reported by PDF.js. Word extraction preserves headings, simple tables and up to four supported embedded raster images of up to 2 MiB each. Word uses one logical page because Mammoth does not provide pagination. Complex table layout, exact DOCX image positioning and hybrid OCR are outside this implementation. PDF page images require the optional canvas runtime. The web reader displays retained images in the Source and Sections views.
+
+The web file form can start a background upload within the same file size limit. `POST /api/documents/ingest/jobs` returns a job ID. `GET /api/documents/ingest/jobs/:id` reports status to the owner and `POST` to the same URL retries failed processing. The browser tab remembers the current job. Jobs and failed source payloads expire after 24 hours. Vercel uses the `document-ingest` queue configured in `vercel.json` and the existing `AUTH_SECRET` to authenticate job messages. Local Next.js runs use `after()` and can recover interrupted processing when the owner reopens job status. Background persistence and classification corrections require a transaction-capable MongoDB replica set. Existing synchronous web and native upload calls still receive `201` with a document ID.
+
+The ingestion model proposes a team, document type and tags when evidence supports them. Upload metadata remains authoritative until an administrator saves a correction from the web reader. `GET /api/documents/:id/classification` exposes suggestions and correction history to readers. Its `PATCH` handler updates the document and searchable sections in one transaction. Incidental feedback can still be recorded independently of classification.
+
+`npm run test:services` includes document structure, classification and job-validation cases. `npm run test:ui` includes the reviewer dialog and resume/retry flow with browser fixtures. Verify hosted delivery in a Vercel preview and check the configured AI gateway before releasing the live AI and OCR flows.

@@ -1,6 +1,7 @@
 import { extractPdfPagesFromBase64, extractPdfPagesWithImagesFromBase64 } from '@/lib/pdf';
 import { parseHtmlForIngestion } from '@/lib/html';
 import { imageMimeType, transcribeImage } from './ocr';
+import { docxHtmlToText } from './docx';
 
 /** Pages without a text layer are transcribed from their rendered image, up to this many. */
 const MAX_OCR_PAGES = 12;
@@ -148,16 +149,25 @@ export async function normalizeExtractedContent(
 
 		case 'doc': {
 			mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+			const images: Array<{ base64: string; mimeType: string }> = [];
 			try {
 				const mammoth = await import('mammoth');
-				const { value } = await mammoth.extractRawText({ buffer: Buffer.from(rawContent, 'base64') });
-				fullText = value.replace(/\n{3,}/g, '\n\n').trim();
+				const { value } = await mammoth.convertToHtml(
+					{ buffer: Buffer.from(rawContent, 'base64') },
+					{ convertImage: mammoth.images.imgElement(async image => {
+						if (!/^image\/(?:png|jpeg|gif|webp)$/.test(image.contentType) || images.length >= 4) return { src: '' };
+						const base64 = await image.read('base64');
+						if (base64.length <= 2 * 1024 * 1024 * 4 / 3) images.push({ base64, mimeType: image.contentType });
+						return { src: '' };
+					}) }
+				);
+				fullText = docxHtmlToText(value);
 			} catch (err) {
 				console.warn(`[normalize] Word extraction failed for ${filename}:`, err);
 				fullText = '';
 			}
 			if (!fullText) throw new ExtractionError('Only .docx Word files can be read. Save older .doc files as .docx or PDF.');
-			pages = [{ pageNumber: 1, text: fullText, images: [] }];
+			pages = [{ pageNumber: 1, text: fullText, images }];
 			pageCount = 1;
 			break;
 		}
