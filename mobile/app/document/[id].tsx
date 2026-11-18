@@ -12,6 +12,7 @@ import { useApp } from "../../src/store";
 import {
   departmentOf,
   humanize,
+  languages,
   pageLabel,
   summaryOf,
   typeOf,
@@ -28,10 +29,17 @@ import {
   IconButton,
   Loading,
   Notice,
+  Picker,
   Row,
   Screen,
   Text,
 } from "../../src/ui";
+
+const activityDate = (value?: string) => {
+  if (!value) return "Not recorded";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Not recorded" : date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+};
 
 export default function Reader() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -43,9 +51,22 @@ export default function Reader() {
   const [tab, setTab] = useState("overview");
   const [error, setError] = useState<unknown>(null);
   const [sharing, setSharing] = useState(false);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [language, setLanguage] = useState("Hindi");
   const query = useQuery({
     queryKey: ["document", id],
     queryFn: ({ signal }) => api.document(id, signal),
+  });
+  const documentActions = useQuery({
+    queryKey: ["actions"],
+    queryFn: ({ signal }) => api.actions(signal),
+    enabled: tab === "actions",
+  });
+  const translation = useMutation({
+    mutationFn: async () => {
+      const source = summaryOf(query.data!);
+      return { source, translated: await api.translate(source, language) };
+    },
   });
   const remove = useMutation({
     mutationFn: () => api.remove(id),
@@ -78,6 +99,7 @@ export default function Reader() {
   const sections = doc.nodes || [];
   const keyPoints = [...new Set(sections.flatMap((s) => s.keyPoints || []))];
   const actions = sections.flatMap((s) => s.actionableItems || []);
+  const listedActions = documentActions.data?.actions.filter(action => action.documentId === id) || [];
   async function shareOriginal() {
     if (!doc || sharing) return;
     setSharing(true);
@@ -151,7 +173,9 @@ export default function Reader() {
           options={[
             { label: "Overview", value: "overview" },
             { label: "Sections", value: "sections" },
+            { label: "Actions", value: "actions" },
             { label: "Source", value: "source" },
+            { label: "Activity", value: "activity" },
           ]}
         />
         {!!error && <ErrorState error={error} />}
@@ -180,6 +204,28 @@ export default function Reader() {
                 {summaryOf(doc) || "No summary is available for this document."}
               </Text>
             </View>
+            {!session?.demo && !!summaryOf(doc) && (
+              <View style={{ gap: 12 }}>
+                <Button kind="secondary" label={showTranslation ? "Close brief translation" : "Translate brief"} onPress={() => setShowTranslation(open => !open)} />
+                {showTranslation && <>
+                  <Picker
+                    label="Brief language"
+                    value={language}
+                    options={languages.map(value => ({ value, label: value }))}
+                    onChange={value => { if (!translation.isPending) { setLanguage(value); translation.reset(); } }}
+                  />
+                  <Button label="Translate" busy={translation.isPending} onPress={() => translation.mutate()} />
+                  {translation.error && <ErrorState error={translation.error} />}
+                  {translation.data?.source === summaryOf(doc) && <>
+                    <Text size="heading">Translation · {language}</Text>
+                    <Text selectable>{translation.data.translated.summary}</Text>
+                  </>}
+                </>}
+              </View>
+            )}
+            {!!doc.metadata?.tags?.length && (
+              <Text tone="secondary">Tags · {doc.metadata.tags.join(" · ")}</Text>
+            )}
             {keyPoints.length > 0 && (
               <View style={{ gap: 16 }}>
                 <Text size="heading">Key points</Text>
@@ -289,6 +335,39 @@ export default function Reader() {
               message="This record has no extracted text sections."
             />
           ))}
+        {tab === "actions" && (
+          <View style={{ gap: 16 }}>
+            <Text size="heading">Actions in this document</Text>
+            {documentActions.isPending ? <Loading label="Loading actions…" /> : documentActions.error ? (
+              <ErrorState error={documentActions.error} retry={() => void documentActions.refetch()} />
+            ) : listedActions.length ? listedActions.map(action => (
+              <View key={action.id} style={{ gap: 8 }}>
+                <Text selectable>{action.action}</Text>
+                <Text size="small" tone="secondary">
+                  {[action.team, action.dueDate && `Due ${action.dueDate}`, action.sectionTitle].filter(Boolean).join(" · ")}
+                </Text>
+                {!!action.sectionId && (
+                  <Button
+                    kind="secondary"
+                    label={action.sectionTitle ? `Read section ${action.sectionTitle}` : "Read section"}
+                    onPress={() => router.push({ pathname: "/source", params: { uid: `${id}#${action.sectionId}` } })}
+                  />
+                )}
+              </View>
+            )) : <Text tone="secondary">No actions recorded for this document.</Text>}
+          </View>
+        )}
+        {tab === "activity" && (
+          <View style={{ gap: 12 }}>
+            <Text size="heading">Document activity</Text>
+            <Text>Added to workspace · {activityDate(doc.metadata?.createdAt || doc.createdAt)}</Text>
+            {!!doc.metadata?.updatedAt && <Text>Last updated · {activityDate(doc.metadata.updatedAt)}</Text>}
+            <Text>Processing status · Ready to read</Text>
+            {session?.user.role === "ADMIN" && !session.demo && (
+              <Button kind="secondary" label="Workspace audit history" onPress={() => router.push("/audit")} />
+            )}
+          </View>
+        )}
         {tab === "source" && (
           <>
             <Text tone="secondary" size="small">

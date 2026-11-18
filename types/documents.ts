@@ -34,7 +34,8 @@ export type IngestStage = 'extracting' | 'organizing' | 'analyzing' | 'saving';
 
 export type ClassificationValues = { department: string | null; documentType: string | null; tags: string[] };
 export type ClassificationSuggestion = ClassificationValues & { source: 'oci' };
-export type ClassificationHistoryEntry = { by: string; at: Date; before: ClassificationValues; after: ClassificationValues; note?: string };
+export type CorrectionScope = { kind: 'brief' } | { kind: 'section'; nodeId: string; page?: number };
+export type ClassificationHistoryEntry = { by: string; at: Date; before: ClassificationValues; after: ClassificationValues; note?: string; scope?: CorrectionScope };
 
 export type DocumentRecord = {
  classificationSuggestion?: ClassificationSuggestion | null;

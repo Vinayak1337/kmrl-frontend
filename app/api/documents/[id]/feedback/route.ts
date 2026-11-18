@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession, isDocumentAccessible } from '@/lib/auth';
 import { getCollection } from '@/lib/mongo';
+import { correctionTargets, deriveCorrectionScope } from '@/lib/ingest/corrections';
 import { dispatchJob, markDispatchFailed, queueCorrection } from '@/lib/ingest/jobs';
 import type { DocumentRecord } from '@/types/documents';
 
@@ -26,14 +27,17 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ id: st
 
   try {
     const docs = await getCollection<DocumentRecord>();
-    const doc = await docs.findOne({ id }, { projection: { metadata: 1 } });
+    const doc = await docs.findOne({ id }, { projection: { metadata: 1, 'nodes.nodeId': 1, 'nodes.title': 1, 'nodes.pageRange': 1 } });
     if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     if (!isDocumentAccessible(session, doc) || (reprocess && session.role !== 'ADMIN')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     if (reprocess) {
-      const result = await queueCorrection(session.sub, id, undefined, message.trim() || undefined);
+      const note = message.trim();
+      const scope = deriveCorrectionScope(note, body.target, await correctionTargets(doc, id));
+      if (!note || !scope) return NextResponse.json({ error: 'Enter a note and name a page or choose a section or the document brief.' }, { status: 422 });
+      const result = await queueCorrection(session.sub, id, undefined, note, scope);
       if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status });
       if (result.status === 202) {
         try { await dispatchJob(result.id); } catch { await markDispatchFailed(result.id); }

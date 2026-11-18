@@ -54,4 +54,4 @@ gradle = gradle.replace(/(release \{[\s\S]*?signingConfig )signingConfigs\.debug
 if (!gradle.includes("signingConfig signingConfigs.production")) throw new Error("Production signing was not configured");
 writeFileSync(path, gradle);
 // Worklets/Reanimated lint crashes in Kotlin KaModule analysis; keep app/release vital checks.
-run("./gradlew", ["app:assembleRelease", "app:lintRelease", "-PreactNativeArchitectures=arm64-v8a,armeabi-v7a", "-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=2048m", "--no-parallel", "-x", ":react-native-worklets:lintAnalyzeRelease", "-x", ":react-native-reanimated:lintAnalyzeRelease", "--console=plain"], resolve("android"));
+run("./gradlew", ["app:assembleRelease", "app:lintRelease", "-PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64", "-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=2048m", "--no-parallel", "-x", ":react-native-worklets:lintAnalyzeRelease", "-x", ":react-native-reanimated:lintAnalyzeRelease", "--console=plain"], resolve("android"));

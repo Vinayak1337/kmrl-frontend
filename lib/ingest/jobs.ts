@@ -8,14 +8,15 @@ import type { JwtUser } from '@/lib/auth';
 import { getAuthSecret } from '@/lib/authSecret';
 import { ingestDocuments, type IngestPayload } from '@/lib/ingest/handleIngest';
 
+import { rebuildCorrection } from './corrections';
 import { classificationView, validateClassification } from '@/lib/ingest/classification';
-import type { AnalysisProgress, ClassificationValues, DocumentRecord, IngestStage } from '@/types/documents';
+import type { AnalysisProgress, ClassificationValues, CorrectionScope, DocumentRecord, IngestStage } from '@/types/documents';
 
 const COLLECTION = 'ingest_jobs';
 const LEASE_MS = 6 * 60 * 1000;
 const TTL_MS = 24 * 60 * 60 * 1000;
 const FILE_LIMIT = 3.2 * 1024 * 1024;
-type Job = { id: string; owner: string; documentId: string; status: 'queued' | 'processing' | 'failed' | 'completed'; stage?: IngestStage; analysis?: AnalysisProgress; payload?: IngestPayload; correction?: { value: ClassificationValues; note?: string }; error?: string; leaseUntil?: Date; leaseToken?: string; expiresAt: Date; createdAt: Date };
+type Job = { id: string; owner: string; documentId: string; status: 'queued' | 'processing' | 'failed' | 'completed'; stage?: IngestStage; analysis?: AnalysisProgress; payload?: IngestPayload; correction?: { value: ClassificationValues; note?: string; scope?: CorrectionScope }; error?: string; leaseUntil?: Date; leaseToken?: string; expiresAt: Date; createdAt: Date };
 
 let indexesReady: Promise<unknown> | undefined;
 async function jobs() {
@@ -70,12 +71,12 @@ export async function correctionStatus(id: string) {
   const job = await (await jobs()).findOne({ id, correction: { $exists: true }, expiresAt: { $gt: new Date() } }, {
     projection: { id: 1, status: 1, stage: 1, analysis: 1, error: 1, correction: 1, _id: 0 },
   });
-  return job ? { id: job.id, status: job.status, stage: job.stage, analysis: job.analysis, error: job.error, target: job.correction?.value, note: job.correction?.note } : {
+  return job ? { id: job.id, status: job.status, stage: job.stage, analysis: job.analysis, error: job.error, target: job.correction?.value, scope: job.correction?.scope, note: job.correction?.note } : {
     id, status: 'failed' as const, error: 'This run expired. Save your correction again.',
   };
 }
 
-export async function queueCorrection(owner: string, documentId: string, payload: unknown, note: string | undefined) {
+export async function queueCorrection(owner: string, documentId: string, payload: unknown, note: string | undefined, scope?: CorrectionScope) {
   const collection = await jobs();
   const docs = await getCollection<DocumentRecord>();
   const { client } = await getMongo();
@@ -92,12 +93,12 @@ export async function queueCorrection(owner: string, documentId: string, payload
       if (active) return { status: 409, error: 'A correction is already rebuilding this document.' } as const;
     }
     if (payload !== undefined && !note && JSON.stringify(value) === JSON.stringify(current.effective)) return { status: 200, current } as const;
-    if (!doc.raw?.type || !doc.raw.content) {
+    if (!scope && (!doc.raw?.type || !doc.raw.content)) {
       return { status: 422, error: 'The original source is unavailable. Upload the original to rebuild this document.' } as const;
     }
     const now = new Date();
     const id = randomUUID();
-    const correction = { value, ...(note ? { note } : {}) };
+    const correction = { value, ...(note ? { note } : {}), ...(scope ? { scope } : {}) };
     await docs.updateOne({ id: documentId }, { $set: { classificationReprocessId: id } }, { session });
     await collection.insertOne({ id, owner, documentId, status: 'queued', correction, createdAt: now, expiresAt: new Date(now.getTime() + TTL_MS) }, { session });
     return { status: 202, current, id, correction } as const;
@@ -144,8 +145,18 @@ export async function processJob(id: string) {
       const doc = await (await getCollection<DocumentRecord>()).findOne({ id: job.documentId });
       if (doc?.classificationAppliedId === id) {
         response = new Response(null, { status: 200 });
-      } else if (user?.role !== 'ADMIN' || doc?.classificationReprocessId !== id || !doc.raw?.content) {
+      } else if (user?.role !== 'ADMIN' || doc?.classificationReprocessId !== id) {
         response = Response.json({ error: 'The source or permission to rebuild this document is no longer available.' }, { status: 403 });
+      } else if (job.correction.scope && job.correction.note) {
+        response = await rebuildCorrection(job.documentId, id, user.sub, job.correction.scope, job.correction.note,
+          (progress) => onStage('analyzing', progress),
+          () => onStage('saving'),
+        ).catch(error => {
+          console.error('[ingest job] targeted correction failed', error);
+          return Response.json({ error: 'The summary could not be corrected. Try again.' }, { status: 422 });
+        });
+      } else if (!doc.raw?.content) {
+        response = Response.json({ error: 'The original source is unavailable.' }, { status: 422 });
       } else {
         const { value, note } = job.correction;
         response = await ingestDocuments(user, {

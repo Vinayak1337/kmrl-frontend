@@ -1,4 +1,4 @@
-import type { AnalysisProgress, IngestStage } from '@/types/documents';
+import type { AnalysisProgress, CorrectionScope, IngestStage } from '@/types/documents';
 import { DocSetuDocument, DocumentSection } from '@/types/docsetu';
 import type { ClassificationHistoryEntry, ClassificationSuggestion, ClassificationValues, DocumentNodeRecord } from '@/types/documents';
 import {
@@ -161,7 +161,8 @@ export async function deleteDocument(id: string): Promise<boolean> {
 
 export type DocumentClassification = {
   canEdit: boolean;
-  processing?: { id: string; status: IngestJobStatus['status']; stage?: IngestStage; analysis?: AnalysisProgress; error?: string; target?: ClassificationValues; note?: string } | null;
+  targets?: Array<{ nodeId: string; title?: string; pageRange: { start: number; end: number } }>;
+  processing?: { id: string; status: IngestJobStatus['status']; stage?: IngestStage; analysis?: AnalysisProgress; error?: string; target?: ClassificationValues; scope?: CorrectionScope; note?: string } | null;
   effective: ClassificationValues;
   suggestion: ClassificationSuggestion | null;
   history: Array<Omit<ClassificationHistoryEntry, 'at'> & { at: string }>;
@@ -178,7 +179,7 @@ export async function getDocumentClassification(
 
 export async function saveDocumentClassification(
   id: string,
-  values: DocumentClassification['effective'] & { note?: string },
+  values: DocumentClassification['effective'],
 ): Promise<DocumentClassification> {
   const response = await fetch(`/api/documents/${encodeURIComponent(id)}/classification`, {
     method: 'PATCH',
@@ -187,5 +188,16 @@ export async function saveDocumentClassification(
   });
   const result = await response.json().catch(() => null);
   if (!response.ok || !result) throw new Error(result?.error || 'Could not save classification.');
+  return result;
+}
+
+export async function saveSummaryCorrection(id: string, note: string, target: string): Promise<DocumentClassification> {
+  const response = await fetch(`/api/documents/${encodeURIComponent(id)}/classification`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ note, target }),
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || !result) throw new Error(result?.error || 'Could not save the correction.');
   return result;
 }

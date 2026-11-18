@@ -7,6 +7,7 @@ import {
   docTypes,
   humanize,
   ingestStageLabel,
+  pageLabel,
   teams,
   type ClassificationValues,
   type DocumentClassification,
@@ -42,14 +43,13 @@ function refreshReader(id: string) {
 }
 
 export default function ClassificationScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, sectionId } = useLocalSearchParams<{ id: string; sectionId?: string }>();
   const query = useQuery({
     queryKey: ["classification", id],
     queryFn: ({ signal }) => api.classification(id, signal),
     refetchInterval: ({ state }) => isRebuilding(state.data) ? 3000 : false,
   });
   const rebuilding = isRebuilding(query.data);
-  const completed = query.dataUpdatedAt;
   const previous = useRef(false);
   useEffect(() => {
     if (previous.current && !rebuilding && query.data && !query.data.processing) refreshReader(id);
@@ -62,7 +62,7 @@ export default function ClassificationScreen() {
       {query.error && (
         <ErrorState error={query.error} retry={() => void query.refetch()} />
       )}
-      {query.data && <ClassificationForm key={query.data.history.at(-1)?.at || "initial"} id={id} current={query.data} refreshedAt={completed} />}
+      {query.data && <ClassificationForm id={id} initialTarget={sectionId} current={query.data} />}
     </Screen>
   );
 }
@@ -70,36 +70,49 @@ export default function ClassificationScreen() {
 function ClassificationForm({
   id,
   current,
-  refreshedAt,
+  initialTarget,
 }: {
   id: string;
   current: DocumentClassification;
-  refreshedAt: number;
+  initialTarget?: string;
 }) {
-  const initial = current.processing?.target || current.effective;
+  const initial = current.effective;
   const [draft, setDraft] = useState(initial);
   const [tags, setTags] = useState(initial.tags.join("\n"));
   const [note, setNote] = useState(current.processing?.note || "");
+  const scope = current.processing?.scope;
+  const [target, setTarget] = useState(scope?.kind === "brief" ? "brief" : scope?.nodeId || initialTarget || "auto");
   const rebuilding = isRebuilding(current);
+  const priorRun = useRef(false);
+  const [corrected, setCorrected] = useState(false);
+  useEffect(() => {
+    if (priorRun.current && !rebuilding && !current.processing) {
+      setNote("");
+      setTarget("auto");
+      setCorrected(true);
+    }
+    priorRun.current = rebuilding;
+  }, [rebuilding, current.processing]);
   const save = useMutation({
     mutationFn: () =>
       api.saveClassification(id, {
         ...draft,
-        note: note.trim(),
         tags: tags
           .split("\n")
           .map((tag) => tag.trim())
           .filter(Boolean),
       }),
     onSuccess: (result) => {
-      queryClient.setQueryData(["classification", id], result);
-      if (!result.processing) {
-        setDraft(result.effective);
-        setTags(result.effective.tags.join("\n"));
-        setNote("");
-        refreshReader(id);
-      }
+      queryClient.setQueryData(["classification", id], { ...result, targets: current.targets });
+      setDraft(result.effective);
+      setTags(result.effective.tags.join("\n"));
+      refreshReader(id);
     },
+  });
+  const correction = useMutation({
+    mutationFn: () => api.saveSummaryCorrection(id, note.trim(), target),
+    onMutate: () => setCorrected(false),
+    onSuccess: result => queryClient.setQueryData(["classification", id], result),
   });
   const options = (values: string[], original: string | null) =>
     [...new Set([original ?? "", ...values])].map((value) => ({
@@ -107,11 +120,10 @@ function ClassificationForm({
       label: humanize(value),
     }));
   const suggestion = current.suggestion;
-  const disabled = save.isPending || rebuilding;
-  const completedRun = refreshedAt > 0 && !current.processing && current.history.length > 0;
+  const disabled = save.isPending || correction.isPending || rebuilding;
   return (
     <>
-      {rebuilding && <Notice message={current.processing?.stage ? ingestStageLabel(current.processing.stage, current.processing.analysis) : "Waiting to rebuild the document…"} />}
+      {rebuilding && <Notice message={current.processing?.stage ? ingestStageLabel(current.processing.stage, current.processing.analysis) : "Waiting to rebuild the summary…"} />}
       {current.processing?.status === "failed" && (
         <Notice error message={current.processing.error || "Rebuilding failed. Save the correction again to retry."} />
       )}
@@ -141,7 +153,7 @@ function ClassificationForm({
       </View>
       {current.canEdit ? (
         <>
-          <Notice message="Saving a correction rebuilds the document. Changing the team or type can change who can read it." />
+          <Notice message="Changing the team or type can change who can read this document." />
           <Picker
             label="Team"
             value={draft.department || ""}
@@ -182,24 +194,34 @@ function ClassificationForm({
           <Text size="small" tone="secondary">
             Enter one tag per line.
           </Text>
+          <Button label="Save classification" disabled={disabled} busy={save.isPending} onPress={() => save.mutate()} />
+          {save.error && <ErrorState error={save.error} />}
+          {save.isSuccess && <Notice message="Classification saved." />}
+          <Text size="heading">Correct a summary</Text>
+          <Picker
+            label="What should be rebuilt?"
+            value={target}
+            options={[
+              { value: "auto", label: "Find the target from the note" },
+              { value: "brief", label: "Document brief" },
+              ...(current.targets || []).map(section => ({
+                value: section.nodeId,
+                label: `${section.title || "Section"} · ${pageLabel(section.pageRange)}`,
+              })),
+            ]}
+            onChange={value => { if (!disabled) setTarget(value); }}
+          />
           <Field
-            label="Correction note (optional)"
+            label="Correction note"
             multiline
             maxLength={1000}
             value={note}
             onChangeText={setNote}
             editable={!disabled}
           />
-          <Button
-            label="Save classification"
-            disabled={disabled}
-            busy={save.isPending}
-            onPress={() => {
-              if (!disabled) save.mutate();
-            }}
-          />
-          {save.error && <ErrorState error={save.error} />}
-          {!current.processing && (save.isSuccess || completedRun) && <Notice message="Classification saved." />}
+          <Button label="Save correction" disabled={disabled || !note.trim()} busy={correction.isPending} onPress={() => correction.mutate()} />
+          {correction.error && <ErrorState error={correction.error} />}
+          {corrected && <Notice message="Correction applied." />}
         </>
       ) : (
         <View style={{ gap: 8 }}>
@@ -216,7 +238,7 @@ function ClassificationForm({
                 {new Date(entry.at).toLocaleString("en-IN")}
               </Text>
               <Text>
-                {summary(entry.before)} → {summary(entry.after)}
+                {entry.scope?.kind === "brief" ? "Document brief corrected" : entry.scope?.kind === "section" ? "Section summary corrected" : `${summary(entry.before)} → ${summary(entry.after)}`}
               </Text>
               {entry.note && <Text tone="secondary">{entry.note}</Text>}
             </View>

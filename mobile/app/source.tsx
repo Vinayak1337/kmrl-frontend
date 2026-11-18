@@ -21,6 +21,7 @@ export default function Source() {
   const { uid, sourcePage } = useLocalSearchParams<{ uid: string; sourcePage?: string }>();
   const router = useRouter();
   const demo = useApp((s) => s.session?.demo);
+  const canCorrect = useApp((s) => !s.session?.demo && s.session?.user.role === "ADMIN");
   const [view, setView] = useState("source");
   const [language, setLanguage] = useState("Hindi");
   const [copied, setCopied] = useState(false);
@@ -111,6 +112,9 @@ export default function Source() {
           )}
         </>
       )}
+      {canCorrect && <Button kind="secondary" label="Correct this summary" onPress={() =>
+        router.push({ pathname: "/classification", params: { id: node.docId, sectionId: node.nodeId } })
+      } />}
       <Button
         label="Ask about this document"
         icon="chatbubble-outline"

@@ -231,7 +231,7 @@ export const api = {
       `/api/documents/${encodeURIComponent(id)}/classification`,
       { signal },
     ),
-  saveClassification: (id: string, values: ClassificationValues & { note?: string }) =>
+  saveClassification: (id: string, values: ClassificationValues) =>
     request<DocumentClassification>(
       `/api/documents/${encodeURIComponent(id)}/classification`,
       {
@@ -239,6 +239,11 @@ export const api = {
         body: JSON.stringify(values),
       },
     ),
+  saveSummaryCorrection: (id: string, note: string, target: string) =>
+    request<DocumentClassification>(`/api/documents/${encodeURIComponent(id)}/classification`, {
+      method: "POST",
+      body: JSON.stringify({ note, target }),
+    }),
   remove: (id: string) =>
     request(`/api/documents/${encodeURIComponent(id)}`, { method: "DELETE" }),
   feedback: (id: string, message: string) =>

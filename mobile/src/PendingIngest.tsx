@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { View } from "react-native";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ingestStageLabel } from "./domain";
+import { ingestStageLabel, ingestStages } from "./domain";
 import { ApiError, api } from "./api";
 import { Button, ErrorState, Loading, Notice, Text, confirm } from "./ui";
 
@@ -33,6 +34,8 @@ export function PendingIngest({
   });
   const expired = job.error instanceof ApiError && job.error.status === 404;
   const status = expired ? undefined : job.data?.status;
+  const currentStage = job.data?.stage;
+  const stageIndex = currentStage ? ingestStages.indexOf(currentStage) : -1;
   const documentId = job.data?.documentId;
   const clearTracking = async () => {
     try {
@@ -61,7 +64,18 @@ export function PendingIngest({
         <Notice message="Waiting to process. You can leave and return to check this upload." />
       )}
       {status === "processing" && (
-        <Notice message={job.data?.stage ? ingestStageLabel(job.data.stage, job.data.analysis) : "Processing your document…"} />
+        <>
+          <View accessibilityLiveRegion="polite">
+            <Notice message={currentStage ? ingestStageLabel(currentStage, job.data?.analysis) : "Processing your document…"} />
+          </View>
+          <View style={{ gap: 8 }}>
+            {["Read source", "Organize sections", "Analyze", "Save and index"].map((label, index) => (
+              <Text key={label} size="small" tone={index === stageIndex ? "accent" : "secondary"}>
+                {index < stageIndex ? "Completed · " : index === stageIndex ? "In progress · " : "Waiting · "}{label}
+              </Text>
+            ))}
+          </View>
+        </>
       )}
       {status === "failed" && (
         <Notice error message={job.data?.error || "Processing failed."} />

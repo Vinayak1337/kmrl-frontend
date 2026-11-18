@@ -43,6 +43,7 @@ export type Document = {
     department?: string;
     documentType?: string;
     createdAt?: string;
+    updatedAt?: string;
     tags?: string[];
   };
   nodes?: Section[];
@@ -141,6 +142,7 @@ export type Ingest = {
   }[];
 };
 export type IngestStage = "extracting" | "organizing" | "analyzing" | "saving";
+export const ingestStages = ["extracting", "organizing", "analyzing", "saving"] as const;
 const ingestStageLabels: Record<IngestStage, string> = {
   extracting: "Reading the source…",
   organizing: "Organizing sections…",
@@ -177,15 +179,18 @@ export type ClassificationValues = {
   documentType: string | null;
   tags: string[];
 };
+type CorrectionScope = { kind: "brief" } | { kind: "section"; nodeId: string; page?: number };
 export type DocumentClassification = {
+  targets?: Array<{ nodeId: string; title?: string; pageRange: { start: number; end: number } }>;
   effective: ClassificationValues;
-  processing?: { id: string; status: IngestJob["status"]; stage?: IngestStage; analysis?: AnalysisProgress; error?: string; target?: ClassificationValues; note?: string } | null;
+  processing?: { id: string; status: IngestJob["status"]; stage?: IngestStage; analysis?: AnalysisProgress; error?: string; target?: ClassificationValues; scope?: CorrectionScope; note?: string } | null;
   suggestion: ClassificationValues | null;
   history: Array<{
     at: string;
     before: ClassificationValues;
     after: ClassificationValues;
     note?: string;
+    scope?: CorrectionScope;
   }>;
   canEdit: boolean;
 };

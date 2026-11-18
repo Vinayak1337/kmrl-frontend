@@ -109,7 +109,7 @@ The Actions tab opens on **Deadlines**: dated requirements from `/api/alerts`, n
 
 ## Production Android APK
 
-The signed production APK is checked into `releases/android/` at the repository root and attached to the GitHub release. It uses `com.docsetu.mobile`, version 1.1.0, and supports ARM64 and ARMv7 phones. JavaScript is bundled; Metro is not required.
+The signed production APK is attached to the GitHub release. It uses `com.docsetu.mobile`, version 1.2.0, and supports ARM64, ARMv7 and x86-64. JavaScript is bundled; Metro is not required.
 
 To rebuild from `mobile/`, with Java 17, Android SDK and dependencies installed:
 
@@ -121,7 +121,7 @@ export DOCSETU_KEY_PASSWORD_FILE=/private/path/password
 npm run android:release
 ```
 
-The keystore alias must be `docsetu-production`. Keep the key and password backed up privately: future APK updates require the same signing key. The build regenerates ignored Android sources, selects production signing, disables dotenv loading, and embeds only the public API URL `https://trydocsetu.vercel.app`. Database, AI and authentication secrets remain on the server. Output: `android/app/build/outputs/apk/release/app-release.apk`.
+The keystore alias must be `docsetu-production`. Keep the key and password backed up privately: future APK updates require the same signing key. The build regenerates ignored Android sources, uses production signing, disables dotenv loading and embeds only the public API URL `https://trydocsetu.vercel.app`. Database, AI and authentication secrets remain on the server. Output: `android/app/build/outputs/apk/release/app-release.apk`.
 
 This is a signed APK for direct installation, not a Google Play submission. A development app using the same package ID but a different signature must be removed before installation; removing it clears its local app data.
 

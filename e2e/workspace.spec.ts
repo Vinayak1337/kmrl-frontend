@@ -237,25 +237,34 @@ test('manager navigation and server redirects enforce administrator routes',asyn
   await expect(page).toHaveURL(/\/documents$/);
 });
 
-test('reviewers can apply an AI suggestion and see the correction history', async ({ page }) => {
+test('reviewers save classification and queue summary corrections separately', async ({ page }) => {
   let effective = { department: 'OPERATIONS', documentType: 'sop', tags: ['Review'] };
   const suggestion = { department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier, ltd'], source: 'oci' };
-  const history: Array<{ by: string; at: string; before: typeof effective; after: typeof effective; note: string }> = [];
-  let pending: { value: typeof effective; note: string } | undefined;
+  const note = 'On page 2, preserve the vendor name in the summary.';
+  const scope = { kind: 'section', nodeId: 'chunk-2', page: 2 };
+  const targets = [{ nodeId: scope.nodeId, title: 'Vendor details', pageRange: { start: 2, end: 2 } }];
+  const history: unknown[] = [];
+  let pending = false;
   await page.route(`**/api/documents/${documentId}/classification`, async route => {
     if (route.request().method() === 'PATCH') {
-      const { note, ...value } = route.request().postDataJSON();
-      expect(value).toEqual({ department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier, ltd', 'verified'] });
-      expect(note).toBe('Preserve the vendor name in the brief.');
-      pending = { value, note };
-      return route.fulfill({ status: 202, json: { effective, suggestion, history, canEdit: true, processing: { id: 'correction-1', status: 'queued', target: value, note } } });
+      const after = route.request().postDataJSON();
+      expect(after).toEqual({ department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier, ltd', 'verified'] });
+      history.push({ by: user.sub, at: '2026-11-18T10:00:00.000Z', before: effective, after });
+      effective = after;
+    }
+    if (route.request().method() === 'POST') {
+      expect(route.request().postDataJSON()).toEqual({ note, target: 'auto' });
+      pending = true;
+      return route.fulfill({ status: 202, json: {
+        effective, suggestion, history, targets, canEdit: true,
+        processing: { id: 'correction-1', status: 'processing', stage: 'analyzing', analysis: { ranges: [{ start: 2, end: 2 }], totalPages: 4 }, scope, note },
+      } });
     }
     if (pending) {
-      history.push({ by: user.sub, at: '2026-11-18T10:00:00.000Z', before: effective, after: pending.value, note: pending.note });
-      effective = pending.value;
-      pending = undefined;
+      history.push({ by: user.sub, at: '2026-11-18T10:01:00.000Z', before: effective, after: effective, note, scope });
+      pending = false;
     }
-    await route.fulfill({ json: { effective, suggestion, history, canEdit: true } });
+    await route.fulfill({ json: { effective, suggestion, history, targets, canEdit: true } });
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/documents/${documentId}`);
@@ -264,13 +273,16 @@ test('reviewers can apply an AI suggestion and see the correction history', asyn
   await dialog.getByRole('button', { name: 'Use suggestion' }).click();
   await expect(dialog.getByRole('combobox', { name: 'Team' })).toHaveValue('PROCUREMENT');
   await dialog.getByRole('textbox', { name: 'Tags' }).fill('supplier, ltd\nverified');
-  await dialog.getByRole('textbox', { name: /Correction note/ }).fill('Preserve the vendor name in the brief.');
   await dialog.getByRole('button', { name: 'Save classification' }).click();
-  await expect(dialog.getByRole('status')).toContainText('Rebuilding the document');
   await expect(dialog.getByRole('status')).toHaveText('Classification saved.');
-  await expect(dialog.getByText('Preserve the vendor name in the brief.', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('Correction history')).toBeVisible();
   await expect(dialog.getByText(/Operations.*Procurement/)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Save correction', exact: true })).toBeDisabled();
+  await dialog.getByRole('textbox', { name: 'Correction note' }).fill(note);
+  await dialog.getByRole('button', { name: 'Save correction', exact: true }).click();
+  await expect(dialog.getByRole('status')).toContainText('Analyzing page 2 of 4');
+  await expect(dialog.getByRole('status')).toHaveText('Correction applied.');
+  await expect(dialog.getByText('Section summary corrected')).toBeVisible();
+  await expect(dialog.getByText(note, { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('button', { name: 'Classification', exact: true })).toBeFocused();
 });
