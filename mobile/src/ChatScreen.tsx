@@ -279,7 +279,7 @@ export function ChatScreen({
                       onPress={() => {
                         const uid = citationUid(c);
                         if (uid)
-                          router.push({ pathname: "/source", params: { uid } });
+                          router.push({ pathname: "/source", params: { uid, ...(c.pageRange?.start ? { sourcePage: String(c.pageRange.start) } : {}) } });
                         else
                           router.push({
                             pathname: "/document/[id]",

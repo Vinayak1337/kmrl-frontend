@@ -9,13 +9,13 @@ import { getAuthSecret } from '@/lib/authSecret';
 import { ingestDocuments, type IngestPayload } from '@/lib/ingest/handleIngest';
 
 import { classificationView, validateClassification } from '@/lib/ingest/classification';
-import type { ClassificationValues, DocumentRecord } from '@/types/documents';
+import type { ClassificationValues, DocumentRecord, IngestStage } from '@/types/documents';
 
 const COLLECTION = 'ingest_jobs';
 const LEASE_MS = 6 * 60 * 1000;
 const TTL_MS = 24 * 60 * 60 * 1000;
 const FILE_LIMIT = 3.2 * 1024 * 1024;
-type Job = { id: string; owner: string; documentId: string; status: 'queued' | 'processing' | 'failed' | 'completed'; payload?: IngestPayload; correction?: { value: ClassificationValues; note?: string }; error?: string; leaseUntil?: Date; leaseToken?: string; expiresAt: Date; createdAt: Date };
+type Job = { id: string; owner: string; documentId: string; status: 'queued' | 'processing' | 'failed' | 'completed'; stage?: IngestStage; payload?: IngestPayload; correction?: { value: ClassificationValues; note?: string }; error?: string; leaseUntil?: Date; leaseToken?: string; expiresAt: Date; createdAt: Date };
 
 let indexesReady: Promise<unknown> | undefined;
 async function jobs() {
@@ -68,9 +68,9 @@ export async function createJob(owner: string, payload: IngestPayload) {
 }
 export async function correctionStatus(id: string) {
   const job = await (await jobs()).findOne({ id, correction: { $exists: true }, expiresAt: { $gt: new Date() } }, {
-    projection: { id: 1, status: 1, error: 1, correction: 1, _id: 0 },
+    projection: { id: 1, status: 1, stage: 1, error: 1, correction: 1, _id: 0 },
   });
-  return job ? { id: job.id, status: job.status, error: job.error, target: job.correction?.value, note: job.correction?.note } : {
+  return job ? { id: job.id, status: job.status, stage: job.stage, error: job.error, target: job.correction?.value, note: job.correction?.note } : {
     id, status: 'failed' as const, error: 'This run expired. Save your correction again.',
   };
 }
@@ -116,7 +116,7 @@ export async function dispatchJob(id: string) {
 }
 export async function retryJob(id: string, owner: string) {
   const collection = await jobs();
-  const result = await collection.updateOne({ id, owner, status: 'failed', expiresAt: { $gt: new Date() } }, { $set: { status: 'queued' }, $unset: { error: '' } });
+  const result = await collection.updateOne({ id, owner, status: 'failed', expiresAt: { $gt: new Date() } }, { $set: { status: 'queued' }, $unset: { error: '', stage: '' } });
   return result.modifiedCount === 1;
 }
 export async function markDispatchFailed(id: string) {
@@ -132,6 +132,10 @@ export async function processJob(id: string) {
     if (existing) throw new Error('Job is already being processed');
     return;
   }
+  const onStage = async (stage: IngestStage) => {
+    const result = await collection.updateOne({ id, leaseToken: token }, { $set: { stage } });
+    if (!result.matchedCount) throw new Error('The processing lease expired.');
+  };
   try {
     const user = await currentUser(job.owner);
     let response: Response;
@@ -147,12 +151,12 @@ export async function processJob(id: string) {
           title: doc.title, language: doc.language,
           department: value.department ?? undefined, documentType: value.documentType ?? undefined, tags: value.tags,
           documents: [{ type: doc.raw.type, content: doc.raw.content, filename: doc.title }],
-        }, { documentId: job.documentId, correction: { jobId: id, before: classificationView(doc).effective, value, note } });
+        }, { documentId: job.documentId, onStage, correction: { jobId: id, before: classificationView(doc).effective, value, note } });
       }
     } else if (!user || !job.payload || !canIngestDocument(user, job.payload.department, job.payload.documentType)) {
       response = Response.json({ error: 'You no longer have permission to add this document.' }, { status: 403 });
     } else {
-      response = await ingestDocuments(user, job.payload, { documentId: job.documentId });
+      response = await ingestDocuments(user, job.payload, { documentId: job.documentId, onStage });
     }
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));

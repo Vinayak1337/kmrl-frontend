@@ -12,12 +12,19 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ uid: string
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
+  const sourcePage = Number(searchParams.get('page'));
   const neighbors = searchParams.get('neighbors') === 'true';
 
   try {
     const coll = await getCollection<DocumentNodeRecord>(process.env.MONGODB_NODES_COLLECTION || 'document_nodes');
     const access = buildDocumentAccessFilter(session, 'nodes');
-    const node = await coll.findOne({ $and: [access, { uid }] });
+    let node = await coll.findOne({ $and: [access, { uid }] });
+    const docId = uid.split('#', 1)[0];
+    if (!node && docId && Number.isSafeInteger(sourcePage) && sourcePage > 0) {
+      node = await coll.findOne({ $and: [access, {
+        docId, 'pageRange.start': { $lte: sourcePage }, 'pageRange.end': { $gte: sourcePage },
+      }] }, { sort: { order: 1 } });
+    }
     if (!node) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     if (!neighbors) return NextResponse.json({ node });
 

@@ -41,7 +41,7 @@ export default function IngestScreen() {
   const session = useApp((s) => s.session);
   const pendingIngest = useApp((s) => s.pendingIngest);
   const trackIngest = useApp((s) => s.trackIngest);
-  const [processingMode, setProcessingMode] = useState("foreground");
+  const [processingMode, setProcessingMode] = useState("background");
   const isAdmin = session?.user.role === "ADMIN";
   const availableGrants =
     session?.user.grants.filter((g) => g.actions.includes("ingest")) || [];

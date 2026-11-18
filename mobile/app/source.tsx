@@ -18,7 +18,7 @@ import {
   Text,
 } from "../src/ui";
 export default function Source() {
-  const { uid } = useLocalSearchParams<{ uid: string }>();
+  const { uid, sourcePage } = useLocalSearchParams<{ uid: string; sourcePage?: string }>();
   const router = useRouter();
   const demo = useApp((s) => s.session?.demo);
   const [view, setView] = useState("source");
@@ -26,8 +26,8 @@ export default function Source() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const query = useQuery({
-    queryKey: ["section", uid],
-    queryFn: ({ signal }) => api.section(uid, signal),
+    queryKey: ["section", uid, sourcePage],
+    queryFn: ({ signal }) => api.section(uid, signal, sourcePage),
   });
   const translate = useMutation({
     mutationFn: () =>

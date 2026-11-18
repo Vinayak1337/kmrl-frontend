@@ -5,11 +5,13 @@ import type { DocumentChunk } from './chunker';
 const INPUT_BUDGET = 45000;
 /** Chunks per model call; larger documents are enriched in parallel batches so each call stays fast. */
 const BATCH_SIZE = 8;
+const BATCH_INPUT_LIMIT = 30_000;
 const BATCH_CONCURRENCY = 2;
 
 /** Labels each chunk so the model can return one node per chunk and nodes map back exactly. */
 export function chunkedInput(chunks: DocumentChunk[], budget = INPUT_BUDGET): string {
-  const share = Math.max(1500, Math.floor(budget / Math.max(1, chunks.length)));
+  const fits = chunks.reduce((size, chunk) => size + chunk.text.length + 48, 0) <= budget;
+  const share = fits || chunks.length === 1 ? budget : Math.max(1500, Math.floor(budget / Math.max(1, chunks.length)));
   return chunks
     .map(c => `[Chunk ${c.order} | pages ${c.pageStart}-${c.pageEnd}]\n${c.text.length > share ? `${c.text.slice(0, share)}…` : c.text}`)
     .join('\n\n')
@@ -26,7 +28,7 @@ async function enrichBatch(chunks: DocumentChunk[], meta: EnrichmentContext, tot
   const scope = chunks.length === total ? `${total} numbered chunks` : `chunks ${chunks[0].order}-${chunks[chunks.length - 1].order} of ${total}`;
   return generateJson<ManagerAnalysisJSON>({
     instructions: buildManagerMdPrompt(meta),
-    input: `Document content, ${scope}:\n\n${chunkedInput(chunks, chunks.length === total ? INPUT_BUDGET : 24000)}`,
+    input: `Document content, ${scope}:\n\n${chunkedInput(chunks, chunks.length === total ? INPUT_BUDGET : BATCH_INPUT_LIMIT)}`,
     ...generationBudget(deadline),
   });
 }
@@ -50,12 +52,24 @@ export async function enrichChunks(
 ): Promise<ManagerAnalysisJSON | null> {
   if (!chunks.some(c => c.text.trim())) return null;
   try {
-    if (chunks.length <= BATCH_SIZE) {
+    if (chunks.length <= BATCH_SIZE && chunks.reduce((size, chunk) => size + chunk.text.length + 48, 0) <= INPUT_BUDGET) {
       const result = await enrichBatch(chunks, meta, chunks.length, deadline);
       return result && Array.isArray(result.nodes) ? result : null;
     }
     const batches: DocumentChunk[][] = [];
-    for (let i = 0; i < chunks.length; i += BATCH_SIZE) batches.push(chunks.slice(i, i + BATCH_SIZE));
+    let batch: DocumentChunk[] = [];
+    let batchLength = 0;
+    for (const chunk of chunks) {
+      const size = chunk.text.length + 48;
+      if (batch.length && (batch.length >= BATCH_SIZE || batchLength + size > BATCH_INPUT_LIMIT)) {
+        batches.push(batch);
+        batch = [];
+        batchLength = 0;
+      }
+      batch.push(chunk);
+      batchLength += size;
+    }
+    if (batch.length) batches.push(batch);
     const results: Array<ManagerAnalysisJSON | null> = new Array(batches.length).fill(null);
     let next = 0;
     const worker = async () => {

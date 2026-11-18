@@ -6,6 +6,7 @@ import { api, queryClient } from "../src/api";
 import {
   docTypes,
   humanize,
+  ingestStageLabels,
   teams,
   type ClassificationValues,
   type DocumentClassification,
@@ -110,7 +111,7 @@ function ClassificationForm({
   const completedRun = refreshedAt > 0 && !current.processing && current.history.length > 0;
   return (
     <>
-      {rebuilding && <Notice message="Rebuilding the document from its original source." />}
+      {rebuilding && <Notice message={current.processing?.stage ? ingestStageLabels[current.processing.stage] : "Waiting to rebuild the document…"} />}
       {current.processing?.status === "failed" && (
         <Notice error message={current.processing.error || "Rebuilding failed. Save the correction again to retry."} />
       )}

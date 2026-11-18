@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/workspace/Modal';
 import { DocSetuLoadingIndicator } from '@/components/brand/DocSetuBrand';
 import { VALID_TEAMS, VALID_DOC_TYPES } from '@/adapters/documentAdapter';
+import type { IngestStage } from '@/types/documents';
+import { processingSteps, stageLabels } from './ingestProgress';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
 import { uploadDocument, startIngestJob, getIngestJob, retryIngestJob, IngestDocumentPayload } from '@/services/documents';
 
@@ -39,14 +41,16 @@ export function DocumentIngestModal({ isOpen, onClose, onSuccess }: { isOpen: bo
   const [tags, setTags] = useState('');
   const [error, setError] = useState('');
   const [newId, setNewId] = useState('');
-  const [background, setBackground] = useState(false);
+  const [background, setBackground] = useState(true);
   const [jobId, setJobId] = useState('');
   const [jobState, setJobState] = useState('');
+  const [stage, setStage] = useState<IngestStage>();
   const [retrying, setRetrying] = useState(false);
   const [reading, setReading] = useState(false);
   const [discard, setDiscard] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const dirty = !!(file || text || title);
+  const stageIndex = processingSteps.findIndex(item => item.stage === stage);
   useEffect(() => {
     if (!isOpen || !dirty || step === 'done' || jobId) return;
     const guard = (event: BeforeUnloadEvent) => { event.preventDefault(); };
@@ -72,6 +76,7 @@ export function DocumentIngestModal({ isOpen, onClose, onSuccess }: { isOpen: bo
           return;
         }
         setJobState(job.status);
+        setStage(job.stage);
         if (job.status === 'completed' && job.documentId) {
           setNewId(job.documentId);
           storeJob();
@@ -83,12 +88,12 @@ export function DocumentIngestModal({ isOpen, onClose, onSuccess }: { isOpen: bo
       } catch {
         if (!controller.signal.aborted) setError('Could not check processing status. Reconnecting…');
       }
-      if (!controller.signal.aborted) timer = window.setTimeout(check, 3000);
+      if (!controller.signal.aborted) timer = window.setTimeout(check, 1500);
     };
     void check();
     return () => { controller.abort(); window.clearTimeout(timer); };
   }, [isOpen, jobId, step]);
-  const reset = () => { storeJob(); setBackground(false); setJobId(''); setJobState(''); setStep('file'); setMode('upload'); setFile(null); setContent(''); setText(''); setTitle(''); setTeam('Operations'); setType('Policy'); setLanguage('English'); setTags(''); setError(''); setNewId(''); setDiscard(false); };
+  const reset = () => { storeJob(); setBackground(true); setJobId(''); setStage(undefined); setJobState(''); setStep('file'); setMode('upload'); setFile(null); setContent(''); setText(''); setTitle(''); setTeam('Operations'); setType('Policy'); setLanguage('English'); setTags(''); setError(''); setNewId(''); setDiscard(false); };
   const retry = async () => {
     if (retrying) return;
     setRetrying(true);
@@ -96,6 +101,7 @@ export function DocumentIngestModal({ isOpen, onClose, onSuccess }: { isOpen: bo
     try {
       await retryIngestJob(jobId);
       setJobState('queued');
+      setStage(undefined);
     } catch {
       setError('Could not retry processing. Please try again.');
     } finally {
@@ -133,7 +139,13 @@ export function DocumentIngestModal({ isOpen, onClose, onSuccess }: { isOpen: bo
     {step === 'processing' && <div className="ingest-processing">{jobState === 'failed' || jobState === 'unavailable' ? <div className="modal-actions">
       <button className="button" disabled={retrying} onClick={reset}>Start another upload</button>
       {jobState === 'failed' && <button className="button button-primary" disabled={retrying} onClick={retry}>{retrying ? 'Retrying…' : 'Try again'}</button>}
-    </div> : <><DocSetuLoadingIndicator text={jobId && jobState === 'queued' ? 'Waiting to process…' : 'Preparing your document…'} /><p>{jobId ? 'Reading the content and preparing sections, a summary, and actions. You can close this window and return to check the status.' : 'Reading the content and preparing sections, a summary, and actions. Keep this window open until the document is saved.'}</p></>}</div>}
+    </div> : <><DocSetuLoadingIndicator text={jobId ? jobState === 'queued' ? 'Waiting to process…' : stage ? stageLabels[stage] : 'Preparing your document…' : background && mode === 'upload' ? 'Uploading document…' : 'Preparing your document…'} />
+      {jobId && <ol className="ingest-steps flex-wrap justify-center gap-x-4 gap-y-2" aria-label="Processing stages">
+        {processingSteps.map(({ stage: item, label }, index) => <li key={item} aria-current={index === stageIndex ? 'step' : undefined}>
+          {index < stageIndex && <><Check size={12} className="inline align-text-bottom" aria-hidden="true" /> <span className="sr-only">Completed: </span></>}{label}
+        </li>)}
+      </ol>}
+      <p className={jobId ? 'mt-4' : undefined}>{jobId ? 'You can close this window and return to check the status.' : 'Reading the content and preparing sections, a summary, and actions. Keep this window open until the document is saved.'}</p></>}</div>}
     {step === 'done' && <div className="ingest-success" role="status"><Check size={30} /><h3>Document added</h3>{title && <p>{title}</p>}<div className="modal-actions"><button className="button" onClick={reset}>Add another</button><button className="button button-primary" onClick={() => { const id = newId; reset(); onSuccess?.(id); onClose(); router.push(`/documents/${id}`); }}>Open document <ArrowRight size={15} /></button></div></div>}
     </>}
   </Modal>;

@@ -12,7 +12,7 @@ export async function GET(_request: Request, context: Context) {
   if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
   // Local development has no broker; a later status request can recover a lost process.
   if (!process.env.VERCEL && (job.status === 'queued' || (job.status === 'processing' && job.leaseUntil && job.leaseUntil < new Date()))) await dispatchJob(id);
-  return NextResponse.json({ id: job.id, status: job.status, documentId: job.status === 'completed' ? job.documentId : undefined, error: job.error }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ id: job.id, status: job.status, stage: job.stage, documentId: job.status === 'completed' ? job.documentId : undefined, error: job.error }, { headers: { 'Cache-Control': 'no-store' } });
 }
 export async function POST(_request: Request, context: Context) {
   const user = await owner(); if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

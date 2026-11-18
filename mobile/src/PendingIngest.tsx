@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { ingestStageLabels } from "./domain";
 import { ApiError, api } from "./api";
 import { Button, ErrorState, Loading, Notice, Text, confirm } from "./ui";
 
@@ -23,7 +24,7 @@ export function PendingIngest({
       state.data?.status === "failed" ||
       (state.error instanceof ApiError && state.error.status === 404)
         ? false
-        : 3000,
+        : 1500,
     staleTime: 0,
   });
   const retry = useMutation({
@@ -60,7 +61,7 @@ export function PendingIngest({
         <Notice message="Waiting to process. You can leave and return to check this upload." />
       )}
       {status === "processing" && (
-        <Notice message="Processing your document. You can leave and return to check this upload." />
+        <Notice message={job.data?.stage ? ingestStageLabels[job.data.stage] : "Processing your document…"} />
       )}
       {status === "failed" && (
         <Notice error message={job.data?.error || "Processing failed."} />

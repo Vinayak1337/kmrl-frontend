@@ -105,7 +105,7 @@ export function validateChunkCoverage(
 
 		// 6. Check hard max character bounds
 		const len = (chunk.text || '').length;
-		if (len > HARD_MAX_CHARS) {
+		if (len > HARD_MAX_CHARS && normalized.format !== 'pdf') {
 			errors.push(
 				`Chunk ${chunk.chunkId} exceeds hard max size: ${len} chars (max allowed: ${HARD_MAX_CHARS}).`
 			);
@@ -123,7 +123,7 @@ export function validateChunkCoverage(
 		if (len < minChunkSize) minChunkSize = len;
 
 		// 8. Check overlap bounds with previous chunk
-		if (i > 0) {
+		if (i > 0 && normalized.format !== 'pdf') {
 			const prevText = chunks[i - 1].text || '';
 			// Measure overlapping tail of prevText with head of chunkText
 			let overlapLen = 0;
@@ -141,6 +141,13 @@ export function validateChunkCoverage(
 					`Chunk ${chunk.chunkId} exceeds max allowed overlap with previous chunk: ${overlapLen} chars (limit: ${MAX_ALLOWED_OVERLAP}).`
 				);
 			}
+		}
+	}
+
+	if (normalized.format === 'pdf') {
+		const pages = chunks.flatMap(chunk => chunk.sourcePages);
+		if (pages.length !== normalized.pages.length || pages.some((page, index) => page !== normalized.pages[index].pageNumber)) {
+			errors.push('PDF sections must include every source page exactly once, in order.');
 		}
 	}
 

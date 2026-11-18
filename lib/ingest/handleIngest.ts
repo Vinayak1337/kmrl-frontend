@@ -14,7 +14,7 @@ import type { EnrichmentContext, ManagerAnalysisJSON } from '@/lib/prompt';
 import { VALID_LANGUAGES } from '@/lib/languages';
 import { stripSummaryHeading } from '@/adapters/documentAdapter';
 import { canIngestDocument } from '@/lib/documentPermissions';
-import type { ClassificationValues, DocumentRecord, DocumentNodeRecord } from '@/types/documents';
+import type { ClassificationValues, DocumentRecord, DocumentNodeRecord, IngestStage } from '@/types/documents';
 
 export interface IngestPayload {
 	language?: string;
@@ -58,7 +58,7 @@ function extractActionsHeuristic(text: string): string[] {
 	return sentences.filter(s => actionRegex.test(s) && s.length >= 20 && s.length <= 200).slice(0, 5);
 }
 
-export async function ingestDocuments(session: JwtUser, body: IngestPayload, options?: { documentId?: string; correction?: { jobId: string; before: ClassificationValues; value: ClassificationValues; note?: string } }): Promise<NextResponse> {
+export async function ingestDocuments(session: JwtUser, body: IngestPayload, options?: { documentId?: string; onStage?: (stage: IngestStage) => Promise<void>; correction?: { jobId: string; before: ClassificationValues; value: ClassificationValues; note?: string } }): Promise<NextResponse> {
 	const startTime = Date.now();
 	try {
 		if (!canIngestDocument(session, body.department, body.documentType)) {
@@ -117,6 +117,7 @@ export async function ingestDocuments(session: JwtUser, body: IngestPayload, opt
 			);
 
 			// 2. EXTRACTION
+			await options?.onStage?.('extracting');
 			console.log(`[ingest] EXTRACTION_STARTED | docId=${docId}`);
 			let normalized;
 			try {
@@ -137,6 +138,7 @@ export async function ingestDocuments(session: JwtUser, body: IngestPayload, opt
 			);
 
 			// 3. CHUNKING
+			await options?.onStage?.('organizing');
 			console.log(`[ingest] CHUNKING_STARTED | docId=${docId}`);
 			const rawChunks = chunkDocument(normalized, docId);
 			console.log(
@@ -161,6 +163,7 @@ export async function ingestDocuments(session: JwtUser, body: IngestPayload, opt
 			}
 
 			// 4. AI ENRICHMENT
+			await options?.onStage?.('analyzing');
 			console.log(`[ingest] AI_STARTED | docId=${docId}`);
 			const context: EnrichmentContext = { department, documentType };
 			if (options?.correction) context.correction = { tags, note: options.correction.note };
@@ -233,6 +236,7 @@ export async function ingestDocuments(session: JwtUser, body: IngestPayload, opt
 			}
 
 			// 7. PERSISTENCE WITH COMPENSATING CLEANUP
+			await options?.onStage?.('saving');
 			console.log(`[ingest] PERSIST_STARTED | docId=${docId}`);
 			if (options?.correction) {
 				const correction = options.correction;

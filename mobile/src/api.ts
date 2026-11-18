@@ -160,6 +160,7 @@ export const api = {
   section: async (
     uid: string,
     signal?: AbortSignal,
+    sourcePage?: string,
   ): Promise<{ node: Section }> => {
     if (isDemo()) {
       const node = demoDocs
@@ -168,7 +169,7 @@ export const api = {
       if (!node) throw new ApiError("Source not found.", 404);
       return { node };
     }
-    return request(`/api/nodes/${encodeURIComponent(uid)}`, { signal });
+    return request(`/api/nodes/${encodeURIComponent(uid)}${sourcePage ? `?page=${encodeURIComponent(sourcePage)}` : ""}`, { signal });
   },
   actions: async (signal?: AbortSignal): Promise<{ actions: Action[] }> =>
     isDemo()

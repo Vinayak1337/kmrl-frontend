@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { extractPdfPagesWithImagesFromBase64 } from '../../pdf';
 import { chunkDocument } from '../chunker';
+import { validateChunkCoverage } from '../validation';
+import { buildPersistedChunk } from '../builder';
 import { docxHtmlToText } from '../docx';
 import type { NormalizedDocument } from '../normalization';
 
@@ -50,4 +52,24 @@ test('the PDF.js Node renderer preserves page images within its quota', async ()
   const images = result.pages.flatMap(page => page.images);
   assert.equal(images.length, 1);
   assert.match(images[0].base64, /^iVBOR/);
+});
+
+test('PDF headings never split a page, and short neighboring pages share a section', () => {
+  const normalized = { ...document([
+    { pageNumber: 1, text: '# First heading\nFirst paragraph.\n# Second heading\nSecond paragraph.' },
+    { pageNumber: 2, text: '# Third heading\nThird paragraph.' },
+    { pageNumber: 3, text: 'A dense page. '.repeat(800) },
+    { pageNumber: 4, text: '' },
+  ]), format: 'pdf' as const };
+  const chunks = chunkDocument(normalized);
+  assert.deepEqual(chunks.map(chunk => chunk.sourcePages), [[1, 2], [3], [4]]);
+  assert.equal(chunks[0].chunkId, 'pages-1-2');
+  assert.match(chunks[0].text, /Second heading[\s\S]*\[Page 2\]/);
+  assert.equal(chunks[1].text.trim(), `[Page 3]\n${normalized.pages[2].text.trim()}`);
+  assert.equal(validateChunkCoverage(normalized, chunks).valid, true);
+});
+
+test('a model result with no actions stays empty', () => {
+  const [chunk] = chunkDocument(document([{ pageNumber: 1, text: 'The authors review access in this research paper.' }]));
+  assert.deepEqual(buildPersistedChunk(chunk, 'test', 1, {}, { actionableItems: [] }).actionableItems, []);
 });

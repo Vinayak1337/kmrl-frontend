@@ -67,7 +67,7 @@ function splitLongText(text: string, max: number): string[] {
 	return parts;
 }
 
-/** Groups paragraphs by explicit topic boundaries and retains page attribution. */
+/** Keeps PDF pages intact and uses topic boundaries for non-paginated sources. */
 export function chunkDocument(doc: NormalizedDocument, documentId?: string): DocumentChunk[] {
 	const chunks: RawChunk[] = [];
 	let current: RawChunk = { text: '', pages: [], images: [] };
@@ -84,10 +84,17 @@ export function chunkDocument(doc: NormalizedDocument, documentId?: string): Doc
 		}
 	};
 
+	const paged = doc.format === 'pdf';
 	for (const page of doc.pages) {
 		let images = (page.images || []).map(image => ({ ...image, page: page.pageNumber }));
 		const imageSize = images.reduce((size, image) => size + image.base64.length, 0);
 		if (imageSize && imageSize + current.images.reduce((size, image) => size + image.base64.length, 0) > MAX_CHUNK_IMAGE_CHARS) flush();
+		if (paged) {
+			const text = `[Page ${page.pageNumber}]${page.text.trim() ? `\n${page.text.trim()}` : ''}`;
+			if (current.pages.length && (current.pages.length >= 3 || current.text.length + text.length + 2 > TARGET_MAX_CHARS)) flush();
+			add(text, page.pageNumber, images);
+			continue;
+		}
 		const paragraphs = splitParagraphs(page.text || '');
 		if (!paragraphs.length) {
 			if (images.length) add('', page.pageNumber, images);
@@ -120,14 +127,17 @@ export function chunkDocument(doc: NormalizedDocument, documentId?: string): Doc
 	}
 	flush();
 	if (!chunks.length) chunks.push({ text: (doc.fullText || '').slice(0, HARD_MAX_CHARS), pages: [1], images: [] });
+	const ids = chunks.map((chunk, index) => paged
+		? `pages-${chunk.pages[0]}-${chunk.pages.at(-1)}`
+		: `chunk-${index + 1}`);
 	return chunks.map((chunk, i) => {
 		const pages = chunk.pages.length ? chunk.pages : [1];
 		return {
-			chunkId: `chunk-${i + 1}`, documentId, order: i + 1,
+			chunkId: ids[i], documentId, order: i + 1,
 			pageStart: pages[0], pageEnd: pages[pages.length - 1], sourcePages: pages,
 			text: chunk.text, characterCount: chunk.text.length, images: chunk.images,
-			previousChunkId: i > 0 ? `chunk-${i}` : undefined,
-			nextChunkId: i < chunks.length - 1 ? `chunk-${i + 2}` : undefined
+			previousChunkId: ids[i - 1],
+			nextChunkId: ids[i + 1]
 		};
 	});
 }

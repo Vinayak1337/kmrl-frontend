@@ -277,6 +277,7 @@ test('reviewers can apply an AI suggestion and see the correction history', asyn
 test('a background upload resumes on reopen and retries the same job', async ({ page }) => {
   let created = 0;
   let retries = 0;
+  let polls = 0;
   const jobId = 'fixture-job';
   await page.route('**/api/documents/ingest/jobs', async route => {
     created++;
@@ -288,9 +289,12 @@ test('a background upload resumes on reopen and retries the same job', async ({ 
       retries++;
       return route.fulfill({ status: 202, json: { id: jobId } });
     }
+    const stages = ['extracting', 'organizing', 'analyzing', 'saving'];
+    const stage = stages[polls++];
     await route.fulfill({ json: retries
       ? { id: jobId, status: 'completed', documentId }
-      : { id: jobId, status: 'failed', error: 'Temporary processing error.' } });
+      : stage ? { id: jobId, status: 'processing', stage }
+        : { id: jobId, status: 'failed', error: 'Temporary processing error.' } });
   });
   await page.goto('/home');
   await page.getByRole('button', { name: 'Add document', exact: true }).first().click();
@@ -300,6 +304,9 @@ test('a background upload resumes on reopen and retries the same job', async ({ 
   });
   await dialog.getByRole('checkbox', { name: 'Process in background' }).check();
   await dialog.getByRole('button', { name: 'Add document', exact: true }).click();
+  for (const status of ['Reading the source…', 'Organizing sections…', 'Analyzing and summarizing…', 'Saving and indexing…']) {
+    await expect(dialog.getByRole('status')).toHaveText(status);
+  }
   await expect(dialog.getByRole('alert')).toHaveText('Temporary processing error.');
   await page.reload();
   await page.getByRole('button', { name: 'Add document', exact: true }).first().click();

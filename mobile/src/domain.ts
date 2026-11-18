@@ -140,9 +140,17 @@ export type Ingest = {
     filename: string;
   }[];
 };
+export type IngestStage = "extracting" | "organizing" | "analyzing" | "saving";
+export const ingestStageLabels: Record<IngestStage, string> = {
+  extracting: "Reading the source…",
+  organizing: "Organizing sections…",
+  analyzing: "Analyzing and summarizing…",
+  saving: "Saving and indexing…",
+};
 export type IngestJob = {
   id: string;
   status: "queued" | "processing" | "failed" | "completed";
+  stage?: IngestStage;
   documentId?: string;
   error?: string;
 };
@@ -153,7 +161,7 @@ export type ClassificationValues = {
 };
 export type DocumentClassification = {
   effective: ClassificationValues;
-  processing?: { id: string; status: IngestJob["status"]; error?: string; target?: ClassificationValues; note?: string } | null;
+  processing?: { id: string; status: IngestJob["status"]; stage?: IngestStage; error?: string; target?: ClassificationValues; note?: string } | null;
   suggestion: ClassificationValues | null;
   history: Array<{
     at: string;

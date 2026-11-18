@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowUpRight, Check, Copy, Columns2, Languages, MessageSquare, Trash2, Loader2 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -25,6 +25,7 @@ function Points({ items }: { items: string[] }) { return <ul className="reader-p
 export default function DocumentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
+  const citationPage = Number(useSearchParams().get('page'));
   const [doc, setDoc] = useState<DocSetuDocument | null>(null);
   const [sections, setSections] = useState<DocumentSection[]>([]);
   const [tab, setTab] = useState<Tab>('overview');
@@ -60,11 +61,23 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
   }, [id]);
   const navigate = (nextTab: Tab, nextIndex = sectionIndex, nextSplit = split) => {
     setTab(nextTab); setSectionIndex(nextIndex); setSplit(nextSplit);
-    const query = new URLSearchParams(window.location.search); query.set('tab', nextTab);
+    const query = new URLSearchParams(window.location.search); query.set('tab', nextTab); query.delete('page');
     if (nextIndex) query.set('section', String(nextIndex)); else query.delete('section');
     if (nextSplit) query.set('view', 'split'); else query.delete('view');
     window.history.pushState(null, '', `${window.location.pathname}?${query}`);
   };
+  useEffect(() => {
+    if (!Number.isSafeInteger(citationPage) || citationPage < 1) return;
+    setTab('source');
+    setSplit(false);
+    setAssistant(false);
+  }, [citationPage]);
+  useEffect(() => {
+    if (tab !== 'source' || citationPage < 1 || !sections.length) return;
+    const target = Array.from(document.querySelectorAll<HTMLElement>('[data-source-page-start]')).find(element =>
+      Number(element.dataset.sourcePageStart) <= citationPage && Number(element.dataset.sourcePageEnd) >= citationPage);
+    target?.scrollIntoView();
+  }, [tab, sections, citationPage]);
   const activeSection = sections[Math.min(sectionIndex, Math.max(sections.length - 1, 0))];
   const ask = (question?: string) => { setInitialQuestion(question); setAssistant(true); };
   const copyBrief = async () => { if (!doc) return; try { await navigator.clipboard.writeText(doc.briefMd || doc.summary); setCopied(true); setTimeout(() => setCopied(false), 2000); } catch { setError('Could not copy the brief. Select the text and copy it manually.'); } };
@@ -92,7 +105,7 @@ export default function DocumentDetailPage({ params }: { params: Promise<{ id: s
       {tab === 'overview' && <div className="overview-layout"><article className="reader-paper"><div className="section-heading"><h2>Document brief</h2><button className="text-link" onClick={copyBrief} aria-live="polite">{copied ? <Check size={14} /> : <Copy size={14} />}{copied ? 'Copied' : 'Copy brief'}</button></div><Markdown>{doc.briefMd || doc.summary || 'No brief available.'}</Markdown>{doc.keyPoints.length > 0 && <section className="reader-block"><h2>Important points</h2><Points items={doc.keyPoints} /></section>}</article><aside className="document-context"><div className="section-heading"><h2>At a glance</h2><button className="text-link" onClick={() => setClassificationOpen(true)}>Classification</button></div><dl><div><dt>Owner</dt><dd>{doc.owner || doc.team}</dd></div><div><dt>Effective date</dt><dd>{doc.effectiveDate || 'Not specified'}</dd></div><div><dt>Status</dt><dd>{doc.status === 'ready' ? 'Ready to read' : doc.status === 'processing' ? 'Processing' : 'Needs attention'}</dd></div><div><dt>Affected teams</dt><dd>{doc.affectedTeams.join(' · ') || 'Not specified'}</dd></div>{doc.tags.length > 0 && <div><dt>Tags</dt><dd>{doc.tags.join(' · ')}</dd></div>}</dl>{doc.risks.length > 0 && <section className="risk-notes"><h3>Items to review</h3>{doc.risks.map((risk,i) => <div key={i}><strong>{risk.title}</strong>{risk.description && <p>{risk.description}</p>}</div>)}</section>}<section className="context-actions"><div className="section-heading"><h2>Actions</h2><button className="text-link" onClick={() => navigate('actions')}>View all <ArrowUpRight size={13} /></button></div>{actionList(false)}</section></aside></div>}
       {tab === 'sections' && <div className="sections-layout"><nav className="section-index" aria-label="Document sections"><h2>Contents</h2>{sections.map((s,i) => <button key={s.id} aria-current={i === sectionIndex ? 'true' : undefined} onClick={() => navigate('sections',i)}><span>{String(i+1).padStart(2,'0')}</span><span>{s.title}<small>Pages {s.pageRange.start}–{s.pageRange.end}</small></span></button>)}</nav><article className="reader-paper">{sectionReader}</article></div>}
       {tab === 'actions' && <section className="reader-paper full-reader"><div className="section-heading"><h2>Actions in this document</h2><Link className="text-link" href="/actions">All workspace actions <ArrowUpRight size={14} /></Link></div><p className="muted">Review these items against the source before following up.</p>{actionList()}</section>}
-      {tab === 'source' && <article className="reader-paper full-reader"><div className="section-heading"><h2>Source text</h2>{doc.rawUrl && <a href={doc.rawUrl} target="_blank" rel="noreferrer" className="text-link">Open original file <ArrowUpRight size={14} /></a>}</div>{sections.some(s => s.sourceContent || s.images?.length) ? sections.filter(s => s.sourceContent || s.images?.length).map(s => <section className="source-page" key={s.id}><span className="eyebrow">Pages {s.pageRange.start}–{s.pageRange.end}</span><h3>{s.title}</h3><Markdown>{s.sourceContent}</Markdown><SourceImages section={s} /></section>) : <p className="empty-state">Source text is not available for this document.</p>}</article>}
+      {tab === 'source' && <article className="reader-paper full-reader"><div className="section-heading"><h2>Source text</h2>{doc.rawUrl && <a href={doc.rawUrl} target="_blank" rel="noreferrer" className="text-link">Open original file <ArrowUpRight size={14} /></a>}</div>{sections.some(s => s.sourceContent || s.images?.length) ? sections.filter(s => s.sourceContent || s.images?.length).map(s => <section className="source-page" key={s.id} data-source-page-start={s.pageRange.start} data-source-page-end={s.pageRange.end}><span className="eyebrow">Pages {s.pageRange.start}–{s.pageRange.end}</span><h3>{s.title}</h3><Markdown>{s.sourceContent}</Markdown><SourceImages section={s} /></section>) : <p className="empty-state">Source text is not available for this document.</p>}</article>}
       {tab === 'activity' && <section className="reader-paper full-reader"><div className="section-heading"><h2>Document activity</h2><Link className="text-link" href="/audit">Workspace audit history <ArrowUpRight size={14} /></Link></div><dl className="activity-record"><div><dt>Added to workspace</dt><dd>{formatDate(doc.uploadedAt)}</dd></div>{doc.updatedAt && <div><dt>Last updated</dt><dd>{formatDate(doc.updatedAt)}</dd></div>}<div><dt>Current processing status</dt><dd>{doc.status}</dd></div></dl><p className="muted">Showing the dates recorded with this document.</p></section>}
     </>}
     <DocumentClassificationDialog key={id} id={id} open={classificationOpen} close={() => setClassificationOpen(false)} onSaved={() => { setTranslation(null); void load(false); }} />

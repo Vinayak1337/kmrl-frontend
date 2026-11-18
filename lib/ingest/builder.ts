@@ -93,7 +93,7 @@ export function buildPersistedChunk(
 			: extractKeyPointsHeuristic(rawText);
 
 	const actionableItems =
-		Array.isArray(enrichment?.actionableItems) && enrichment.actionableItems.length > 0
+		Array.isArray(enrichment?.actionableItems)
 			? enrichment.actionableItems.filter(Boolean)
 			: extractActionsHeuristic(rawText);
 

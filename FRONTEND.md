@@ -201,6 +201,8 @@ The ingestion model proposes a team, document type and tags when evidence suppor
 `npm run test:services` includes document structure, classification and job-validation cases. `npm run test:ui` includes the reviewer dialog and resume/retry flow with browser fixtures. Verify hosted delivery in a Vercel preview and check the configured AI gateway before releasing the live AI and OCR flows.
 
 
+PDF sections preserve whole pages, grouping short neighboring pages when they fit. Background file uploads report the active server stage while reading the source, organizing sections, analyzing content, and saving the document and search data.
+
 ### Reviewer corrections
 
 An administrator can correct the team, type, tags, or analysis in the document’s Classification panel. DocSetu queues a new run from the retained original and passes the corrected values and optional note to enrichment. On success it replaces the sections, brief, actions and MongoDB search fields in a single transaction, keeps the same document ID and original, and records the reviewer’s change. A failed run leaves the readable revision intact and can be retried from Classification. The correction applies to this document. It does not train the provider model. No new environment variables.
