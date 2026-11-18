@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { stageLabels } from './ingestProgress';
+import { stageLabel } from './ingestProgress';
 import { Modal } from '@/components/workspace/Modal';
 import { CLASSIFICATION_DEPARTMENTS, CLASSIFICATION_TYPES, classificationTypeValue } from '@/lib/ingest/classification';
 import { getDocumentClassification, saveDocumentClassification, type DocumentClassification } from '@/services/documents';
@@ -110,7 +110,7 @@ export function DocumentClassificationDialog({ id, open, close, onSaved }: {
   return <Modal open={open} onClose={closeDialog} title="Document classification" busy={busy}>
     {error && <p className="notice error" role="alert">{error}</p>}
     {saved && <p className="notice" role="status">Classification saved.</p>}
-    {running && <p className="notice" role="status">Rebuilding the document. {record?.processing?.stage ? stageLabels[record.processing.stage] : 'Waiting to process…'} You can close this window while it runs.</p>}
+    {running && <p className="notice" role="status">Rebuilding the document. {record?.processing?.stage ? stageLabel(record.processing.stage, record.processing.analysis) : 'Waiting to process…'} You can close this window while it runs.</p>}
     {record?.processing?.status === 'failed' && <p className="notice error" role="alert">{record.processing.error || 'Rebuilding failed. Save the correction again to retry.'}</p>}
     {!record && !error && <p role="status" className="muted">Loading classification…</p>}
     {record && draft && <>

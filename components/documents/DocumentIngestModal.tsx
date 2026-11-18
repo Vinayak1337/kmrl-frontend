@@ -6,10 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Modal } from '@/components/workspace/Modal';
 import { DocSetuLoadingIndicator } from '@/components/brand/DocSetuBrand';
 import { VALID_TEAMS, VALID_DOC_TYPES } from '@/adapters/documentAdapter';
-import type { IngestStage } from '@/types/documents';
-import { processingSteps, stageLabels } from './ingestProgress';
+import { processingSteps, stageLabel } from './ingestProgress';
 import { SUPPORTED_LANGUAGES } from '@/lib/languages';
-import { uploadDocument, startIngestJob, getIngestJob, retryIngestJob, IngestDocumentPayload } from '@/services/documents';
+import { uploadDocument, startIngestJob, getIngestJob, retryIngestJob, type IngestDocumentPayload, type IngestJobStatus } from '@/services/documents';
 
 const savedJobKey = 'docsetu-ingest-job';
 
@@ -44,7 +43,8 @@ export function DocumentIngestModal({ isOpen, onClose, onSuccess }: { isOpen: bo
   const [background, setBackground] = useState(true);
   const [jobId, setJobId] = useState('');
   const [jobState, setJobState] = useState('');
-  const [stage, setStage] = useState<IngestStage>();
+  const [progress, setProgress] = useState<Pick<IngestJobStatus, 'stage' | 'analysis'>>({});
+  const { stage, analysis } = progress;
   const [retrying, setRetrying] = useState(false);
   const [reading, setReading] = useState(false);
   const [discard, setDiscard] = useState(false);
@@ -76,7 +76,7 @@ export function DocumentIngestModal({ isOpen, onClose, onSuccess }: { isOpen: bo
           return;
         }
         setJobState(job.status);
-        setStage(job.stage);
+        setProgress({ stage: job.stage, analysis: job.analysis });
         if (job.status === 'completed' && job.documentId) {
           setNewId(job.documentId);
           storeJob();
@@ -93,7 +93,7 @@ export function DocumentIngestModal({ isOpen, onClose, onSuccess }: { isOpen: bo
     void check();
     return () => { controller.abort(); window.clearTimeout(timer); };
   }, [isOpen, jobId, step]);
-  const reset = () => { storeJob(); setBackground(true); setJobId(''); setStage(undefined); setJobState(''); setStep('file'); setMode('upload'); setFile(null); setContent(''); setText(''); setTitle(''); setTeam('Operations'); setType('Policy'); setLanguage('English'); setTags(''); setError(''); setNewId(''); setDiscard(false); };
+  const reset = () => { storeJob(); setBackground(true); setJobId(''); setProgress({}); setJobState(''); setStep('file'); setMode('upload'); setFile(null); setContent(''); setText(''); setTitle(''); setTeam('Operations'); setType('Policy'); setLanguage('English'); setTags(''); setError(''); setNewId(''); setDiscard(false); };
   const retry = async () => {
     if (retrying) return;
     setRetrying(true);
@@ -101,7 +101,7 @@ export function DocumentIngestModal({ isOpen, onClose, onSuccess }: { isOpen: bo
     try {
       await retryIngestJob(jobId);
       setJobState('queued');
-      setStage(undefined);
+      setProgress({});
     } catch {
       setError('Could not retry processing. Please try again.');
     } finally {
@@ -139,7 +139,7 @@ export function DocumentIngestModal({ isOpen, onClose, onSuccess }: { isOpen: bo
     {step === 'processing' && <div className="ingest-processing">{jobState === 'failed' || jobState === 'unavailable' ? <div className="modal-actions">
       <button className="button" disabled={retrying} onClick={reset}>Start another upload</button>
       {jobState === 'failed' && <button className="button button-primary" disabled={retrying} onClick={retry}>{retrying ? 'Retrying…' : 'Try again'}</button>}
-    </div> : <><DocSetuLoadingIndicator text={jobId ? jobState === 'queued' ? 'Waiting to process…' : stage ? stageLabels[stage] : 'Preparing your document…' : background && mode === 'upload' ? 'Uploading document…' : 'Preparing your document…'} />
+    </div> : <><DocSetuLoadingIndicator text={jobId ? jobState === 'queued' ? 'Waiting to process…' : stage ? stageLabel(stage, analysis) : 'Preparing your document…' : background && mode === 'upload' ? 'Uploading document…' : 'Preparing your document…'} />
       {jobId && <ol className="ingest-steps flex-wrap justify-center gap-x-4 gap-y-2" aria-label="Processing stages">
         {processingSteps.map(({ stage: item, label }, index) => <li key={item} aria-current={index === stageIndex ? 'step' : undefined}>
           {index < stageIndex && <><Check size={12} className="inline align-text-bottom" aria-hidden="true" /> <span className="sr-only">Completed: </span></>}{label}

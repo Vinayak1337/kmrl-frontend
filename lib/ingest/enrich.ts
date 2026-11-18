@@ -1,5 +1,6 @@
 import { generateJson } from '@/lib/ai/generate';
 import { buildManagerMdPrompt, reviewerContext, type EnrichmentContext, type ManagerAnalysisJSON, type ManagerNodeJSON } from '@/lib/prompt';
+import type { AnalysisProgress } from '@/types/documents';
 import type { DocumentChunk } from './chunker';
 
 const INPUT_BUDGET = 45000;
@@ -43,18 +44,30 @@ async function overallSummary(chunks: DocumentChunk[], meta: EnrichmentContext, 
   return typeof result.overallMd === 'string' ? result.overallMd : '';
 }
 
+type AnalysisUpdate = Omit<AnalysisProgress, 'totalPages'>;
+
+function pagesForBatch(batch: DocumentChunk[]) {
+  return { start: batch[0].pageStart, end: batch[batch.length - 1].pageEnd };
+}
+
 /** Returns null when generation fails so callers use heuristics. */
 export async function enrichChunks(
   chunks: DocumentChunk[],
   meta: EnrichmentContext,
   log = 'ingest',
   deadline?: number,
+  onProgress?: (progress: AnalysisUpdate) => Promise<void>,
 ): Promise<ManagerAnalysisJSON | null> {
   if (!chunks.some(c => c.text.trim())) return null;
   try {
     if (chunks.length <= BATCH_SIZE && chunks.reduce((size, chunk) => size + chunk.text.length + 48, 0) <= INPUT_BUDGET) {
-      const result = await enrichBatch(chunks, meta, chunks.length, deadline);
-      return result && Array.isArray(result.nodes) ? result : null;
+      await onProgress?.({ ranges: [pagesForBatch(chunks)] });
+      try {
+        const result = await enrichBatch(chunks, meta, chunks.length, deadline);
+        return result && Array.isArray(result.nodes) ? result : null;
+      } finally {
+        await onProgress?.({ ranges: [] });
+      }
     }
     const batches: DocumentChunk[][] = [];
     let batch: DocumentChunk[] = [];
@@ -72,18 +85,36 @@ export async function enrichChunks(
     if (batch.length) batches.push(batch);
     const results: Array<ManagerAnalysisJSON | null> = new Array(batches.length).fill(null);
     let next = 0;
+    const activeBatches = new Set<number>();
+    let summarizing = true;
+    let published = Promise.resolve();
+    const report = () => {
+      if (!onProgress) return;
+      const ranges = [...activeBatches].sort((a, b) => a - b).map(index => pagesForBatch(batches[index]));
+      const update = { ranges, summarizing };
+      // Serialize snapshots from the parallel workers so older ranges cannot overwrite newer ones.
+      published = published.then(() => onProgress(update));
+      return published;
+    };
     const worker = async () => {
       while (next < batches.length) {
         const index = next++;
+        activeBatches.add(index);
         try {
+          await report();
           results[index] = await enrichBatch(batches[index], meta, chunks.length, deadline);
         } catch (err) {
           console.warn(`[${log}] AI enrichment batch ${index + 1}/${batches.length} failed`, err);
+        } finally {
+          activeBatches.delete(index);
+          await report();
         }
       }
     };
     const [overall] = await Promise.all([
-      overallSummary(chunks, meta, deadline).catch(err => { console.warn(`[${log}] overall summary failed`, err); return ''; }),
+      overallSummary(chunks, meta, deadline)
+        .catch(err => { console.warn(`[${log}] overall summary failed`, err); return ''; })
+        .finally(async () => { summarizing = false; await report(); }),
       ...Array.from({ length: BATCH_CONCURRENCY }, worker),
     ]);
     const nodes = results.flatMap(r => (r && Array.isArray(r.nodes) ? r.nodes : []));

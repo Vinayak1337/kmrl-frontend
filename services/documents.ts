@@ -1,4 +1,4 @@
-import type { IngestStage } from '@/types/documents';
+import type { AnalysisProgress, IngestStage } from '@/types/documents';
 import { DocSetuDocument, DocumentSection } from '@/types/docsetu';
 import type { ClassificationHistoryEntry, ClassificationSuggestion, ClassificationValues, DocumentNodeRecord } from '@/types/documents';
 import {
@@ -125,7 +125,7 @@ export async function uploadDocument(payload: IngestDocumentPayload): Promise<{ 
 	return { id };
 }
 
-export type IngestJobStatus = { id: string; status: 'queued' | 'processing' | 'failed' | 'completed'; stage?: IngestStage; documentId?: string; error?: string };
+export type IngestJobStatus = { id: string; status: 'queued' | 'processing' | 'failed' | 'completed'; stage?: IngestStage; analysis?: AnalysisProgress; documentId?: string; error?: string };
 
 export async function startIngestJob(payload: IngestDocumentPayload): Promise<{ id: string }> {
   const response = await fetch('/api/documents/ingest/jobs', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ingestBody(payload)) });
@@ -161,7 +161,7 @@ export async function deleteDocument(id: string): Promise<boolean> {
 
 export type DocumentClassification = {
   canEdit: boolean;
-  processing?: { id: string; status: IngestJobStatus['status']; stage?: IngestStage; error?: string; target?: ClassificationValues; note?: string } | null;
+  processing?: { id: string; status: IngestJobStatus['status']; stage?: IngestStage; analysis?: AnalysisProgress; error?: string; target?: ClassificationValues; note?: string } | null;
   effective: ClassificationValues;
   suggestion: ClassificationSuggestion | null;
   history: Array<Omit<ClassificationHistoryEntry, 'at'> & { at: string }>;

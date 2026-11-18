@@ -23,6 +23,12 @@ export type DocumentMetadata = {
 	updatedAt?: Date;
 };
 
+export type AnalysisProgress = {
+  ranges: Array<{ start: number; end: number }>;
+  totalPages: number;
+  summarizing?: boolean;
+};
+
 export type IngestStage = 'extracting' | 'organizing' | 'analyzing' | 'saving';
 
 export type ClassificationValues = { department: string | null; documentType: string | null; tags: string[] };

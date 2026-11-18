@@ -141,16 +141,32 @@ export type Ingest = {
   }[];
 };
 export type IngestStage = "extracting" | "organizing" | "analyzing" | "saving";
-export const ingestStageLabels: Record<IngestStage, string> = {
+const ingestStageLabels: Record<IngestStage, string> = {
   extracting: "Reading the source…",
   organizing: "Organizing sections…",
   analyzing: "Analyzing and summarizing…",
   saving: "Saving and indexing…",
 };
+type AnalysisProgress = {
+  ranges: Array<{ start: number; end: number }>;
+  totalPages: number;
+  summarizing?: boolean;
+};
+
+export function ingestStageLabel(stage: IngestStage, analysis?: AnalysisProgress) {
+  if (stage !== "analyzing" || !analysis) return ingestStageLabels[stage];
+  if (!analysis.ranges.length) return analysis.summarizing ? "Writing the document summary…" : ingestStageLabels[stage];
+
+  const ranges = analysis.ranges.map(({ start, end }) => start === end ? String(start) : `${start}–${end}`);
+  const unit = analysis.ranges.length === 1 && analysis.ranges[0].start === analysis.ranges[0].end ? "page" : "pages";
+  return `Analyzing ${unit} ${ranges.join(", ")} of ${analysis.totalPages}…`;
+}
+
 export type IngestJob = {
   id: string;
   status: "queued" | "processing" | "failed" | "completed";
   stage?: IngestStage;
+  analysis?: AnalysisProgress;
   documentId?: string;
   error?: string;
 };
@@ -161,7 +177,7 @@ export type ClassificationValues = {
 };
 export type DocumentClassification = {
   effective: ClassificationValues;
-  processing?: { id: string; status: IngestJob["status"]; stage?: IngestStage; error?: string; target?: ClassificationValues; note?: string } | null;
+  processing?: { id: string; status: IngestJob["status"]; stage?: IngestStage; analysis?: AnalysisProgress; error?: string; target?: ClassificationValues; note?: string } | null;
   suggestion: ClassificationValues | null;
   history: Array<{
     at: string;

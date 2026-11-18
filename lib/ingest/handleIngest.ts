@@ -14,7 +14,7 @@ import type { EnrichmentContext, ManagerAnalysisJSON } from '@/lib/prompt';
 import { VALID_LANGUAGES } from '@/lib/languages';
 import { stripSummaryHeading } from '@/adapters/documentAdapter';
 import { canIngestDocument } from '@/lib/documentPermissions';
-import type { ClassificationValues, DocumentRecord, DocumentNodeRecord, IngestStage } from '@/types/documents';
+import type { AnalysisProgress, ClassificationValues, DocumentRecord, DocumentNodeRecord, IngestStage } from '@/types/documents';
 
 export interface IngestPayload {
 	language?: string;
@@ -58,7 +58,7 @@ function extractActionsHeuristic(text: string): string[] {
 	return sentences.filter(s => actionRegex.test(s) && s.length >= 20 && s.length <= 200).slice(0, 5);
 }
 
-export async function ingestDocuments(session: JwtUser, body: IngestPayload, options?: { documentId?: string; onStage?: (stage: IngestStage) => Promise<void>; correction?: { jobId: string; before: ClassificationValues; value: ClassificationValues; note?: string } }): Promise<NextResponse> {
+export async function ingestDocuments(session: JwtUser, body: IngestPayload, options?: { documentId?: string; onStage?: (stage: IngestStage, analysis?: AnalysisProgress) => Promise<void>; correction?: { jobId: string; before: ClassificationValues; value: ClassificationValues; note?: string } }): Promise<NextResponse> {
 	const startTime = Date.now();
 	try {
 		if (!canIngestDocument(session, body.department, body.documentType)) {
@@ -167,7 +167,13 @@ export async function ingestDocuments(session: JwtUser, body: IngestPayload, opt
 			console.log(`[ingest] AI_STARTED | docId=${docId}`);
 			const context: EnrichmentContext = { department, documentType };
 			if (options?.correction) context.correction = { tags, note: options.correction.note };
-			const aiAnalysis: ManagerAnalysisJSON | null = await enrichChunks(rawChunks, context, options?.correction ? 'correction' : 'ingest', options?.correction ? startTime + 270_000 : undefined);
+			const reportPages = normalized.format === 'pdf' ? options?.onStage : undefined;
+			const aiAnalysis: ManagerAnalysisJSON | null = await enrichChunks(
+				rawChunks, context, options?.correction ? 'correction' : 'ingest',
+				options?.correction ? startTime + 270_000 : undefined,
+				reportPages && (progress => reportPages('analyzing', { ...progress, totalPages: normalized.pageCount })
+					.catch(error => { console.warn('[ingest] could not publish page progress', error); })),
+			);
 			if (options?.correction && (!aiAnalysis?.overallMd || !rawChunks.every((chunk, index) => aiNodeFor(aiAnalysis.nodes, chunk, index, rawChunks.length)?.summaryMd))) {
 				return NextResponse.json({ error: 'The model did not rebuild every section. Please retry the correction.' }, { status: 422 });
 			}

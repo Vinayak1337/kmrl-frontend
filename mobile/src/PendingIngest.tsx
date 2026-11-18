@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ingestStageLabels } from "./domain";
+import { ingestStageLabel } from "./domain";
 import { ApiError, api } from "./api";
 import { Button, ErrorState, Loading, Notice, Text, confirm } from "./ui";
 
@@ -61,7 +61,7 @@ export function PendingIngest({
         <Notice message="Waiting to process. You can leave and return to check this upload." />
       )}
       {status === "processing" && (
-        <Notice message={job.data?.stage ? ingestStageLabels[job.data.stage] : "Processing your document…"} />
+        <Notice message={job.data?.stage ? ingestStageLabel(job.data.stage, job.data.analysis) : "Processing your document…"} />
       )}
       {status === "failed" && (
         <Notice error message={job.data?.error || "Processing failed."} />

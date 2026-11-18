@@ -282,7 +282,9 @@ test('a background upload resumes on reopen and retries the same job', async ({ 
   const jobId = 'fixture-job';
   await page.route('**/api/documents/ingest/jobs', async route => {
     created++;
-    expect(route.request().postDataJSON().documents[0].content).toBe('Document for background processing.');
+    const uploaded = route.request().postDataJSON().documents[0];
+    expect(uploaded.type).toBe('pdf');
+    expect(Buffer.from(uploaded.content, 'base64').toString()).toBe('%PDF-1.4 background fixture');
     await route.fulfill({ status: 202, json: { id: jobId } });
   });
   await page.route(`**/api/documents/ingest/jobs/${jobId}`, async route => {
@@ -290,22 +292,29 @@ test('a background upload resumes on reopen and retries the same job', async ({ 
       retries++;
       return route.fulfill({ status: 202, json: { id: jobId } });
     }
-    const stages = ['extracting', 'organizing', 'analyzing', 'saving'];
-    const stage = stages[polls++];
+    const stages = [
+      { stage: 'extracting' },
+      { stage: 'organizing' },
+      { stage: 'analyzing', analysis: { ranges: [{ start: 1, end: 8 }, { start: 9, end: 15 }], totalPages: 20 } },
+      { stage: 'analyzing', analysis: { ranges: [{ start: 16, end: 20 }], totalPages: 20 } },
+      { stage: 'analyzing', analysis: { ranges: [], totalPages: 20, summarizing: true } },
+      { stage: 'saving' },
+    ];
+    const progress = stages[polls++];
     await route.fulfill({ json: retries
       ? { id: jobId, status: 'completed', documentId }
-      : stage ? { id: jobId, status: 'processing', stage }
+      : progress ? { id: jobId, status: 'processing', ...progress }
         : { id: jobId, status: 'failed', error: 'Temporary processing error.' } });
   });
   await page.goto('/home');
   await page.getByRole('button', { name: 'Add document', exact: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Add document' });
   await dialog.locator('input[type=file]').setInputFiles({
-    name: 'background.txt', mimeType: 'text/plain', buffer: Buffer.from('Document for background processing.'),
+    name: 'background.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 background fixture'),
   });
   await expect(dialog.getByRole('checkbox', { name: 'Process in background' })).toBeChecked();
   await dialog.getByRole('button', { name: 'Add document', exact: true }).click();
-  for (const status of ['Reading the source…', 'Organizing sections…', 'Analyzing and summarizing…', 'Saving and indexing…']) {
+  for (const status of ['Reading the source…', 'Organizing sections…', 'Analyzing pages 1–8, 9–15 of 20…', 'Analyzing pages 16–20 of 20…', 'Writing the document summary…', 'Saving and indexing…']) {
     await expect(dialog.getByRole('status')).toHaveText(status);
   }
   await expect(dialog.getByRole('alert')).toHaveText('Temporary processing error.');
