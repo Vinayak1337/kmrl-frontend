@@ -124,8 +124,6 @@ export function DocumentClassificationDialog({ id, open, close, onSaved }: {
   return <Modal open={open} onClose={closeDialog} title="Document classification" busy={busy}>
     {error && <p className="notice error" role="alert">{error}</p>}
     {saved && <p className="notice" role="status">{saved}</p>}
-    {running && <p className="notice" role="status">Rebuilding {record?.processing?.scope?.kind === 'brief' ? 'the document brief' : 'the source section'}. {record?.processing?.stage ? stageLabel(record.processing.stage, record.processing.analysis) : 'Waiting to process…'} You can close this window while it runs.</p>}
-    {record?.processing?.status === 'failed' && <p className="notice error" role="alert">{record.processing.error || 'The correction failed. Save it again to retry.'}</p>}
     {!record && !error && <p role="status" className="muted">Loading classification…</p>}
     {record && draft && <>
       <section className="reader-block">
@@ -178,6 +176,8 @@ export function DocumentClassificationDialog({ id, open, close, onSaved }: {
             <span className="field-help">Describe what’s wrong and name the page or document brief.</span>
           </label>
           <div className="modal-actions"><button type="submit" className="button button-primary" disabled={busy || running || !note.trim()}>Save correction</button></div>
+          {running && <p className="notice" role="status">Rebuilding {record?.processing?.scope?.kind === 'brief' ? 'the document brief' : 'the source section'}. {record?.processing?.stage ? stageLabel(record.processing.stage, record.processing.analysis) : 'Waiting to process…'} You can close this window while it runs.</p>}
+          {record?.processing?.status === 'failed' && <p className="notice error" role="alert">{record.processing.error || 'The correction failed. Save it again to retry.'}</p>}
         </form></>
         : <section className="reader-block"><h3>Current classification</h3><p>{description(record.effective)}</p></section>}
       {record.history.length > 0 && <section className="reader-block">

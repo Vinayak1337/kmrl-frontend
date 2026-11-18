@@ -123,10 +123,6 @@ function ClassificationForm({
   const disabled = save.isPending || correction.isPending || rebuilding;
   return (
     <>
-      {rebuilding && <Notice message={current.processing?.stage ? ingestStageLabel(current.processing.stage, current.processing.analysis) : "Waiting to rebuild the summary…"} />}
-      {current.processing?.status === "failed" && (
-        <Notice error message={current.processing.error || "Rebuilding failed. Save the correction again to retry."} />
-      )}
       <View style={{ gap: 8 }}>
         <Text size="heading">AI suggestion</Text>
         <Text tone="secondary">
@@ -220,6 +216,14 @@ function ClassificationForm({
             editable={!disabled}
           />
           <Button label="Save correction" disabled={disabled || !note.trim()} busy={correction.isPending} onPress={() => correction.mutate()} />
+          {rebuilding && (
+            <View accessibilityLiveRegion="polite">
+              <Notice message={current.processing?.stage ? ingestStageLabel(current.processing.stage, current.processing.analysis) : "Waiting to rebuild the summary…"} />
+            </View>
+          )}
+          {current.processing?.status === "failed" && (
+            <Notice error message={current.processing.error || "Rebuilding failed. Save the correction again to retry."} />
+          )}
           {correction.error && <ErrorState error={correction.error} />}
           {corrected && <Notice message="Correction applied." />}
         </>
