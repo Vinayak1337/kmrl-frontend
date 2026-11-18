@@ -21,37 +21,43 @@ export async function openOriginal(doc: Document) {
     return;
   }
   const full =
-    doc.raw && !doc.raw.content && !doc.raw.text ? await api.original(doc.id) : doc;
+    doc.raw && !doc.raw.content && !doc.raw.text
+      ? await api.original(doc.id)
+      : doc;
   const content = full.raw?.content || full.raw?.text;
   if (!content)
     throw new Error(
       "The original file is not available. Read the extracted source below.",
     );
   const type = doc.raw?.type || "text";
+  const isBinary = type === "pdf" || type === "image" || type === "doc";
   const extension =
     type === "pdf"
       ? "pdf"
       : type === "image"
         ? imageMime(content).split("/")[1].replace("jpeg", "jpg")
-        : type === "html"
-          ? "html"
-          : "txt";
+        : type === "doc"
+          ? "docx"
+          : type === "html"
+            ? "html"
+            : "txt";
   const mimeType =
     type === "pdf"
       ? "application/pdf"
       : type === "image"
         ? imageMime(content)
-        : type === "html"
-          ? "text/html"
-          : "text/plain";
+        : type === "doc"
+          ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          : type === "html"
+            ? "text/html"
+            : "text/plain";
   const name = `${doc.title.replace(/[^\p{L}\p{N} _-]/gu, "").slice(0, 80) || "document"}.${extension}`;
   if (Platform.OS === "web") {
-    const binary =
-      type === "pdf" || type === "image"
-        ? Uint8Array.from(atob(content.replace(/^data:[^,]+,/, "")), (c) =>
-            c.charCodeAt(0),
-          )
-        : content;
+    const binary = isBinary
+      ? Uint8Array.from(atob(content.replace(/^data:[^,]+,/, "")), (c) =>
+          c.charCodeAt(0),
+        )
+      : content;
     const url = URL.createObjectURL(new Blob([binary], { type: mimeType }));
     const link = document.createElement("a");
     link.href = url;
@@ -67,10 +73,9 @@ export async function openOriginal(doc: Document) {
     uri,
     content.replace(/^data:[^,]+,/, ""),
     {
-      encoding:
-        type === "pdf" || type === "image"
-          ? FileSystem.EncodingType.Base64
-          : FileSystem.EncodingType.UTF8,
+      encoding: isBinary
+        ? FileSystem.EncodingType.Base64
+        : FileSystem.EncodingType.UTF8,
     },
   );
   try {

@@ -45,6 +45,7 @@ export function Icon({
       size={size}
       color={color || colors.text}
       accessible={false}
+      aria-hidden
     />
   );
 }
@@ -330,6 +331,7 @@ export function Row({
   return onPress ? (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}
       onPress={onPress}
       style={({ pressed }) => [
         style,
@@ -365,7 +367,9 @@ export function Screen({
         paddingTop: safeTop ? insets.top : 0,
       }}
       behavior="padding"
-      keyboardVerticalOffset={headerHeight || (Platform.OS === "ios" ? insets.top + 44 : 0)}
+      keyboardVerticalOffset={
+        headerHeight || (Platform.OS === "ios" ? insets.top + 44 : 0)
+      }
     >
       {scroll ? (
         <ScrollView

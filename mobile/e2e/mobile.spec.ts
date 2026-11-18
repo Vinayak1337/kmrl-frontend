@@ -12,9 +12,7 @@ test("sample browse → save → reader → ask → exact source; themes and act
     page.getByRole("button", { name: "Open Procurement policy FY26" }),
   ).toBeVisible();
   await page.screenshot({ path: "design/screenshots/documents-light.png" });
-  await page
-    .getByRole("button", { name: "Ask your documents", exact: true })
-    .click();
+  await page.getByRole("tab", { name: /^Ask/ }).click();
   await expect(
     page.getByText("Find the answer. Keep the source."),
   ).toBeVisible();
@@ -51,6 +49,7 @@ test("sample browse → save → reader → ask → exact source; themes and act
   await page.goBack();
   await page.goBack();
   await page.getByRole("tab", { name: /Actions/ }).click();
+  await page.getByRole("button", { name: "To do", exact: true }).click();
   const check = page.getByRole("checkbox").first();
   await check.click();
   await page.getByRole("button", { name: "Done", exact: true }).click();
@@ -225,4 +224,122 @@ test("HTTP contract: sign-in, bearer, upload retry, grounded source, expiry", as
   await expect(
     page.getByText("Your session expired. Sign in again."),
   ).toBeVisible();
+});
+
+test("native web client tracks a background file and saves a classification correction", async ({
+  page,
+}) => {
+  const user = {
+    sub: "release-admin",
+    name: "Release Reader",
+    role: "ADMIN",
+    grants: [],
+  };
+  const initial = {
+    department: "OPERATIONS",
+    documentType: "report",
+    tags: [],
+  };
+  const suggestion = {
+    department: "PROCUREMENT",
+    documentType: "invoice",
+    tags: ["invoice", "INR 18,250"],
+  };
+  let created = 0;
+  let polls = 0;
+  let correction = false;
+  await page.route("https://trydocsetu.vercel.app/api/**", async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    const respond = (json: unknown, status = 200) =>
+      route.fulfill({ json, status });
+    if (path === "/api/mobile/auth")
+      return respond({
+        token: "fixture-token",
+        user,
+        expiresAt: Date.now() + 60000,
+      });
+    expect(request.headers().authorization).toBe("Bearer fixture-token");
+    if (path === "/api/auth/session") return respond({ user });
+    if (path === "/api/alerts") return respond({ alerts: [] });
+    if (path === "/api/documents/ingest/jobs") {
+      expect(request.postDataJSON().documents[0]).toEqual({
+        type: "text",
+        content: "Fixture invoice.",
+        filename: "invoice.txt",
+      });
+      created++;
+      return respond({ id: "native-queue" }, 202);
+    }
+    if (path === "/api/documents/ingest/jobs/native-queue") {
+      polls++;
+      return respond({
+        id: "native-queue",
+        status: polls > 1 ? "completed" : "processing",
+        documentId: polls > 1 ? demoDocs[0].id : undefined,
+      });
+    }
+    if (path.endsWith("/classification")) {
+      const update = request.method() === "PATCH";
+      if (update) {
+        expect(request.postDataJSON()).toEqual(suggestion);
+        correction = true;
+      }
+      return respond({
+        canEdit: true,
+        effective: update ? suggestion : initial,
+        suggestion,
+        history: update
+          ? [
+              {
+                at: new Date().toISOString(),
+                before: initial,
+                after: suggestion,
+              },
+            ]
+          : [],
+      });
+    }
+    if (path === "/api/documents/ingest") {
+      return respond(
+        new URL(request.url()).searchParams.has("id")
+          ? demoDocs[0]
+          : { documents: demoDocs, totalCount: 4 },
+      );
+    }
+    return respond({}, 404);
+  });
+  await page.goto("/");
+  await page
+    .getByRole("textbox", { name: "Email", exact: true })
+    .fill("release@example.test");
+  await page
+    .getByRole("textbox", { name: "Password", exact: true })
+    .fill("fixture-password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByRole("button", { name: "Add document", exact: true }).click();
+  const [picker] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByRole("button", { name: "Choose a file" }).click(),
+  ]);
+  await picker.setFiles({
+    name: "invoice.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("Fixture invoice."),
+  });
+  await page.getByRole("button", { name: "Process in background" }).click();
+  await page.getByRole("button", { name: "Add document", exact: true }).click();
+  await expect(page.getByText("Upload status", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Close upload status" }).click();
+  await page.getByRole("button", { name: "Add document", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Open document", exact: true })
+    .click();
+  await page.getByRole("button", { name: /^Classification/ }).click();
+  await page.getByRole("button", { name: "Use suggestion" }).click();
+  await page.getByRole("button", { name: "Save classification" }).click();
+  await expect(page.getByText("Classification saved.")).toBeVisible();
+  await expect(page.getByText("Correction history")).toBeVisible();
+  expect(created).toBe(1);
+  expect(correction).toBe(true);
 });

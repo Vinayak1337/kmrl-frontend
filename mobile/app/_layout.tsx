@@ -95,6 +95,10 @@ export default function Layout() {
               />
               <Stack.Screen name="source" options={{ title: "Source" }} />
               <Stack.Screen
+                name="classification"
+                options={{ title: "Classification" }}
+              />
+              <Stack.Screen
                 name="notify"
                 options={{ title: "Inform authorities" }}
               />

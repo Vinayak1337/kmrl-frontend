@@ -1,3 +1,4 @@
+import { SectionSource } from "../../src/SectionSource";
 import { DocumentCover } from "../../src/DocumentCover";
 import { useState } from "react";
 import { Share, View } from "react-native";
@@ -309,7 +310,7 @@ export default function Reader() {
                 accessibilityLabel="Original document image"
               />
             )}
-            {(doc.raw?.content || doc.raw?.url) && (
+            {!session?.demo && (doc.raw?.type || doc.raw?.url) && (
               <Button
                 kind="secondary"
                 label="Open original file"
@@ -327,20 +328,24 @@ export default function Reader() {
                   <Text size="small" tone="secondary">
                     {pageLabel(section.pageRange)}
                   </Text>
-                  <Text selectable>
-                    {section.content ||
-                      "No text was extracted from this section."}
-                  </Text>
+                  <SectionSource section={section} />
                 </View>
               ))
             ) : (
-              <Notice message="No searchable text is available. Image records are preserved without automatic text extraction." />
+              <Notice message="No searchable text is available for this document." />
             )}
           </>
         )}
         <DemoNotice />
         {!session?.demo && (
           <View>
+            <Row
+              icon="pricetag-outline"
+              title="Classification"
+              onPress={() =>
+                router.push({ pathname: "/classification", params: { id } })
+              }
+            />
             <Row
               icon="flag-outline"
               title="Report an issue"

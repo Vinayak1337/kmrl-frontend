@@ -45,16 +45,16 @@ npx eas-cli build --platform ios --profile preview
 | Screen | Behavior |
 | --- | --- |
 | Documents | Server search/type filters, paginated virtualized list, pull to refresh, saved-document list with access rechecks |
-| Reader | Overview, key points, flags, extracted sections, unchanged source, original-file export, bookmark, system share, admin-only deletion |
+| Reader | Overview, key points, flags, extracted sections, unchanged source, retained source images and tables, original-file export, classification review, bookmark, system share, admin-only deletion |
 | Ask | Global/document-specific persisted history, bounded requests, preserved failed questions, exact node citations, no automatic mutation retries |
-| Add document | System file picker, camera capture, pasted text, metadata/language, source preview, validation, protected drafts, retry without losing input |
+| Add document | System file picker for PDF, Word, text and images, camera capture, pasted text, protected drafts, background upload status and retry |
 | Source | Exact cited node, page range, selectable text, clipboard, summary translation, contextual questions |
 | Actions | Source-linked recent actions, account-scoped device-local completion marks |
 | Workspace | Account, light/dark/system theme, access grants, sign-out |
 | People | Administrator directory, create/edit/delete, resource grants, optional password reset |
 | Activity | Administrator audit log, pagination and refresh |
 
-Camera/image ingestion preserves an image record. The existing backend has no OCR in its image normalizer; the app states this before submission and does not fabricate text or a completed extraction. Native photo capture and file sharing need device verification. Pasted text or text-based PDFs are the appropriate inputs for searchable ingestion. Files are capped at 2.5 MB to allow base64 payload overhead on common hosting limits.
+The backend extracts text from images and supported scanned PDF pages. Word uploads keep headings, simple tables and supported images. Choose **Process in background** on a file or photo and reopen **Add document** to check status after leaving the screen or relaunching. The app saves the job ID for the signed-in account. Files are capped at 2.5 MB to allow for encoding overhead.
 
 Saved document **IDs** and action marks are stored locally, scoped by workspace + user. Document contents are not persisted for offline reading. Completion marks are not approvals and do not synchronize to colleagues. Action retrieval currently follows the existing API's recent 200-node limit. The demo is explicitly selected, never a failure fallback, and never uploads or edits live records.
 
@@ -70,6 +70,8 @@ Saved document **IDs** and action marks are stored locally, scoped by workspace 
 | App operation | Existing API |
 | --- | --- |
 | Document list/read/upload | `/api/documents/ingest` |
+| Background upload/status/retry | `/api/documents/ingest/jobs`, `/api/documents/ingest/jobs/:id` |
+| Classification and corrections | `/api/documents/:id/classification` |
 | Exact evidence | `/api/nodes/:uid` |
 | Questions/history | `/api/chat` |
 | Translation | `/api/translate` |

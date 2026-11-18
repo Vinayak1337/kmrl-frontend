@@ -113,3 +113,11 @@ Fixes deployed to main:
 Automated checks: mobile typecheck/four tests/three Playwright workflows; root typecheck/lint (six existing warnings), four service tests, four mobile-auth tests, two new AI regression tests; production build; live Gemini answer/citation checks. Android release assembly and app lint passed with the already documented two dependency analyzer exclusions.
 
 The user ended testing before the remaining matrix. Offline/reconnection, large text/accessibility, PDF and image capture uploads, sustained performance, complete on-device activity/action flows and session-expiry scenarios were not completed in this run. Do not interpret this as exhaustive coverage. Screenshots and credential-bearing test state stayed outside the public repository.
+
+## Advanced ingestion preview — 18 November 2026
+
+A signed standalone Android preview (ARM64 and x86_64) was installed on the PC emulator over SSH and tested against `https://trydocsetu.vercel.app`. The app signed in and restored its session and pending Word upload after a force-stop. The completed document displayed its source table and image. The Android share sheet offered the original Word file. The live OCI model answered a question from the document, and tapping its citation opened the exact source.
+
+Classification review displayed the model suggestion and correction history. Saving a correction retained `INR 18,250` as one tag, confirmed through the production API. A background upload of an image-only PDF paused status updates offline, resumed on reconnection, and opened with the recognized invoice identifier and its original page image.
+
+Mobile TypeScript, four unit tests, four Playwright flows and Android release assembly passed. The iOS Hermes bundle exported successfully. The iOS runtime, sustained device performance and store distribution remain open.

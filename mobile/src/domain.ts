@@ -20,6 +20,12 @@ export type Section = {
   actionableItems: string[];
   criticalFlags?: string[];
   pageRange?: { start: number; end: number };
+  images?: Array<{
+    page?: number;
+    base64?: string;
+    mimeType: string;
+    caption?: string;
+  }>;
 };
 export type Document = {
   id: string;
@@ -74,11 +80,7 @@ export type Action = {
   type?: string;
 };
 export type DeadlineTier =
-  | "overdue"
-  | "within5"
-  | "within15"
-  | "within30"
-  | "later";
+  "overdue" | "within5" | "within15" | "within30" | "later";
 export type DeadlineAlert = {
   id: string;
   documentId: string;
@@ -133,10 +135,31 @@ export type Ingest = {
   documentType: string;
   language: string;
   documents: {
-    type: "text" | "pdf" | "image";
+    type: "text" | "pdf" | "image" | "doc";
     content: string;
     filename: string;
   }[];
+};
+export type IngestJob = {
+  id: string;
+  status: "queued" | "processing" | "failed" | "completed";
+  documentId?: string;
+  error?: string;
+};
+export type ClassificationValues = {
+  department: string | null;
+  documentType: string | null;
+  tags: string[];
+};
+export type DocumentClassification = {
+  effective: ClassificationValues;
+  suggestion: ClassificationValues | null;
+  history: Array<{
+    at: string;
+    before: ClassificationValues;
+    after: ClassificationValues;
+  }>;
+  canEdit: boolean;
 };
 export const teams = [
   "ENGINEERING",

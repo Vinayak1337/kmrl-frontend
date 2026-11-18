@@ -21,12 +21,14 @@ type State = {
   baseUrl: string;
   theme: "system" | "light" | "dark";
   preferences: Preference;
+  pendingIngest: string | null;
   hydrate: () => Promise<void>;
   signIn: (session: Session) => Promise<void>;
   signOut: (notice?: string) => Promise<void>;
   enterDemo: () => Promise<void>;
   setBaseUrl: (url: string) => Promise<void>;
   setTheme: (theme: State["theme"]) => Promise<void>;
+  trackIngest: (id: string | null) => Promise<void>;
   toggle: (kind: keyof Preference, id: string) => Promise<void>;
 };
 const SESSION_KEY = "docsetu-session-v1";
@@ -51,6 +53,11 @@ const secure = {
 };
 const accountKey = (session: Session) =>
   `${PREF_KEY}:${session.baseUrl}:${session.user.sub}`;
+const ingestKey = (session: Session) => `${accountKey(session)}:ingest`;
+const readIngest = (session: Session) =>
+  session.demo
+    ? Promise.resolve(null)
+    : AsyncStorage.getItem(ingestKey(session)).catch(() => null);
 async function readPreferences(session: Session): Promise<Preference> {
   try {
     const raw = JSON.parse(
@@ -73,6 +80,7 @@ export const useApp = create<State>((set, get) => ({
   ready: false,
   authNotice: "",
   preferences: blank(),
+  pendingIngest: null,
   theme: "system",
   baseUrl: process.env.EXPO_PUBLIC_API_URL || "https://trydocsetu.vercel.app",
   hydrate: async () => {
@@ -96,7 +104,11 @@ export const useApp = create<State>((set, get) => ({
           session.user?.sub &&
           session.baseUrl === get().baseUrl
         )
-          set({ session, preferences: await readPreferences(session) });
+          set({
+            session,
+            preferences: await readPreferences(session),
+            pendingIngest: await readIngest(session),
+          });
         else await secure.remove();
       }
     } catch {
@@ -110,12 +122,18 @@ export const useApp = create<State>((set, get) => ({
     set({
       session,
       preferences: await readPreferences(session),
+      pendingIngest: await readIngest(session),
       authNotice: "",
     });
   },
   signOut: async (notice = "") => {
     // Clear memory first even if the native storage operation fails.
-    set({ session: null, preferences: blank(), authNotice: notice });
+    set({
+      session: null,
+      preferences: blank(),
+      pendingIngest: null,
+      authNotice: notice,
+    });
     await secure.remove();
   },
   enterDemo: async () =>
@@ -140,6 +158,13 @@ export const useApp = create<State>((set, get) => ({
       JSON.stringify({ baseUrl: get().baseUrl, theme }),
     );
     set({ theme });
+  },
+  trackIngest: async (id) => {
+    const { session } = get();
+    if (!session || session.demo) return;
+    set({ pendingIngest: id });
+    if (id) await AsyncStorage.setItem(ingestKey(session), id);
+    else await AsyncStorage.removeItem(ingestKey(session));
   },
   toggle: async (kind, id) => {
     const { session, preferences } = get();

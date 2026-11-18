@@ -9,6 +9,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { api, queryClient } from "../src/api";
 import { useApp } from "../src/store";
+import { PendingIngest } from "../src/PendingIngest";
 import {
   docTypes,
   teams,
@@ -38,6 +39,9 @@ export default function IngestScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const session = useApp((s) => s.session);
+  const pendingIngest = useApp((s) => s.pendingIngest);
+  const trackIngest = useApp((s) => s.trackIngest);
+  const [processingMode, setProcessingMode] = useState("foreground");
   const isAdmin = session?.user.role === "ADMIN";
   const availableGrants =
     session?.user.grants.filter((g) => g.actions.includes("ingest")) || [];
@@ -84,6 +88,13 @@ export default function IngestScreen() {
         throw new Error(
           "Sign in to a live workspace to add documents. This sample does not upload files.",
         );
+      if (processingMode === "background" && mode !== "paste") {
+        const job = await api.startIngestJob(input);
+        if (!job.id)
+          throw new Error("The server did not return an upload reference.");
+        await trackIngest(job.id);
+        return { jobId: job.id };
+      }
       const result = await api.ingest(input);
       if (!result.documentId)
         throw new Error(
@@ -92,6 +103,8 @@ export default function IngestScreen() {
       return result;
     },
     onSuccess: (data) => {
+      if (!("documentId" in data)) return;
+      const { documentId } = data;
       setFinished(true);
       success();
       void queryClient.invalidateQueries({ queryKey: ["documents"] });
@@ -101,7 +114,7 @@ export default function IngestScreen() {
         () =>
           router.replace({
             pathname: "/document/[id]",
-            params: { id: data.documentId },
+            params: { id: documentId },
           }),
         0,
       );
@@ -111,7 +124,7 @@ export default function IngestScreen() {
     },
   });
   usePreventRemove(
-    !!session && !finished && (dirty || ingest.isPending),
+    !!session && !finished && !pendingIngest && (dirty || ingest.isPending),
     ({ data }) => {
       if (ingest.isPending) return;
       void confirm(
@@ -129,7 +142,13 @@ export default function IngestScreen() {
     setError(null);
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "text/plain", "image/jpeg", "image/png"],
+        type: [
+          "application/pdf",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "text/plain",
+          "image/jpeg",
+          "image/png",
+        ],
         copyToCacheDirectory: true,
       });
       if (result.canceled) return;
@@ -139,10 +158,12 @@ export default function IngestScreen() {
       const kind =
         file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name)
           ? "pdf"
-          : file.mimeType?.startsWith("image/") ||
-              /\.(png|jpe?g)$/i.test(file.name)
-            ? "image"
-            : "text";
+          : /\.docx$/i.test(file.name)
+            ? "doc"
+            : file.mimeType?.startsWith("image/") ||
+                /\.(png|jpe?g)$/i.test(file.name)
+              ? "image"
+              : "text";
       // fetch + FileReader reads picker URIs in standalone builds, Expo Go and web alike;
       // the legacy file API refuses the picker cache inside Expo Go's sandbox.
       const blob =
@@ -219,6 +240,37 @@ export default function IngestScreen() {
             .map((g) => g.type.toLowerCase()),
         ),
       ];
+  if (pendingIngest)
+    return (
+      <Screen>
+        <PendingIngest
+          key={pendingIngest}
+          id={pendingIngest}
+          leave={() => router.back()}
+          clear={async () => {
+            setSource(null);
+            setText("");
+            setTitle("");
+            setPreview("");
+            setError(null);
+            ingest.reset();
+            await trackIngest(null);
+          }}
+          open={(documentId) => {
+            setFinished(true);
+            void trackIngest(null).catch(() => {});
+            for (const key of ["documents", "actions", "alerts"])
+              void queryClient.invalidateQueries({ queryKey: [key] });
+            router.replace({
+              pathname: "/document/[id]",
+              params: { id: documentId },
+            });
+          }}
+        />
+        {error ? <ErrorState error={error} /> : null}
+      </Screen>
+    );
+
   return (
     <Screen>
       <Stack.Screen
@@ -295,12 +347,12 @@ export default function IngestScreen() {
             </Text>
           )}
           <Text size="small" tone="secondary">
-            PDF, text, JPG or PNG · up to 2.5 MB
+            PDF, Word, text, JPG or PNG · up to 2.5 MB
           </Text>
         </View>
       )}
       {source?.type === "image" && mode !== "paste" && (
-        <Notice message="This photo will be saved as an image record. Automatic text extraction is not available; use Paste for searchable text." />
+        <Notice message="DocSetu reads the text in this image during processing." />
       )}
       <Field
         label="Title"
@@ -342,6 +394,18 @@ export default function IngestScreen() {
         options={languages.map((value) => ({ label: value, value }))}
         onChange={setLanguage}
       />
+      {mode !== "paste" && source && !session?.demo && (
+        <Chips
+          value={processingMode}
+          onChange={(value) => {
+            if (!ingest.isPending) setProcessingMode(value);
+          }}
+          options={[
+            { label: "Process now", value: "foreground" },
+            { label: "Process in background", value: "background" },
+          ]}
+        />
+      )}
       {session?.demo && (
         <Notice message="Sample workspace. You can try the form; uploads need a live account." />
       )}

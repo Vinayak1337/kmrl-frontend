@@ -1,3 +1,4 @@
+import { SectionSource } from "../src/SectionSource";
 import { useState } from "react";
 import { View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -62,11 +63,13 @@ export default function Source() {
           { label: "Summary", value: "summary" },
         ]}
       />
-      <Text selectable style={{ lineHeight: 28 }}>
-        {view === "source"
-          ? node.content || "No text was extracted from this section."
-          : node.summary || "No summary is available."}
-      </Text>
+      {view === "source" ? (
+        <SectionSource section={node} />
+      ) : (
+        <Text selectable style={{ lineHeight: 28 }}>
+          {node.summary || "No summary is available."}
+        </Text>
+      )}
       {!!error && <ErrorState error={error} />}
       <Button
         kind="secondary"

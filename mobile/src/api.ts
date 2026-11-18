@@ -6,8 +6,11 @@ import type {
   Audit,
   DeadlineAlert,
   Document,
+  DocumentClassification,
+  ClassificationValues,
   History,
   Ingest,
+  IngestJob,
   Person,
   Section,
   User,
@@ -207,6 +210,33 @@ export const api = {
     request<{ documentId: string; results?: unknown[] }>(
       "/api/documents/ingest",
       { method: "POST", body: JSON.stringify(input) },
+    ),
+  startIngestJob: (input: Ingest) =>
+    request<{ id: string }>("/api/documents/ingest/jobs", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  ingestJob: (id: string, signal?: AbortSignal) =>
+    request<IngestJob>(`/api/documents/ingest/jobs/${encodeURIComponent(id)}`, {
+      signal,
+    }),
+  retryIngestJob: (id: string) =>
+    request<{ id: string }>(
+      `/api/documents/ingest/jobs/${encodeURIComponent(id)}`,
+      { method: "POST" },
+    ),
+  classification: (id: string, signal?: AbortSignal) =>
+    request<DocumentClassification>(
+      `/api/documents/${encodeURIComponent(id)}/classification`,
+      { signal },
+    ),
+  saveClassification: (id: string, values: ClassificationValues) =>
+    request<DocumentClassification>(
+      `/api/documents/${encodeURIComponent(id)}/classification`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(values),
+      },
     ),
   remove: (id: string) =>
     request(`/api/documents/${encodeURIComponent(id)}`, { method: "DELETE" }),
