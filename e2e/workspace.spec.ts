@@ -239,13 +239,20 @@ test('manager navigation and server redirects enforce administrator routes',asyn
 test('reviewers can apply an AI suggestion and see the correction history', async ({ page }) => {
   let effective = { department: 'OPERATIONS', documentType: 'sop', tags: ['Review'] };
   const suggestion = { department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier, ltd'], source: 'oci' };
-  const history: Array<{ by: string; at: string; before: typeof effective; after: typeof effective }> = [];
+  const history: Array<{ by: string; at: string; before: typeof effective; after: typeof effective; note: string }> = [];
+  let pending: { value: typeof effective; note: string } | undefined;
   await page.route(`**/api/documents/${documentId}/classification`, async route => {
     if (route.request().method() === 'PATCH') {
-      const after = route.request().postDataJSON();
-      expect(after).toEqual({ department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier, ltd', 'verified'] });
-      history.push({ by: user.sub, at: '2026-11-18T10:00:00.000Z', before: effective, after });
-      effective = after;
+      const { note, ...value } = route.request().postDataJSON();
+      expect(value).toEqual({ department: 'PROCUREMENT', documentType: 'tender', tags: ['supplier, ltd', 'verified'] });
+      expect(note).toBe('Preserve the vendor name in the brief.');
+      pending = { value, note };
+      return route.fulfill({ status: 202, json: { effective, suggestion, history, canEdit: true, processing: { id: 'correction-1', status: 'queued', target: value, note } } });
+    }
+    if (pending) {
+      history.push({ by: user.sub, at: '2026-11-18T10:00:00.000Z', before: effective, after: pending.value, note: pending.note });
+      effective = pending.value;
+      pending = undefined;
     }
     await route.fulfill({ json: { effective, suggestion, history, canEdit: true } });
   });
@@ -256,8 +263,11 @@ test('reviewers can apply an AI suggestion and see the correction history', asyn
   await dialog.getByRole('button', { name: 'Use suggestion' }).click();
   await expect(dialog.getByRole('combobox', { name: 'Team' })).toHaveValue('PROCUREMENT');
   await dialog.getByRole('textbox', { name: 'Tags' }).fill('supplier, ltd\nverified');
+  await dialog.getByRole('textbox', { name: /Correction note/ }).fill('Preserve the vendor name in the brief.');
   await dialog.getByRole('button', { name: 'Save classification' }).click();
+  await expect(dialog.getByRole('status')).toContainText('Rebuilding the document');
   await expect(dialog.getByRole('status')).toHaveText('Classification saved.');
+  await expect(dialog.getByText('Preserve the vendor name in the brief.', { exact: true })).toBeVisible();
   await expect(dialog.getByText('Correction history')).toBeVisible();
   await expect(dialog.getByText(/Operations.*Procurement/)).toBeVisible();
   await page.keyboard.press('Escape');

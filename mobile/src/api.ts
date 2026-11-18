@@ -230,7 +230,7 @@ export const api = {
       `/api/documents/${encodeURIComponent(id)}/classification`,
       { signal },
     ),
-  saveClassification: (id: string, values: ClassificationValues) =>
+  saveClassification: (id: string, values: ClassificationValues & { note?: string }) =>
     request<DocumentClassification>(
       `/api/documents/${encodeURIComponent(id)}/classification`,
       {

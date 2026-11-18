@@ -10,11 +10,11 @@ import { chunkDocument, sourceSectionTitle } from '@/lib/ingest/chunker';
 import { validateChunkCoverage } from '@/lib/ingest/validation';
 import { buildPersistedChunk, buildPersistedDocument, ChunkEnrichmentData } from '@/lib/ingest/builder';
 import { classificationSuggestion } from '@/lib/ingest/classification';
-import type { ManagerAnalysisJSON } from '@/lib/prompt';
+import type { EnrichmentContext, ManagerAnalysisJSON } from '@/lib/prompt';
 import { VALID_LANGUAGES } from '@/lib/languages';
 import { stripSummaryHeading } from '@/adapters/documentAdapter';
 import { canIngestDocument } from '@/lib/documentPermissions';
-import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
+import type { ClassificationValues, DocumentRecord, DocumentNodeRecord } from '@/types/documents';
 
 export interface IngestPayload {
 	language?: string;
@@ -58,7 +58,7 @@ function extractActionsHeuristic(text: string): string[] {
 	return sentences.filter(s => actionRegex.test(s) && s.length >= 20 && s.length <= 200).slice(0, 5);
 }
 
-export async function ingestDocuments(session: JwtUser, body: IngestPayload, options?: { documentId?: string }): Promise<NextResponse> {
+export async function ingestDocuments(session: JwtUser, body: IngestPayload, options?: { documentId?: string; correction?: { jobId: string; before: ClassificationValues; value: ClassificationValues; note?: string } }): Promise<NextResponse> {
 	const startTime = Date.now();
 	try {
 		if (!canIngestDocument(session, body.department, body.documentType)) {
@@ -92,7 +92,7 @@ export async function ingestDocuments(session: JwtUser, body: IngestPayload, opt
 		for (let i = 0; i < rawDocs.length; i++) {
 			const rawDoc = rawDocs[i];
 			const docId = options?.documentId || `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-			if (options?.documentId) {
+			if (options?.documentId && !options.correction) {
 				const existing = await docsCollection.findOne({ id: docId });
 				if (existing) {
 					const count = await nodesCollection.countDocuments({ docId });
@@ -162,7 +162,12 @@ export async function ingestDocuments(session: JwtUser, body: IngestPayload, opt
 
 			// 4. AI ENRICHMENT
 			console.log(`[ingest] AI_STARTED | docId=${docId}`);
-			const aiAnalysis: ManagerAnalysisJSON | null = await enrichChunks(rawChunks, { department, documentType });
+			const context: EnrichmentContext = { department, documentType };
+			if (options?.correction) context.correction = { tags, note: options.correction.note };
+			const aiAnalysis: ManagerAnalysisJSON | null = await enrichChunks(rawChunks, context, options?.correction ? 'correction' : 'ingest', options?.correction ? startTime + 270_000 : undefined);
+			if (options?.correction && (!aiAnalysis?.overallMd || !rawChunks.every((chunk, index) => aiNodeFor(aiAnalysis.nodes, chunk, index, rawChunks.length)?.summaryMd))) {
+				return NextResponse.json({ error: 'The model did not rebuild every section. Please retry the correction.' }, { status: 422 });
+			}
 			console.log(
 				`[ingest] AI_COMPLETED | docId=${docId} | status=${aiAnalysis ? 'enriched' : 'heuristic'}`
 			);
@@ -183,7 +188,7 @@ export async function ingestDocuments(session: JwtUser, body: IngestPayload, opt
 						? aiNode.keyPoints
 						: extractKeyPointsHeuristic(chunk.text),
 					keyPointsMd: aiNode?.keyPointsMd,
-					actionableItems: Array.isArray(aiNode?.actionableItems) && aiNode.actionableItems.length > 0
+					actionableItems: Array.isArray(aiNode?.actionableItems)
 						? aiNode.actionableItems.map(a => (typeof a === 'string' ? a : `${a.owner ? a.owner + ': ' : ''}${a.action || ''}`))
 						: extractActionsHeuristic(chunk.text),
 					actionsMd: aiNode?.actionsMd,
@@ -229,7 +234,39 @@ export async function ingestDocuments(session: JwtUser, body: IngestPayload, opt
 
 			// 7. PERSISTENCE WITH COMPENSATING CLEANUP
 			console.log(`[ingest] PERSIST_STARTED | docId=${docId}`);
-			if (options?.documentId) {
+			if (options?.correction) {
+				const correction = options.correction;
+				const { client } = await getMongo();
+				const at = new Date();
+				const applied = await client.withSession(mongoSession => mongoSession.withTransaction(async () => {
+					const result = await docsCollection.updateOne({ id: docId, classificationReprocessId: correction.jobId }, {
+						$set: {
+							totalPages: persistedDoc.totalPages,
+							nodeCount: persistedDoc.nodeCount,
+							fullSummary: persistedDoc.fullSummary,
+							overallMd: persistedDoc.overallMd,
+							keywords: persistedDoc.keywords,
+							searchableText: persistedDoc.searchableText,
+							classificationSuggestion: persistedDoc.classificationSuggestion,
+							classificationAppliedId: correction.jobId,
+							'raw.text': normalized.fullText,
+							...(department ? { 'metadata.department': department } : {}),
+							...(documentType ? { 'metadata.documentType': documentType } : {}),
+							'metadata.tags': tags,
+							'metadata.updatedAt': at,
+						},
+						$unset: { nodes: '', classificationReprocessId: '', ...(!department ? { 'metadata.department': '' } : {}), ...(!documentType ? { 'metadata.documentType': '' } : {}) },
+						$push: { classificationHistory: { at, by: session.sub, before: correction.before, after: correction.value, ...(correction.note ? { note: correction.note } : {}) } },
+					}, { session: mongoSession });
+					if (!result.matchedCount) return false;
+					await nodesCollection.bulkWrite(persistedChunks.map(chunk => ({
+						replaceOne: { filter: { docId, uid: chunk.uid }, replacement: chunk, upsert: true },
+					})), { session: mongoSession });
+					await nodesCollection.deleteMany({ docId, uid: { $nin: persistedChunks.map(chunk => chunk.uid) } }, { session: mongoSession });
+					return true;
+				}));
+				return NextResponse.json({ success: applied, documentId: docId, nodeCount: persistedChunks.length }, { status: applied ? 200 : 409 });
+			} else if (options?.documentId) {
 				// A transaction makes the stable id and all nodes visible together. A retry
 				// never deletes records belonging to a concurrent or completed attempt.
 				const { client } = await getMongo();

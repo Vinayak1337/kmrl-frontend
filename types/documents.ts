@@ -25,11 +25,14 @@ export type DocumentMetadata = {
 
 export type ClassificationValues = { department: string | null; documentType: string | null; tags: string[] };
 export type ClassificationSuggestion = ClassificationValues & { source: 'oci' };
-export type ClassificationHistoryEntry = { by: string; at: Date; before: ClassificationValues; after: ClassificationValues };
+export type ClassificationHistoryEntry = { by: string; at: Date; before: ClassificationValues; after: ClassificationValues; note?: string };
 
 export type DocumentRecord = {
  classificationSuggestion?: ClassificationSuggestion | null;
  classificationHistory?: ClassificationHistoryEntry[];
+ classificationReprocessId?: string;
+ classificationAppliedId?: string;
+ feedback?: Array<{ id: string; type: string; message: string; createdAt: Date; createdBy: string; status: string }>;
 	id: string; // stable external id e.g. doc-...
 	title: string;
 	originalFormat: 'html' | 'text' | 'image' | 'pdf' | 'doc' | string;

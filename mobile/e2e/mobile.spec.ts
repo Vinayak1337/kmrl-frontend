@@ -282,7 +282,7 @@ test("native web client tracks a background file and saves a classification corr
     if (path.endsWith("/classification")) {
       const update = request.method() === "PATCH";
       if (update) {
-        expect(request.postDataJSON()).toEqual(suggestion);
+        expect(request.postDataJSON()).toEqual({ ...suggestion, note: "" });
         correction = true;
       }
       return respond({

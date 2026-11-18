@@ -1,196 +1,52 @@
-export const runtime = 'nodejs';
-export const maxDuration = 300;
+import { randomUUID } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { AUTH_COOKIE, verifySession, isDocumentAccessible } from '@/lib/auth';
-import { getCollection, getMongo } from '@/lib/mongo';
-import { normalizeExtractedContent } from '@/lib/ingest/normalization';
-import { classificationSuggestion } from '@/lib/ingest/classification';
-import { chunkDocument, sourceSectionTitle } from '@/lib/ingest/chunker';
-import { validateChunkCoverage } from '@/lib/ingest/validation';
-import { buildPersistedChunk, ChunkEnrichmentData } from '@/lib/ingest/builder';
-import type { ManagerAnalysisJSON } from '@/lib/prompt';
-import { aiNodeFor, aiNodeTitle, enrichChunks } from '@/lib/ingest/enrich';
-import type { DocumentRecord, DocumentNodeRecord } from '@/types/documents';
+import { getCollection } from '@/lib/mongo';
+import { dispatchJob, markDispatchFailed, queueCorrection } from '@/lib/ingest/jobs';
+import type { DocumentRecord } from '@/types/documents';
 
-export async function POST(
-	req: NextRequest,
-	ctx: { params: Promise<{ id: string }> }
-) {
-	const { id } = await ctx.params;
-	const token = (await cookies()).get(AUTH_COOKIE)?.value;
-	const session = token ? verifySession(token) : null;
-	if (!session) {
-		return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-	}
+export const runtime = 'nodejs';
+export const maxDuration = 300;
 
-	try {
-		const body = await req.json();
-		const { type = 'general', message = '', reprocess = true } = body || {};
+export async function POST(request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const token = (await cookies()).get(AUTH_COOKIE)?.value;
+  const session = token ? verifySession(token) : null;
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-		const docsColl = await getCollection<DocumentRecord>();
-		const doc = await docsColl.findOne({ id });
-		if (!doc) {
-			return NextResponse.json({ error: 'Document not found' }, { status: 404 });
-		}
-		if (!isDocumentAccessible(session, doc) || (reprocess && session.role !== 'ADMIN')) {
-			return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-		}
+  const { id } = await ctx.params;
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return NextResponse.json({ error: 'Invalid feedback.' }, { status: 400 });
+  }
+  const { type = 'general', message = '', reprocess = true } = body;
+  if (typeof message !== 'string' || message.length > 1000 || typeof type !== 'string' || type.length > 80 || typeof reprocess !== 'boolean') {
+    return NextResponse.json({ error: 'Enter a feedback message of up to 1,000 characters.' }, { status: 400 });
+  }
 
-		const feedback = {
-			id: `fb-${Date.now()}`,
-			type: String(type),
-			message: String(message || ''),
-			createdAt: new Date(),
-			createdBy: session.sub,
-			status: reprocess ? 'reprocess-completed' : 'recorded'
-		};
+  try {
+    const docs = await getCollection<DocumentRecord>();
+    const doc = await docs.findOne({ id }, { projection: { metadata: 1 } });
+    if (!doc) return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    if (!isDocumentAccessible(session, doc) || (reprocess && session.role !== 'ADMIN')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
-		// Reprocess document using recovered raw source content
-		if (reprocess && doc.raw && doc.raw.content && doc.raw.type) {
-			try {
+    if (reprocess) {
+      const result = await queueCorrection(session.sub, id, undefined, message.trim() || undefined);
+      if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status });
+      if (result.status === 202) {
+        try { await dispatchJob(result.id); } catch { await markDispatchFailed(result.id); }
+        return NextResponse.json({ ok: true, reprocessed: false, jobId: result.id }, { status: 202 });
+      }
+    }
 
-				console.log(`[feedback] REPROCESS_STARTED | docId=${id} | rawType=${doc.raw.type}`);
-
-				// 1. Re-normalize from raw content
-				const normalized = await normalizeExtractedContent({
-					type: doc.raw.type,
-					content: doc.raw.content,
-					filename: doc.title,
-					title: doc.title
-				});
-
-				// 2. Re-chunk
-				const rawChunks = chunkDocument(normalized, id);
-				console.log(`[feedback] RECHUNK_COMPLETED | docId=${id} | chunkCount=${rawChunks.length}`);
-
-				// 2.5 Validate chunk coverage before proceeding
-				const validation = validateChunkCoverage(normalized, rawChunks);
-				if (!validation.valid) {
-					console.error(`[feedback] CHUNK_VALIDATION_FAILED | docId=${id} | errors=${validation.errors.join('; ')}`);
-					return NextResponse.json(
-						{
-							error: 'Reprocess chunk validation failed',
-							errors: validation.errors,
-							metrics: validation.metrics
-						},
-						{ status: 422 }
-					);
-				}
-
-				// 3. AI Enrichment
-				const aiAnalysis: ManagerAnalysisJSON | null = await enrichChunks(rawChunks, {
-					department: doc.metadata?.department,
-					documentType: doc.metadata?.documentType
-				}, 'feedback');
-
-				// 4. Build canonical persisted chunks
-				const aiNodes = aiAnalysis?.nodes || [];
-				const newChunks: DocumentNodeRecord[] = rawChunks.map((chunk, idx) => {
-					const aiNode = aiNodeFor(aiNodes, chunk, idx, rawChunks.length);
-
-					const enrichment: ChunkEnrichmentData = {
-						title: aiNodeTitle(aiNode) || sourceSectionTitle(chunk.text),
-						summary: aiNode?.summaryMd
-							? aiNode.summaryMd.replace(/[#*_`]+/g, ' ').replace(/\s+/g, ' ').trim()
-							: chunk.text.slice(0, 300),
-						summaryMd: aiNode?.summaryMd,
-						keyPoints: Array.isArray(aiNode?.keyPoints) ? aiNode.keyPoints : [],
-						keyPointsMd: aiNode?.keyPointsMd,
-						actionableItems: Array.isArray(aiNode?.actionableItems)
-							? aiNode.actionableItems.map(a =>
-									typeof a === 'string' ? a : `${a.owner ? a.owner + ': ' : ''}${a.action || ''}`
-							  )
-							: [],
-						actionsMd: aiNode?.actionsMd,
-						criticalFlags: aiNode?.criticalFlags,
-						crossDepartments: aiNode?.crossDepartments
-					};
-
-					return buildPersistedChunk(
-						chunk,
-						id,
-						rawChunks.length,
-						{
-							department: doc.metadata?.department,
-							documentType: doc.metadata?.documentType,
-							tags: doc.metadata?.tags || []
-						},
-						enrichment
-					);
-				});
-
-				// 5. Safe swap: insert new chunks, delete old chunks
-				const nodesColl = await getCollection<DocumentNodeRecord>(
-					process.env.MONGODB_NODES_COLLECTION || 'document_nodes'
-				);
-
-				// 6. Update document record
-				const overallSummary =
-					(aiAnalysis?.overallMd
-						? aiAnalysis.overallMd.replace(/[#*_`]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 600)
-						: null) ||
-					newChunks.map(c => c.summary).slice(0, 2).join(' ') ||
-					doc.fullSummary;
-
-				const overallMd = aiAnalysis?.overallMd || doc.overallMd;
-
-				// Reprocessing and classification corrections must serialize on the
-				// document record; otherwise old node grants could be written back.
-				const { client } = await getMongo();
-				const mongoSession = client.startSession();
-				try {
-					await mongoSession.withTransaction(async () => {
-						const current = await docsColl.findOne({ id }, { session: mongoSession });
-						if (!current || JSON.stringify([current.metadata?.department, current.metadata?.documentType, current.metadata?.tags || []]) !== JSON.stringify([doc.metadata?.department, doc.metadata?.documentType, doc.metadata?.tags || []])) throw new Error('Classification changed during reprocessing');
-						if (newChunks.length) {
-							await nodesColl.bulkWrite(newChunks.map(chunk => ({
-								replaceOne: { filter: { docId: id, uid: chunk.uid }, replacement: chunk, upsert: true },
-							})), { session: mongoSession });
-						}
-						await nodesColl.deleteMany({ docId: id, uid: { $nin: newChunks.map(chunk => chunk.uid) } }, { session: mongoSession });
-						const suggestion = classificationSuggestion(aiAnalysis);
-						await docsColl.updateOne({ id }, {
-							$set: {
-								nodeCount: newChunks.length,
-								fullSummary: overallSummary,
-								overallMd,
-								...(suggestion ? { classificationSuggestion: suggestion } : {}),
-								'metadata.updatedAt': new Date(),
-							},
-							$push: {
-								feedback: feedback as any,
-								history: {
-									id: `ev-${Date.now()}`,
-									type: 'reprocessed',
-									by: session.sub,
-									at: new Date(),
-									feedbackId: feedback.id,
-								} as any,
-							},
-						}, { session: mongoSession });
-					});
-				} finally { await mongoSession.endSession(); }
-
-				console.log(`[feedback] REPROCESS_COMPLETED | docId=${id} | newChunks=${newChunks.length}`);
-				return NextResponse.json({ ok: true, reprocessed: true, nodeCount: newChunks.length });
-			} catch (reprocessErr) {
-				console.error('[feedback] Reprocessing execution error:', reprocessErr);
-				// Still record feedback
-			}
-		}
-
-		// Just record feedback
-		await docsColl.updateOne(
-			{ id },
-			{
-				$push: { feedback: { ...feedback, status: 'recorded' } as any }
-			}
-		);
-
-		return NextResponse.json({ ok: true, reprocessed: false });
-	} catch (e) {
-		console.error('Feedback error:', e);
-		return NextResponse.json({ error: 'Failed to submit feedback' }, { status: 500 });
-	}
+    await docs.updateOne({ id }, {
+      $push: { feedback: { id: randomUUID(), type, message, createdAt: new Date(), createdBy: session.sub, status: 'recorded' } },
+    });
+    return NextResponse.json({ ok: true, reprocessed: false });
+  } catch (error) {
+    console.error('[feedback] failed to submit feedback', error);
+    return NextResponse.json({ error: 'Failed to submit feedback' }, { status: 500 });
+  }
 }

@@ -1,18 +1,21 @@
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { after } from 'next/server';
 import { send } from '@vercel/queue';
-import { getCollection } from '@/lib/mongo';
+import { getCollection, getMongo } from '@/lib/mongo';
 import { prisma } from '@/lib/prisma';
 import { canIngestDocument } from '@/lib/documentPermissions';
 import type { JwtUser } from '@/lib/auth';
 import { getAuthSecret } from '@/lib/authSecret';
 import { ingestDocuments, type IngestPayload } from '@/lib/ingest/handleIngest';
 
+import { classificationView, validateClassification } from '@/lib/ingest/classification';
+import type { ClassificationValues, DocumentRecord } from '@/types/documents';
+
 const COLLECTION = 'ingest_jobs';
 const LEASE_MS = 6 * 60 * 1000;
 const TTL_MS = 24 * 60 * 60 * 1000;
 const FILE_LIMIT = 3.2 * 1024 * 1024;
-type Job = { id: string; owner: string; documentId: string; status: 'queued' | 'processing' | 'failed' | 'completed'; payload?: IngestPayload; error?: string; leaseUntil?: Date; leaseToken?: string; expiresAt: Date; createdAt: Date };
+type Job = { id: string; owner: string; documentId: string; status: 'queued' | 'processing' | 'failed' | 'completed'; payload?: IngestPayload; correction?: { value: ClassificationValues; note?: string }; error?: string; leaseUntil?: Date; leaseToken?: string; expiresAt: Date; createdAt: Date };
 
 let indexesReady: Promise<unknown> | undefined;
 async function jobs() {
@@ -63,6 +66,44 @@ export async function createJob(owner: string, payload: IngestPayload) {
   await (await jobs()).insertOne(job);
   return job;
 }
+export async function correctionStatus(id: string) {
+  const job = await (await jobs()).findOne({ id, correction: { $exists: true }, expiresAt: { $gt: new Date() } }, {
+    projection: { id: 1, status: 1, error: 1, correction: 1, _id: 0 },
+  });
+  return job ? { id: job.id, status: job.status, error: job.error, target: job.correction?.value, note: job.correction?.note } : {
+    id, status: 'failed' as const, error: 'This run expired. Save your correction again.',
+  };
+}
+
+export async function queueCorrection(owner: string, documentId: string, payload: unknown, note: string | undefined) {
+  const collection = await jobs();
+  const docs = await getCollection<DocumentRecord>();
+  const { client } = await getMongo();
+  return client.withSession(session => session.withTransaction(async () => {
+    const doc = await docs.findOne({ id: documentId }, { session });
+    if (!doc) return { status: 404, error: 'Document not found' } as const;
+    const current = classificationView(doc);
+    const value = payload === undefined ? current.effective : validateClassification(payload, current.effective);
+    if (!value) return { status: 400, error: 'Choose valid classification values and up to 20 tags of 60 characters each.' } as const;
+    if (doc.classificationReprocessId) {
+      const active = await collection.findOne({
+        id: doc.classificationReprocessId, expiresAt: { $gt: new Date() }, status: { $in: ['queued', 'processing'] },
+      }, { session });
+      if (active) return { status: 409, error: 'A correction is already rebuilding this document.' } as const;
+    }
+    if (payload !== undefined && !note && JSON.stringify(value) === JSON.stringify(current.effective)) return { status: 200, current } as const;
+    if (!doc.raw?.type || !doc.raw.content) {
+      return { status: 422, error: 'The original source is unavailable. Upload the original to rebuild this document.' } as const;
+    }
+    const now = new Date();
+    const id = randomUUID();
+    const correction = { value, ...(note ? { note } : {}) };
+    await docs.updateOne({ id: documentId }, { $set: { classificationReprocessId: id } }, { session });
+    await collection.insertOne({ id, owner, documentId, status: 'queued', correction, createdAt: now, expiresAt: new Date(now.getTime() + TTL_MS) }, { session });
+    return { status: 202, current, id, correction } as const;
+  }));
+}
+
 export async function findJob(id: string, owner: string) {
   return (await jobs()).findOne({ id, owner, expiresAt: { $gt: new Date() } }, { projection: { payload: 0 } });
 }
@@ -93,11 +134,26 @@ export async function processJob(id: string) {
   }
   try {
     const user = await currentUser(job.owner);
-    if (!user || !job.payload || !canIngestDocument(user, job.payload.department, job.payload.documentType)) {
-      await collection.updateOne({ id, leaseToken: token }, { $set: { status: 'failed', error: 'You no longer have permission to add this document.' }, $unset: { leaseToken: '', leaseUntil: '' } });
-      return;
+    let response: Response;
+    if (job.correction) {
+      const doc = await (await getCollection<DocumentRecord>()).findOne({ id: job.documentId });
+      if (doc?.classificationAppliedId === id) {
+        response = new Response(null, { status: 200 });
+      } else if (user?.role !== 'ADMIN' || doc?.classificationReprocessId !== id || !doc.raw?.content) {
+        response = Response.json({ error: 'The source or permission to rebuild this document is no longer available.' }, { status: 403 });
+      } else {
+        const { value, note } = job.correction;
+        response = await ingestDocuments(user, {
+          title: doc.title, language: doc.language,
+          department: value.department ?? undefined, documentType: value.documentType ?? undefined, tags: value.tags,
+          documents: [{ type: doc.raw.type, content: doc.raw.content, filename: doc.title }],
+        }, { documentId: job.documentId, correction: { jobId: id, before: classificationView(doc).effective, value, note } });
+      }
+    } else if (!user || !job.payload || !canIngestDocument(user, job.payload.department, job.payload.documentType)) {
+      response = Response.json({ error: 'You no longer have permission to add this document.' }, { status: 403 });
+    } else {
+      response = await ingestDocuments(user, job.payload, { documentId: job.documentId });
     }
-    const response = await ingestDocuments(user, job.payload, { documentId: job.documentId });
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       await collection.updateOne({ id, leaseToken: token }, { $set: { status: 'failed', error: response.status < 500 && typeof data.error === 'string' ? data.error : 'The document could not be processed. Please try again.' }, $unset: { leaseToken: '', leaseUntil: '' } });

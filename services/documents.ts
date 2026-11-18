@@ -62,14 +62,14 @@ export async function listDocuments(
 
 /** Fetch a persisted document; missing or inaccessible records remain errors. */
 export async function getDocument(id: string): Promise<DocSetuDocument> {
-  const res = await fetch(`/api/documents/ingest?id=${encodeURIComponent(id)}`, { credentials: 'include' });
+  const res = await fetch(`/api/documents/ingest?id=${encodeURIComponent(id)}`, { credentials: 'include', cache: 'no-store' });
   if (!res.ok) throw new Error('Document unavailable');
   return mapBackendDocToDocSetu(await res.json());
 }
 
 /** Fetch paginated sections without substituting sample source text. */
 export async function getDocumentSections(id: string, page = 0, limit = 20): Promise<{ sections: DocumentSection[]; total: number }> {
-  const res = await fetch(`/api/documents/${encodeURIComponent(id)}/nodes?page=${page}&limit=${limit}`, { credentials: 'include' });
+  const res = await fetch(`/api/documents/${encodeURIComponent(id)}/nodes?page=${page}&limit=${limit}`, { credentials: 'include', cache: 'no-store' });
   if (!res.ok) throw new Error('Could not load document sections');
   const data = await res.json();
   if (!Array.isArray(data.nodes)) throw new Error('Invalid sections response');
@@ -160,6 +160,7 @@ export async function deleteDocument(id: string): Promise<boolean> {
 
 export type DocumentClassification = {
   canEdit: boolean;
+  processing?: { id: string; status: IngestJobStatus['status']; error?: string; target?: ClassificationValues; note?: string } | null;
   effective: ClassificationValues;
   suggestion: ClassificationSuggestion | null;
   history: Array<Omit<ClassificationHistoryEntry, 'at'> & { at: string }>;
@@ -169,14 +170,14 @@ export async function getDocumentClassification(
   id: string,
   signal?: AbortSignal,
 ): Promise<DocumentClassification> {
-  const response = await fetch(`/api/documents/${encodeURIComponent(id)}/classification`, { signal });
+  const response = await fetch(`/api/documents/${encodeURIComponent(id)}/classification`, { signal, cache: 'no-store' });
   if (!response.ok) throw new Error('Could not load classification.');
   return response.json();
 }
 
 export async function saveDocumentClassification(
   id: string,
-  values: DocumentClassification['effective'],
+  values: DocumentClassification['effective'] & { note?: string },
 ): Promise<DocumentClassification> {
   const response = await fetch(`/api/documents/${encodeURIComponent(id)}/classification`, {
     method: 'PATCH',

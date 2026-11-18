@@ -153,11 +153,13 @@ export type ClassificationValues = {
 };
 export type DocumentClassification = {
   effective: ClassificationValues;
+  processing?: { id: string; status: IngestJob["status"]; error?: string; target?: ClassificationValues; note?: string } | null;
   suggestion: ClassificationValues | null;
   history: Array<{
     at: string;
     before: ClassificationValues;
     after: ClassificationValues;
+    note?: string;
   }>;
   canEdit: boolean;
 };

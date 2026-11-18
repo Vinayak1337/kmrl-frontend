@@ -1,5 +1,5 @@
 import { generateJson } from '@/lib/ai/generate';
-import { buildManagerMdPrompt, type ManagerAnalysisJSON, type ManagerNodeJSON } from '@/lib/prompt';
+import { buildManagerMdPrompt, reviewerContext, type EnrichmentContext, type ManagerAnalysisJSON, type ManagerNodeJSON } from '@/lib/prompt';
 import type { DocumentChunk } from './chunker';
 
 const INPUT_BUDGET = 45000;
@@ -16,21 +16,27 @@ export function chunkedInput(chunks: DocumentChunk[], budget = INPUT_BUDGET): st
     .slice(0, budget + 2000);
 }
 
-async function enrichBatch(chunks: DocumentChunk[], meta: { department?: string; documentType?: string }, total: number) {
+function generationBudget(deadline?: number) {
+  const remaining = deadline ? deadline - Date.now() : 150_000;
+  if (remaining < 1000) throw new Error('Enrichment deadline reached');
+  return { timeoutMs: Math.min(remaining, 150_000), ...(deadline ? { maxRetries: 0 } : {}) };
+}
+
+async function enrichBatch(chunks: DocumentChunk[], meta: EnrichmentContext, total: number, deadline?: number) {
   const scope = chunks.length === total ? `${total} numbered chunks` : `chunks ${chunks[0].order}-${chunks[chunks.length - 1].order} of ${total}`;
   return generateJson<ManagerAnalysisJSON>({
     instructions: buildManagerMdPrompt(meta),
     input: `Document content, ${scope}:\n\n${chunkedInput(chunks, chunks.length === total ? INPUT_BUDGET : 24000)}`,
-    timeoutMs: 150000,
+    ...generationBudget(deadline),
   });
 }
 
-async function overallSummary(chunks: DocumentChunk[], meta: { department?: string; documentType?: string }) {
+async function overallSummary(chunks: DocumentChunk[], meta: EnrichmentContext, deadline?: number) {
   const outline = chunks.map(c => `[Chunk ${c.order} | pages ${c.pageStart}-${c.pageEnd}] ${c.text.slice(0, 700)}`).join('\n\n').slice(0, 30000);
   const result = await generateJson<{ overallMd: string }>({
-    instructions: `You summarise long organisational documents for managers${meta.department ? ` in ${meta.department}` : ''}. Return JSON {"overallMd": "## Executive Summary\\n..."} with 1-2 short paragraphs on main decisions, deadlines, risks and impacted departments. Use only the supplied text.`,
+    instructions: `You summarise long organisational documents for managers${meta.department ? ` in ${meta.department}` : ''}. Return JSON {"overallMd": "## Executive Summary\\n..."} with 1-2 short paragraphs on main decisions, deadlines, risks and impacted departments. Use only the supplied text. ${reviewerContext(meta)}`,
     input: `Opening text of each section:\n\n${outline}`,
-    timeoutMs: 150000,
+    ...generationBudget(deadline),
   });
   return typeof result.overallMd === 'string' ? result.overallMd : '';
 }
@@ -38,13 +44,14 @@ async function overallSummary(chunks: DocumentChunk[], meta: { department?: stri
 /** Returns null when generation fails so callers use heuristics. */
 export async function enrichChunks(
   chunks: DocumentChunk[],
-  meta: { department?: string; documentType?: string },
-  log = 'ingest'
+  meta: EnrichmentContext,
+  log = 'ingest',
+  deadline?: number,
 ): Promise<ManagerAnalysisJSON | null> {
   if (!chunks.some(c => c.text.trim())) return null;
   try {
     if (chunks.length <= BATCH_SIZE) {
-      const result = await enrichBatch(chunks, meta, chunks.length);
+      const result = await enrichBatch(chunks, meta, chunks.length, deadline);
       return result && Array.isArray(result.nodes) ? result : null;
     }
     const batches: DocumentChunk[][] = [];
@@ -55,14 +62,14 @@ export async function enrichChunks(
       while (next < batches.length) {
         const index = next++;
         try {
-          results[index] = await enrichBatch(batches[index], meta, chunks.length);
+          results[index] = await enrichBatch(batches[index], meta, chunks.length, deadline);
         } catch (err) {
           console.warn(`[${log}] AI enrichment batch ${index + 1}/${batches.length} failed`, err);
         }
       }
     };
     const [overall] = await Promise.all([
-      overallSummary(chunks, meta).catch(err => { console.warn(`[${log}] overall summary failed`, err); return ''; }),
+      overallSummary(chunks, meta, deadline).catch(err => { console.warn(`[${log}] overall summary failed`, err); return ''; }),
       ...Array.from({ length: BATCH_CONCURRENCY }, worker),
     ]);
     const nodes = results.flatMap(r => (r && Array.isArray(r.nodes) ? r.nodes : []));

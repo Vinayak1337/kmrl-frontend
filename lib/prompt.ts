@@ -56,11 +56,23 @@ export type ManagerAnalysisJSON = {
 	tags?: string[];
 };
 
+export type EnrichmentContext = {
+  department?: string;
+  documentType?: string;
+  correction?: { tags: string[]; note?: string };
+};
+
+export function reviewerContext(meta?: EnrichmentContext) {
+  if (!meta?.correction) return '';
+  return `Reviewer correction (use as context for the analysis, and verify factual claims against the source): ${JSON.stringify({
+    department: meta.department,
+    documentType: meta.documentType,
+    ...meta.correction,
+  })}`;
+}
+
 // Centralized manager-focused prompt asking for Markdown fields inside JSON
-export function buildManagerMdPrompt(meta?: {
-	department?: string;
-	documentType?: string;
-}): string {
+export function buildManagerMdPrompt(meta?: EnrichmentContext): string {
 	const dept = meta?.department
 		? `Uploader’s department: ${meta.department}`
 		: 'Department: (unspecified)';
@@ -69,6 +81,7 @@ export function buildManagerMdPrompt(meta?: {
 		: 'Document Type: (unspecified)';
 	return [
 		'You are a senior document analyst for DocSetu.',
+		reviewerContext(meta),
 		'',
 		'Goal: Equip DocSetu stakeholders with rapid, trustworthy, manager‑focused snapshots while preserving traceability to specific pages.',
 		'',
@@ -110,7 +123,7 @@ export function buildManagerMdPrompt(meta?: {
 		'- Do NOT summarise the entire document in every node—each node must describe only its own chunk.',
 		'- Keep every date exactly as written in the source and include it in the matching action (e.g. "Due: 14 November 2026").',
 		'- If the source is not in English, still write the summaries in English but keep names, numbers and dates unchanged.',
-		'- Always include at least 3 bullet points in keyPointsMd and at least 1 action in actionsMd when applicable.',
+		'- Only extract actions that the source assigns or requires. Keep both action fields empty when the section contains descriptions, evaluation, recommendations, or proposed future work without an assigned obligation.',
 		'- Infer documentType from the source, using only the allowed set. Omit it if unclear. Do not copy upload metadata as evidence.',
 		'- Use departments from the provided list only; put the primary owner first; omit if unclear.'
 	].join('\n');
