@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import { extractPdfPagesWithImagesFromBase64 } from '../../pdf';
 import { chunkDocument } from '../chunker';
 import { docxHtmlToText } from '../docx';
 import type { NormalizedDocument } from '../normalization';
@@ -37,4 +39,15 @@ test('Word headings and table rows survive HTML conversion', () => {
   const text = docxHtmlToText('<h1>Safety &amp; Access</h1><p>Rules</p><table><tr><th>Name</th><th>Value</th></tr><tr><td><p>A</p></td><td><p>12</p></td></tr></table>');
   assert.match(text, /^# Safety & Access/);
   assert.match(text, /\| Name \| Value \|\n\| --- \| --- \|\n\| A \| 12 \|/);
+});
+
+test('the PDF.js Node renderer preserves page images within its quota', async () => {
+  const fixture = new URL('../../../test-samples/real-data/kmrl-kerala-govt/kmrl_tender_contract_award_notice_KBC3.pdf', import.meta.url);
+  const bytes = await readFile(fixture);
+  const result = await extractPdfPagesWithImagesFromBase64(bytes.toString('base64'), { maxTextPageImages: 1, maxScanPageImages: 0 });
+  assert.equal(result.pages.length, 4);
+  assert.ok(result.pages[0].text.length > 0);
+  const images = result.pages.flatMap(page => page.images);
+  assert.equal(images.length, 1);
+  assert.match(images[0].base64, /^iVBOR/);
 });

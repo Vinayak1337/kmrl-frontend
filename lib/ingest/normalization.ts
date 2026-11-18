@@ -87,7 +87,7 @@ export async function normalizeExtractedContent(
 			try {
 				// Try rich extraction with images if canvas is available
 				const { pages: pdfPages, pageCount: count } =
-					await extractPdfPagesWithImagesFromBase64(rawContent, { scale: 1.5, imagesPerPage: 1 });
+					await extractPdfPagesWithImagesFromBase64(rawContent, { scale: 1.5, maxTextPageImages: 12, maxScanPageImages: MAX_OCR_PAGES });
 				pageCount = count;
 				pages = pdfPages.map(p => ({
 					pageNumber: p.index,
@@ -112,11 +112,14 @@ export async function normalizeExtractedContent(
 			}
 
 			let ocrPages = 0;
+			const ocrDeadline = Date.now() + 110_000;
 			for (const page of pages) {
 				if (page.text.replace(/\s+/g, '').length >= 20 || !page.images?.[0] || ocrPages >= MAX_OCR_PAGES) continue;
+				const remainingMs = ocrDeadline - Date.now();
+				if (remainingMs <= 1_000) break;
 				ocrPages++;
 				try {
-					page.text = await transcribeImage(page.images[0].base64, page.images[0].mimeType);
+					page.text = await transcribeImage(page.images[0].base64, page.images[0].mimeType, remainingMs);
 				} catch (err) {
 					console.warn(`[normalize] OCR failed for ${filename} page ${page.pageNumber}:`, err);
 				}

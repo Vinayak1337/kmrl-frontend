@@ -66,67 +66,17 @@ export type PdfPageWithImages = {
 	images: PageImage[];
 };
 
-async function getNodeCanvas(): Promise<null | {
-	createCanvas: (w: number, h: number) => any;
-	ImageData: any;
-}> {
-	try {
-		// Lazy, non-static import to avoid bundler resolution when not installed
-		//
-		const dynImport = new Function('m', 'return import(m)');
-		const mod = await (dynImport as (m: string) => Promise<any>)('canvas');
-		return {
-			createCanvas: (mod as any).createCanvas,
-			ImageData: (mod as any).ImageData
-		};
-	} catch {
-		// Explicit signal for callers that rasterization won't be available
-		console.info(
-			'[pdf] canvas module not available; PDF image rasterization disabled'
-		);
-		return null;
-	}
-}
-
-// Minimal CanvasFactory for pdf.js node rendering
-class NodeCanvasFactory {
-	private createCanvas: (w: number, h: number) => any;
-	constructor(createCanvas: (w: number, h: number) => any) {
-		this.createCanvas = createCanvas;
-	}
-	create(width: number, height: number) {
-		const canvas = this.createCanvas(width, height);
-		const context = canvas.getContext('2d');
-		return { canvas, context };
-	}
-	reset(
-		canvasAndContext: { canvas: any; context: any },
-		width: number,
-		height: number
-	) {
-		canvasAndContext.canvas.width = width;
-		canvasAndContext.canvas.height = height;
-	}
-	destroy(canvasAndContext: { canvas: any; context: any }) {
-		canvasAndContext.canvas.width = 0;
-		canvasAndContext.canvas.height = 0;
-	}
-}
-
 export async function extractPdfPagesWithImagesFromBase64(
 	base64: string,
-	opts?: { scale?: number; imagesPerPage?: number }
+	opts?: { scale?: number; imagesPerPage?: number; maxTextPageImages?: number; maxScanPageImages?: number }
 ): Promise<{ pages: PdfPageWithImages[]; pageCount: number }> {
 	const pdfjsLib = await getPdfJs();
 	const bytes = Buffer.from(base64, 'base64');
 	const uint8Array = new Uint8Array(bytes);
 
-	const nodeCanvas = await getNodeCanvas();
-	if (!nodeCanvas) {
-		console.info(
-			'[pdf] Skipping page image extraction because node-canvas is unavailable'
-		);
-	}
+	// Explicit import keeps the native binary traceable in the Vercel functions.
+	const canvasAvailable = await import('@napi-rs/canvas').then(() => true).catch(() => false);
+	if (!canvasAvailable) console.info('[pdf] Node PDF image renderer is unavailable');
 
 	const loadingTask = pdfjsLib.getDocument({ data: uint8Array, verbosity: 0, isEvalSupported: false });
 	const pdf = await loadingTask.promise;
@@ -134,7 +84,8 @@ export async function extractPdfPagesWithImagesFromBase64(
 
 	const pages: PdfPageWithImages[] = [];
 	const scale = Math.max(1.5, Math.min(3.0, opts?.scale || 2));
-	const perPage = Math.max(1, Math.min(2, opts?.imagesPerPage || 1));
+	let textImages = 0;
+	let scanImages = 0;
 
 	try {
 		for (let i = 1; i <= pageCount; i++) {
@@ -149,23 +100,32 @@ export async function extractPdfPagesWithImagesFromBase64(
 				.trim();
 
 			const images: PageImage[] = [];
-			if (nodeCanvas) {
+			const scanned = text.replace(/\s+/g, '').length < 20;
+			const belowQuota = scanned
+				? scanImages < (opts?.maxScanPageImages ?? Infinity)
+				: textImages < (opts?.maxTextPageImages ?? Infinity);
+			if (canvasAvailable && belowQuota) {
+				if (scanned) scanImages++;
+				else textImages++;
 				try {
 					const fullViewport = page.getViewport({ scale });
 					const maxSide = Math.max(fullViewport.width, fullViewport.height);
 					const vp = maxSide > 2400 ? page.getViewport({ scale: scale * 2400 / maxSide }) : fullViewport;
-					const factory = new NodeCanvasFactory(nodeCanvas.createCanvas);
-					const { canvas, context } = factory.create(vp.width, vp.height);
-					await page.render({ canvasContext: context, viewport: vp }).promise;
-					const buf: Buffer = canvas.toBuffer('image/png');
-					if (buf.length <= 2 * 1024 * 1024) images.push({ base64: buf.toString('base64'), mimeType: 'image/png' });
-					factory.destroy({ canvas, context });
+					const factory = pdf.canvasFactory;
+					const surface = factory.create(Math.ceil(vp.width), Math.ceil(vp.height));
+					try {
+						await page.render({ canvasContext: surface.context, viewport: vp }).promise;
+						const buf: Buffer = surface.canvas.toBuffer('image/png');
+						if (buf.length <= 2 * 1024 * 1024) images.push({ base64: buf.toString('base64'), mimeType: 'image/png' });
+					} finally {
+						factory.destroy(surface);
+					}
 				} catch {
 					// ignore render errors per page; continue
 				}
 			}
 
-			pages.push({ index: i, text, images: images.slice(0, perPage) });
+			pages.push({ index: i, text, images });
 		}
 	} finally {
 		try {

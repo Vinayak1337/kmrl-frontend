@@ -30,6 +30,7 @@
     "@langchain/core": "^0.3.77",
     "@langchain/mongodb": "^0.1.0",
     "@langchain/openai": "^0.6.13",
+    "@napi-rs/canvas": "0.1.100",
     "@prisma/client": "^5.20.0",
     "@vercel/queue": "^0.11.0",
     "bcryptjs": "^2.4.3",

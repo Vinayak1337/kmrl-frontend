@@ -18,12 +18,13 @@ export function imageMimeType(base64: string): string {
 }
 
 /** Text from one page image through the configured vision model; empty when nothing is readable. */
-export async function transcribeImage(base64: string, mimeType = imageMimeType(base64)): Promise<string> {
+export async function transcribeImage(base64: string, mimeType = imageMimeType(base64), remainingMs?: number): Promise<string> {
   const result = await generateText({
     instructions: OCR_INSTRUCTIONS,
     input: 'Transcribe this page.',
     images: [{ base64: base64.replace(/^data:[^,]+,/, ''), mimeType }],
-    timeoutMs: 90000,
+    timeoutMs: Math.min(90_000, remainingMs ?? 90_000),
+    ...(remainingMs !== undefined ? { maxRetries: 0 } : {}),
   });
   const text = result.text.trim();
   return text === 'NO_TEXT' ? '' : text;

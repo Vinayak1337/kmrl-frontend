@@ -169,7 +169,7 @@ The Expo/React Native application lives in `mobile/` and has an independent lock
 
 The native sign-in endpoint is `POST /api/mobile/auth`. It shares credential verification with web login and issues seven-day bearer sessions. API middleware bridges only verified bearer tokens into existing cookie-based route authorization; web cookies remain unchanged. Set `AUTH_SECRET` (or `NEXT_AUTH_SECRET`) in production; the development signing fallback is no longer used in production. `EXPO_PUBLIC_API_URL` in the mobile build is a public workspace origin, never a credential. Deploy the backend branch before connecting the native application. Browser previews require a same-origin proxy or explicit CORS for live cross-origin APIs.
 
-Ingestion enforces department/type `ingest` grants. Feedback enforces document access; reprocessing requires ADMIN. Native tokens use the existing stateless JWT expiry semantics, with no immediate account revocation/refresh rotation added. The app's image capture preserves images but does not claim OCR; existing image normalization does not extract text.
+Ingestion enforces department/type `ingest` grants. Feedback enforces document access; reprocessing requires ADMIN. Native tokens use the existing stateless JWT expiry semantics, with no immediate account revocation/refresh rotation added. Mobile image uploads use the backend’s OCR.
 
 ## Alert system (Module 5)
 
@@ -184,7 +184,7 @@ Email delivery is not connected yet: notifications are stored with `delivery: 'e
 
 ## Ingestion formats
 
-PDFs use their text layer; pages without one are transcribed from the rendered page image by the same gateway model (vision), up to 12 pages, when `canvas` rendering is available. Images (PNG/JPEG) are transcribed in their original script (Malayalam, Hindi, Assamese and others). `.docx` text is read with mammoth; legacy `.doc` is rejected. A document with no readable text is rejected with HTTP 422 instead of being summarised. Enrichment labels each chunk (`[Chunk N | pages a-b]`) so the model's nodes map back to the right section. Web uploads are limited to 3.2 MB because base64 JSON must stay under Vercel's 4.5 MB request limit.
+PDFs use their text layer; pages without one are transcribed from the rendered page image by the same gateway model (vision), up to 12 pages, using PDF.js’s Node renderer. Images (PNG/JPEG) are transcribed in their original script (Malayalam, Hindi, Assamese and others). `.docx` text is read with mammoth; legacy `.doc` is rejected. A document with no readable text is rejected with HTTP 422 instead of being summarised. Enrichment labels each chunk (`[Chunk N | pages a-b]`) so the model's nodes map back to the right section. Web uploads are limited to 3.2 MB because base64 JSON must stay under Vercel's 4.5 MB request limit.
 
 The documents text index uses `language_override: 'textLanguage'`, so the display `language` field (for example "Hindi") is not read as a MongoDB stemming language. Existing databases need `npx tsx scripts/migrate-text-index.ts` once.
 
@@ -192,7 +192,7 @@ The documents text index uses `language_override: 'textLanguage'`, so the displa
 
 ### Document structure, background uploads and classification
 
-New ingestion groups text around detectable headings while keeping bounded chunks and source-page links. PDF extraction keeps the lines reported by PDF.js. Word extraction preserves headings, simple tables and up to four supported embedded raster images of up to 2 MiB each. Word uses one logical page because Mammoth does not provide pagination. Complex table layout, exact DOCX image positioning and hybrid OCR are outside this implementation. PDF page images require the optional canvas runtime. The web reader displays retained images in the Source and Sections views.
+New ingestion groups text around detectable headings while keeping bounded chunks and source-page links. PDF extraction keeps the lines reported by PDF.js. Word extraction preserves headings, simple tables and up to four supported embedded raster images of up to 2 MiB each. Word uses one logical page because Mammoth does not provide pagination. Complex table layout, exact DOCX image positioning and hybrid OCR are outside this implementation. PDF previews use PDF.js’s Node renderer. New ingestion retains images for up to 12 text pages and 12 scan pages, with a 110-second OCR budget per document. The web reader displays retained images in the Source and Sections views.
 
 The web file form can start a background upload within the same file size limit. `POST /api/documents/ingest/jobs` returns a job ID. `GET /api/documents/ingest/jobs/:id` reports status to the owner and `POST` to the same URL retries failed processing. The browser tab remembers the current job. Jobs and failed source payloads expire after 24 hours. Vercel uses the `document-ingest` queue configured in `vercel.json` and the existing `AUTH_SECRET` to authenticate job messages. Local Next.js runs use `after()` and can recover interrupted processing when the owner reopens job status. Background persistence and classification corrections require a transaction-capable MongoDB replica set. Existing synchronous web and native upload calls still receive `201` with a document ID.
 
