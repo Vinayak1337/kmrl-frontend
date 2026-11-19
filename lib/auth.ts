@@ -1,4 +1,4 @@
-import { isRetiredDemoAccount } from './retiredDemoAccounts';
+import { acceptsWorkspaceSession, needsAdminRecoverySession } from './retiredDemoAccounts';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import { getAuthSecret } from './authSecret';
 
@@ -19,15 +19,15 @@ export function signSession(payload: JwtUser, options?: { expiresIn?: number }) 
   const secret: Secret = getAuthSecret();
   const expiresIn = options?.expiresIn ?? 60 * 60 * 24 * 7;
   const signOptions: SignOptions = { expiresIn };
-  const token = jwt.sign(payload as object, secret, signOptions);
+  const token = jwt.sign({ ...payload, ...(needsAdminRecoverySession(payload.email) ? { adminRecovery: true } : {}) }, secret, signOptions);
   return token;
 }
 
 export function verifySession(token: string): JwtUser | null {
   try {
     const secret = getAuthSecret();
-    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtUser & { iat?: number; exp?: number };
-    if (typeof decoded.email !== 'string' || isRetiredDemoAccount(decoded.email)) return null;
+    const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtUser & { adminRecovery?: boolean; iat?: number; exp?: number };
+    if (!acceptsWorkspaceSession(decoded)) return null;
     return {
       sub: decoded.sub,
       email: decoded.email,

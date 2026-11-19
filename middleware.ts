@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { isRetiredDemoAccount } from './lib/retiredDemoAccounts';
+import { acceptsWorkspaceSession } from './lib/retiredDemoAccounts';
 import { getAuthSecret } from './lib/authSecret';
 
 const AUTH_COOKIE = 'docsetu_session';
@@ -41,7 +41,7 @@ async function verifyJwtEdge(token: string): Promise<Record<string, unknown> | n
 		const paddedPayload = payloadPad ? payloadB64 + '='.repeat(4 - payloadPad) : payloadB64;
 		const payloadJson = atob(paddedPayload.replace(/-/g, '+').replace(/_/g, '/'));
 		const payload = JSON.parse(payloadJson) as Record<string, unknown>;
-		if (typeof payload.email !== 'string' || isRetiredDemoAccount(payload.email) || typeof payload.sub !== 'string' || !['ADMIN', 'MANAGER'].includes(String(payload.role)) ||
+		if (!acceptsWorkspaceSession(payload) || typeof payload.sub !== 'string' || !['ADMIN', 'MANAGER'].includes(String(payload.role)) ||
 			typeof payload.exp !== 'number') return null;
 
 		if (typeof payload.exp === 'number' && Date.now() >= payload.exp * 1000) {
