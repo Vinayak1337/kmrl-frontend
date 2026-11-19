@@ -151,15 +151,14 @@ test('mobile pages keep content within the viewport',async({page})=>{
   await expect(page.getByRole('navigation',{name:'Workspace navigation'})).not.toBeVisible();
 });
 
-test('demo credentials and password visibility remain available',async({page,context})=>{
+test('sign-in has no public credential shortcuts',async({page,context})=>{
   await context.clearCookies();
   await page.goto('/login');
-  await page.getByRole('button',{name:'Demo administrator'}).click();
-  await expect(page.getByLabel('Work email',{exact:true})).toHaveValue('admin@example.com');
+  await expect(page.getByRole('button',{name:'Demo administrator'})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Demo manager'})).toHaveCount(0);
+  await page.getByLabel('Password',{exact:true}).fill('example-password');
   await page.getByRole('button',{name:'Show password'}).click();
   await expect(page.getByLabel('Password',{exact:true})).toHaveAttribute('type','text');
-  await page.getByRole('button',{name:'Demo manager'}).click();
-  await expect(page.getByLabel('Work email',{exact:true})).toHaveValue('manager@example.com');
 });
 
 test('file ingestion reads text and supports draft discard', async ({ page }) => {

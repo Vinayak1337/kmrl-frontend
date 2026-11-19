@@ -1,3 +1,4 @@
+import { isRetiredDemoAccount } from './retiredDemoAccounts';
 import bcrypt from 'bcryptjs';
 import { prisma } from './prisma';
 import type { JwtUser } from './auth';
@@ -6,7 +7,9 @@ import type { JwtUser } from './auth';
 export async function authenticate(email: unknown, password: unknown): Promise<JwtUser | null> {
   if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() ||
     email.length > 254 || !password || password.length > 1024) return null;
-  const user = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
+  const normalizedEmail = email.trim().toLowerCase();
+  if (isRetiredDemoAccount(normalizedEmail)) return null;
+  const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) return null;
   const raw = user as unknown as { grants?: JwtUser['grants'] };
   return {

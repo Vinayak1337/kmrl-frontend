@@ -1,3 +1,4 @@
+import { isRetiredDemoAccount } from './retiredDemoAccounts';
 import jwt, { type Secret, type SignOptions } from 'jsonwebtoken';
 import { getAuthSecret } from './authSecret';
 
@@ -26,6 +27,7 @@ export function verifySession(token: string): JwtUser | null {
   try {
     const secret = getAuthSecret();
     const decoded = jwt.verify(token, secret, { algorithms: ['HS256'] }) as JwtUser & { iat?: number; exp?: number };
+    if (typeof decoded.email !== 'string' || isRetiredDemoAccount(decoded.email)) return null;
     return {
       sub: decoded.sub,
       email: decoded.email,
